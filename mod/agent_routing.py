@@ -69,6 +69,7 @@ class AgentRouting:
         # The master switch enables only this dry model. Every output lane stays absent.
         self.values=defaults()
         self.values['flight-controls-enabled']=True
+        self.values['throttle-style']='hotas'  # the agent device's throttle is a lever
         self.values['key-output-enabled']=False
         self.values['cursor-stick-enabled']=False
         for name,token in self.axes.items():

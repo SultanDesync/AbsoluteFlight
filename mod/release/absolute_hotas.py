@@ -882,7 +882,8 @@ class AbsoluteHOTAS(Mod):
         planetary=latest.get('planetary') if latest.get('admitted') and not latest.get('reason') else None
         vertical=command.vertical if command is not None and command.enabled else 0.
         if detector.step(now,manual_landing.Touchdown.from_values(v),planetary,vertical,latest.get('speed'),
-                         bool(flying and v.get('landing-manual'))):
+                         bool(flying and v.get('landing-manual') and v['flight-model']=='sultan'
+                              and v['atmosphere-model']=='sultan')):
             air=planetary or {}
             self.log(f"touchdown: pressing Land at {air.get('clearance',float('nan')):.1f} u above ground, "
                      f"{latest.get('speed',0.):.1f} u/s, tilt {air.get('tilt',float('nan')):.0f} deg"
