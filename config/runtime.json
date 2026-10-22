@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "agent_test": {
+    "enabled": false,
+    "config": "config/agent-tests/release.local.json"
+  },
+  "bus": {
+    "dll": "bin/absolute_input_bus.dll",
+    "dll_sha256": "e6ceee295e34f38153d273e5202c0ede86d4a80217a23a031c104a670b0a8965",
+    "abi_source": "input_bus/scripts/bus0_probe.py",
+    "abi_sha256": "14ca3db1f5507f5e043b308232f49f793c5baedfbdc9e3e0d40fd99db836f1b3"
+  },
+  "note": "Release runtime config (tools/build_release.py). Paths are relative to this folder."
+}

@@ -1,0 +1,22 @@
+[package]
+name = "absolute-input-bus-nms"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Absolute Input Bus v1 provider for No Man's Sky (AbsoluteHOTAS-NMS). Read-only DirectInput mirror."
+publish = false
+
+[lib]
+name = "absolute_input_bus"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "input-bus"
+path = "src/bin/input-bus.rs"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+] }

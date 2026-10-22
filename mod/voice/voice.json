@@ -1,0 +1,79 @@
+{
+ "voice": "en_GB-cori-high",
+ "rate": 22050,
+ "carrier_hz": 105.0,
+ "robot_mix": 0.8,
+ "buzz": 0.35,
+ "synthesis": {
+  "length_scale": 1.08,
+  "noise_scale": 0.35,
+  "noise_w_scale": 0.3
+ },
+ "lines": {
+  "warning": {
+   "text": "Warning! Submersion detected. Thrusters flooded. Follow manual purge procedure.",
+   "seconds": 4.962,
+   "one_at": null
+  },
+  "count_mains": {
+   "text": "Purge main thrusters in",
+   "seconds": 4.774,
+   "one_at": 4.3
+  },
+  "count_retro": {
+   "text": "Mains cleared. Purge retros in",
+   "seconds": 4.753,
+   "one_at": 4.3
+  },
+  "count_up": {
+   "text": "Retros cleared. Purge up thrusters in",
+   "seconds": 4.756,
+   "one_at": 4.3
+  },
+  "count_down": {
+   "text": "Up cleared. Purge down thrusters in",
+   "seconds": 4.738,
+   "one_at": 4.3
+  },
+  "count_starboard": {
+   "text": "Down cleared. Purge starboard in",
+   "seconds": 4.753,
+   "one_at": 4.3
+  },
+  "count_port": {
+   "text": "Starboard cleared. Purge port in",
+   "seconds": 4.738,
+   "one_at": 4.3
+  },
+  "count_boost": {
+   "text": "Port cleared. Boost in",
+   "seconds": 4.706,
+   "one_at": 4.3
+  },
+  "miss": {
+   "text": "Purge interrupted.",
+   "seconds": 1.076,
+   "one_at": null
+  },
+  "hull_half": {
+   "text": "Hull integrity fifty percent.",
+   "seconds": 1.662,
+   "one_at": null
+  },
+  "hull_quarter": {
+   "text": "Hull integrity critical.",
+   "seconds": 1.264,
+   "one_at": null
+  },
+  "relit": {
+   "text": "Purge complete. Thrusters relit.",
+   "seconds": 1.947,
+   "one_at": null
+  },
+  "wrecked": {
+   "text": "Hull failure. Abandon ship.",
+   "seconds": 2.023,
+   "one_at": null
+  }
+ }
+}
