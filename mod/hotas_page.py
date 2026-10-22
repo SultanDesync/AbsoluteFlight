@@ -52,6 +52,7 @@ class NativeMenu:
         self.depth_routes={}  # native options-stack depth -> our route
         self.pending=None  # route waiting for its RequestOptionsPage push
         self.last_changed=(None,0.);self._labels=set();self._section='';self._repeats=set()
+        self.trace=None  # runtime log hook: every row activation and its result (alpha binding report, 2026-10-22)
         self.meters={}  # spacer label -> meter spec, for the drawing pass
 
     # ----- capture plumbing (runtime thread calls back) -----
@@ -200,6 +201,7 @@ class NativeMenu:
 
     def _activate(self,row_id):
         result=self.controller.activate(row_id)
+        if self.trace:self.trace(f'activate {row_id}: {result}')
         if result=='opened':self.pending=self.controller.route
 
 

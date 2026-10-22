@@ -233,7 +233,7 @@ class AbsoluteHOTAS(Mod):
     def trace(self,message):
         """Menu trace for live diagnosis; bounded so a stuck screen can't flood the log."""
         self.trace_lines=getattr(self,'trace_lines',0)+1
-        if self.trace_lines<=400:self.log('menu: '+message)
+        if self.trace_lines<=2000:self.log('menu: '+message)
 
     def _set_state(self,state,**extra):
         if self.status.get('state')!=state:self.log('state: '+state)
@@ -1944,6 +1944,7 @@ class AbsoluteHOTAS(Mod):
 
         strings=Strings(CStr);options=NativeOptions(strings,CBlock)
         self.menu=NativeMenu(self.store,strings,options,self.start_capture,self.cancel_capture,on_action=self._menu_action)
+        self.menu.trace=self.trace
         self.painter=MeterPainter(self.ui_api)
         self.hud_painter=flight_hud.HudPainter(self.ui_api)
         self.nt=C.WinDLL('ntdll')
@@ -2389,6 +2390,7 @@ class AbsoluteHOTAS(Mod):
             result=self.capture.poll()
             if result is None:return
             done,self.capture,self.capture_done=self.capture_done,None,None
+        self.trace(f'capture result: {result}')
         if done:done(result)
 
     def start_capture(self,done):
@@ -2400,6 +2402,7 @@ class AbsoluteHOTAS(Mod):
             elif kind=='modifier':self.capture=ClearableCapture(ButtonCapture(self.table),key_down)
             else:self.capture=ClearableCapture(AxisCapture(self.table),key_down)
             self.capture_done=done
+        self.trace(f'capture start: {kind}')
 
     def _menu_action(self,action):
         if action=='head-recentre' and getattr(self,'head',None) is not None:self.head.recentre()
@@ -2416,6 +2419,7 @@ class AbsoluteHOTAS(Mod):
 
     def cancel_capture(self):
         with self.lock:self.capture=None;self.capture_done=None
+        self.trace('capture cancelled')
 
     def shutdown(self,reason='shutdown'):
         import additive_rotation

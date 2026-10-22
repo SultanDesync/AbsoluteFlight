@@ -1,0 +1,198 @@
+{
+  "build": {
+    "exe": "D:\\SteamLibrary\\steamapps\\common\\No Man's Sky\\Binaries\\NMS.exe",
+    "file_version": "180836",
+    "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
+    "steam_buildid": "25732212",
+    "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin"
+  },
+  "sites": {
+    "latch": {
+      "rva": 24472957,
+      "size": 7,
+      "original": "0f298500010000",
+      "signature": "0f298500010000488b88f00200004885c975260f29ad9006",
+      "instructions": [
+        "0x1756d7d: movaps xmmword ptr [rbp + 0x100], xmm0"
+      ],
+      "context": [
+        "0x1756d7d: movaps xmmword ptr [rbp + 0x100], xmm0",
+        "0x1756d84: mov rcx, qword ptr [rax + 0x2f0]",
+        "0x1756d8b: test rcx, rcx",
+        "0x1756d8e: jne 0x1756db6",
+        "0x1756d90: movaps xmmword ptr [rbp + 0x690], xmm5",
+        "0x1756d97: movaps xmmword ptr [rbp + 0x6a0], xmm6",
+        "0x1756d9e: movaps xmmword ptr [rbp + 0x6b0], xmm7"
+      ]
+    },
+    "gravity": {
+      "rva": 24495570,
+      "size": 7,
+      "original": "0f58cf0f294d60",
+      "signature": "0f58cf0f294d60f30f100d1b0ba005f30f5c8eb86000000f",
+      "instructions": [
+        "0x175c5d2: addps xmm1, xmm7",
+        "0x175c5d5: movaps xmmword ptr [rbp + 0x60], xmm1"
+      ],
+      "context": [
+        "0x175c5d2: addps xmm1, xmm7",
+        "0x175c5d5: movaps xmmword ptr [rbp + 0x60], xmm1",
+        "0x175c5d9: movss xmm1, dword ptr [rip + 0x5a00b1b]",
+        "0x175c5e1: subss xmm1, dword ptr [rsi + 0x60b8]",
+        "0x175c5e9: comiss xmm0, xmm1",
+        "0x175c5ec: jbe 0x175c5f6",
+        "0x175c5ee: movss xmm6, dword ptr [rip + 0x3ac9ae2]"
+      ]
+    },
+    "height": {
+      "rva": 24496152,
+      "size": 7,
+      "original": "0f588580050000",
+      "signature": "0f5885800500004c0f45f00f2945604c39b6a0700000743c",
+      "instructions": [
+        "0x175c818: addps xmm0, xmmword ptr [rbp + 0x580]"
+      ],
+      "context": [
+        "0x175c818: addps xmm0, xmmword ptr [rbp + 0x580]",
+        "0x175c81f: cmovne r14, rax",
+        "0x175c823: movaps xmmword ptr [rbp + 0x60], xmm0",
+        "0x175c827: cmp qword ptr [rsi + 0x70a0], r14",
+        "0x175c82e: je 0x175c86c",
+        "0x175c830: lea rcx, [rsi + 0x70a0]",
+        "0x175c837: call 0x1789690"
+      ]
+    },
+    "final": {
+      "rva": 24511533,
+      "size": 9,
+      "original": "f3410f108560020000",
+      "signature": "f3410f108560020000488d95d0140000f30f109640660000",
+      "instructions": [
+        "0x176042d: movss xmm0, dword ptr [r13 + 0x260]"
+      ],
+      "context": [
+        "0x176042d: movss xmm0, dword ptr [r13 + 0x260]",
+        "0x1760436: lea rdx, [rbp + 0x14d0]",
+        "0x176043d: movss xmm2, dword ptr [rsi + 0x6640]",
+        "0x1760445: xor r9d, r9d",
+        "0x1760448: movaps xmm7, xmmword ptr [rbp + 0x60]",
+        "0x176044c: addss xmm2, xmm2",
+        "0x1760450: shufps xmm0, xmm0, 0"
+      ]
+    },
+    "after_integrator": {
+      "rva": 24511591,
+      "size": 7,
+      "original": "488b0d9ad27205",
+      "signature": "488b0d9ad27205ba070000004881c108499300e80161b6fe",
+      "instructions": [
+        "0x1760467: mov rcx, qword ptr [rip + 0x572d29a]"
+      ],
+      "context": [
+        "0x1760467: mov rcx, qword ptr [rip + 0x572d29a]",
+        "0x176046e: mov edx, 7",
+        "0x1760473: add rcx, 0x934908",
+        "0x176047a: call 0x2c6580",
+        "0x176047f: test al, al",
+        "0x1760481: je 0x1757e46",
+        "0x1760487: mov rcx, qword ptr [r13 + 0x290]"
+      ]
+    }
+  },
+  "prologue": [
+    "0x1756b50: movss dword ptr [rsp + 0x10], xmm1",
+    "0x1756b56: push rbp",
+    "0x1756b57: push rbx",
+    "0x1756b58: push rsi",
+    "0x1756b59: push rdi",
+    "0x1756b5a: push r12",
+    "0x1756b5c: push r13",
+    "0x1756b5e: push r14",
+    "0x1756b60: push r15",
+    "0x1756b62: lea rbp, [rsp - 0x4118]",
+    "0x1756b6a: mov eax, 0x4218",
+    "0x1756b6f: call 0x33e2ed0",
+    "0x1756b74: sub rsp, rax",
+    "0x1756b77: mov r13, qword ptr [rcx + 0x6248]",
+    "0x1756b7e: mov rsi, rcx",
+    "0x1756b81: mov rax, qword ptr [rip + 0x5736b80]",
+    "0x1756b88: add r13, 0x60",
+    "0x1756b8c: movaps xmmword ptr [rsp + 0x4200], xmm6",
+    "0x1756b94: movaps xmmword ptr [rsp + 0x41f0], xmm7",
+    "0x1756b9c: movaps xmmword ptr [rsp + 0x41e0], xmm8",
+    "0x1756ba5: mov rcx, qword ptr [r13 + 0x290]",
+    "0x1756bac: mov rbx, qword ptr [rax + 0x72afb0]",
+    "0x1756bb3: movaps xmmword ptr [rsp + 0x41d0], xmm9",
+    "0x1756bbc: movaps xmmword ptr [rsp + 0x41c0], xmm10",
+    "0x1756bc5: movaps xmmword ptr [rsp + 0x41b0], xmm11",
+    "0x1756bce: movaps xmmword ptr [rsp + 0x41a0], xmm12",
+    "0x1756bd7: test rcx, rcx",
+    "0x1756bda: jne 0x1756c27",
+    "0x1756bdc: movaps xmm0, xmmword ptr [rip + 0x572d47d]",
+    "0x1756be3: movaps xmm1, xmmword ptr [rip + 0x572d486]",
+    "0x1756bea: movdqa xmmword ptr [rbp + 0x1620], xmm0",
+    "0x1756bf2: movaps xmm0, xmmword ptr [rip + 0x572d487]",
+    "0x1756bf9: movdqa xmmword ptr [rbp + 0x1640], xmm0",
+    "0x1756c01: movaps xmm0, xmmword ptr [rip + 0x5ab5358]",
+    "0x1756c08: movdqa xmmword ptr [rbp + 0x1630], xmm1",
+    "0x1756c10: movaps xmm1, xmmword ptr [rip + 0x5ab5339]",
+    "0x1756c17: movaps xmmword ptr [rbp + 0x1660], xmm0",
+    "0x1756c1e: movaps xmmword ptr [rbp + 0x1650], xmm1",
+    "0x1756c25: jmp 0x1756c41",
+    "0x1756c27: lea rdx, [rbp + 0x1620]",
+    "0x1756c2e: call 0x296430",
+    "0x1756c33: movaps xmm0, xmmword ptr [rbp + 0x1660]"
+  ],
+  "track_context": [
+    "0x175baa0: lea rdx, [rbp + 0x3350]",
+    "0x175baa7: subss xmm1, dword ptr [rip + 0x3acac2d]",
+    "0x175baaf: mov rcx, qword ptr [rsi + 0x6248]",
+    "0x175bab6: movaps xmm6, xmmword ptr [rbp + 0xb30]",
+    "0x175babd: add rcx, 0x60",
+    "0x175bac1: mulss xmm1, xmm9",
+    "0x175bac6: addss xmm1, dword ptr [rip + 0x3acac0e]",
+    "0x175bace: mulss xmm6, xmm1",
+    "0x175bad2: call 0x2964b0",
+    "0x175bad7: movaps xmm9, xmmword ptr [rbp + 0x100]",
+    "0x175badf: movaps xmm1, xmm6",
+    "0x175bae2: shufps xmm1, xmm1, 0",
+    "0x175bae6: movups xmm0, xmmword ptr [rax + 0x20]",
+    "0x175baea: mulps xmm1, xmm0",
+    "0x175baed: movaps xmmword ptr [rbp + 0x2860], xmm0",
+    "0x175baf4: addps xmm9, xmm1",
+    "0x175baf8: movaps xmmword ptr [rbp + 0x100], xmm9",
+    "0x175bb00: jmp 0x175bfb4",
+    "0x175bb05: call 0x2d7a30",
+    "0x175bb0a: mov edx, 2"
+  ],
+  "relative_context": [
+    "0x175be80: ror dword ptr [rdi], 0x29",
+    "0x175be83: test eax, esi",
+    "0x175be85: or eax, dword ptr [rax]",
+    "0x175be87: add al, ch",
+    "0x175be89: xor esp, dword ptr [rbx]",
+    "0x175be8b: movsd dword ptr [rdi], dword ptr [rsi]",
+    "0x175be8c: dec byte ptr [rax - 0x75]",
+    "0x175be8f: mov cs, word ptr [rax + 0x62]",
+    "0x175be92: add byte ptr [rax], al",
+    "0x175be94: lea rdx, [rbp + 0x3530]",
+    "0x175be9b: movaps xmm7, xmmword ptr [rbp + 0xc00]",
+    "0x175bea2: add rcx, 0x60",
+    "0x175bea6: mulss xmm7, dword ptr [rip + 0x3ac9f46]",
+    "0x175beae: call 0x2964b0",
+    "0x175beb3: shufps xmm7, xmm7, 0",
+    "0x175beb7: lea rcx, [rsi + 0x6cd8]",
+    "0x175bebe: mov edx, 3",
+    "0x175bec3: movups xmm0, xmmword ptr [rax + 0x20]",
+    "0x175bec7: movaps xmmword ptr [rbp + 0x1fe0], xmm0",
+    "0x175bece: mulps xmm0, xmm7",
+    "0x175bed1: addps xmm9, xmm0",
+    "0x175bed5: movaps xmmword ptr [rbp + 0x100], xmm9",
+    "0x175bedd: call 0x2c40f0",
+    "0x175bee2: test al, al",
+    "0x175bee4: je 0x175bfae",
+    "0x175beea: movdqa xmm0, xmmword ptr [rip + 0x33d6bce]",
+    "0x175bef2: lea rdx, [rbp + 0x3580]",
+    "0x175bef9: mov rbx, qword ptr [rip + 0x4448c70]"
+  ]
+}
