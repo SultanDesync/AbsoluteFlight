@@ -339,8 +339,11 @@ SULTAN_BASELINES={
             accel_fade_exponent=2.5,brake_floor=.8,momentum=.7,overspeed_bleed_time=3.,jerk_limit=125.,settle_time=1.5,
             boost_heat_time=7.,boost_cool_time=9.,boost_cold_strength=.5,
             pitch_rate=.8,yaw_rate=.8,roll_rate=.7,turn_response=1.2,
-            # Air (T98, GUESS): balanced and heavier. Ready for when T65 lets Sultan fly it; native until then.
-            air_terminal_speed=380.,air_engine_loss=.3,air_lift=.8,air_side_drag=2.,air_damping=.35,air_boost=.5,
+            # Air (T98, GUESS): balanced and heavier. Flies Sultan since 2026-10-22, incomplete (T104).
+            # Flight 2026-10-22: its Planet block is only ThrustForce 20 and it could not leave the ground. MAV lift
+            # carries it at any tier, like the Explorer (user: the endgame ship isn't punished for its mass).
+            air_mav_lift=1.6,
+            air_terminal_speed=380.,air_engine_loss=.2,air_lift=.8,air_side_drag=2.,air_damping=.35,air_boost=.5,
             air_nose_authority=.8,air_induced_drag=.25,air_slip_authority=.7,air_weathervane=1.,air_sway_damping=.5,
             air_buffet=.15,air_overspeed_penalty=1.2,air_wing_support=.8,air_glide_ratio=3.,air_omni=.2),
     # Hauler: barge. Weak thrust, lift favoured over strafe, slow to turn and slower to roll.
