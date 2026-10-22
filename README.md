@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.8)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.9)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -57,6 +57,9 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 - **Take-off from your throttle is coming soon.** For now, take off with the game's own take-off control:
   bind a stick or throttle button to that key on the **Buttons** page (add a custom key) and hold it while
   landed. Check **Options > Controls** in game for which key that is.
+- **Manual landing is experimental.** With Sultan atmosphere flight, lowering the landing gear switches to
+  a hover mode and the mod presses the game's Land for you near the ground. Expect rough touchdowns. Turn it
+  off under **Atmosphere Flight > Manual landing** to land the game's way.
 - **Flight actions only work while you fly.** Sultan boost, parking brake, landing gear, trim and eject
   do nothing on foot, landed, or in menus. Keyboard and mouse bindings work everywhere.
 - **Bindings pause in the Absolute Flight menu** and while a binding is being recorded.
