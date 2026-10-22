@@ -1,10 +1,13 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.12)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.13)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
 ditching and crash damage.
 
 **Alpha:** for invited testers. Expect rough edges, and please send a support bundle with every report.
+
+**Discord:** https://discord.gg/KtrhfPBpr is where testing happens: bug reports, feedback, shared tunings,
+new builds and tester chat. See "Reporting a problem" below.
 
 ## What you need
 
@@ -48,8 +51,8 @@ Each ship class has named tunings. In **Absolute Flight Setup > Flight Tuning**,
   new `<Class>_Custom.json` and selects it.
 - Tuning files live in `%LOCALAPPDATA%\AbsoluteHOTAS\flight-tunings`, named `<Class>_<Name>.json`, for
   example `Exotic_MyCustom.json`. Rename a file to rename the tuning.
-- To share a tuning, send the file. To try someone else's, put their file in that folder and pick it on
-  the Tuning row.
+- To share a tuning, post the file in **#tunings** on the Discord. To try someone else's, put their file
+  in that folder and pick it on the Tuning row.
 
 Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar, Interceptor, Corvette.
 
@@ -68,13 +71,20 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 - **Bindings pause in the Absolute Flight menu** and while a binding is being recorded.
 - **Four ship classes are untested and the Corvette is incomplete** (see "What's been flown").
 
-## Reporting a problem
+## Reporting a problem and giving feedback
 
-1. In game: **Options > Controls > Absolute Flight Setup > Save support bundle**.
-2. Send the newest zip from `%LOCALAPPDATA%\AbsoluteHOTAS\support` (paste that into Explorer's
-   address bar) with a few lines on what you were doing.
+Join the Discord at https://discord.gg/KtrhfPBpr. Once you have the Tester role:
 
-Your settings and logs live in `%LOCALAPPDATA%\AbsoluteHOTAS`. Nothing is sent anywhere.
+- **Bugs** go in **#bug-reports**, one post per problem:
+  1. In game: **Options > Controls > Absolute Flight Setup > Save support bundle**.
+  2. Attach the newest zip from `%LOCALAPPDATA%\AbsoluteHOTAS\support` (paste that into Explorer's
+     address bar) with a few lines on what you were doing.
+- **Flight feel, ideas and menu thoughts** go in **#feedback**. Say which ship class and where (space,
+  atmosphere, landing).
+- **Questions and general chat** go in **#af-chat**. New builds are posted in **#builds**.
+
+Your settings and logs live in `%LOCALAPPDATA%\AbsoluteHOTAS`. The mod sends nothing anywhere; a
+support bundle only leaves your PC when you post it.
 
 ## Uninstall
 
