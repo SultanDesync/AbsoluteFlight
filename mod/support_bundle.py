@@ -1,4 +1,4 @@
-"""Support bundle (T100): one zip a player attaches to a bug report, saved from the HOTAS menu.
+"""Support bundle (T100): one zip a player attaches to a bug report, saved from the Absolute Flight menu.
 
 Holds settings, status, the flight tunings, the runtime config, the last two sessions' runtime and key logs, the newest
 telemetry CSV when it is small enough, and an info.json the caller fills (game build, versions). Goes to

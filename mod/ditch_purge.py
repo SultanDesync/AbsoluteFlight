@@ -16,7 +16,7 @@ import random
 
 # Lateral sign of the pilot's right. The flight model thrusts +lateral along basis row 0, and the ship triad is
 # right-handed (right x up = forward, mod/additive_rotation.py), so row 0 points to the pilot's left: -lateral moves
-# the ship to starboard (user flight 2026-10-20, DADS: STARBOARD and PORT prompts were reversed).
+# the ship to starboard (user flight 2026-10-20: STARBOARD and PORT prompts were reversed).
 STARBOARD = -1.
 PORT = -STARBOARD
 # (name, input, sign, seconds in the band, band low, band high, drift amplitude, drift period s). The input

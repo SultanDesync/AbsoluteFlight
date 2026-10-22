@@ -1,757 +1,756 @@
 {
-  "exe": "D:\\SteamLibrary\\steamapps\\common\\No Man's Sky\\Binaries\\NMS.exe",
-  "file_version": "180836",
-  "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
-  "steam_buildid": "25732212",
-  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
-  "targets": {
-    "BeginPage": {
-      "rva": "0x1b99a0",
-      "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
-      "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 0F 57 C0 33 C0",
-      "matches": [
-        "0x1b99a0"
-      ]
-    },
-    "Header": {
-      "rva": "0x1b68a0",
-      "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100de2339704488d",
-      "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
-      "matches": [
-        "0x1b68a0"
-      ]
-    },
-    "Boolean": {
-      "rva": "0x1b6c30",
-      "entry32": "4c894424185657415541574883ec7883790801410fb6f94c8bac24c80000004c",
-      "pattern": "4C 89 44 24 ? 56 57 41 55",
-      "matches": [
-        "0x1b6c30"
-      ]
-    },
-    "Int": {
-      "rva": "0x1b6e20",
-      "entry32": "44894c24204c8944241855564157488d6c24d94881ece0000000837908014c8b",
-      "pattern": "44 89 4C 24 ? 4C 89 44 24 ? 55 56 41 57",
-      "matches": [
-        "0x1b6e20"
-      ]
-    },
-    "Float": {
-      "rva": "0x1b70a0",
-      "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
-      "pattern": "F3 0F 11 5C 24 ? 55 53 41 54",
-      "matches": [
-        "0x1b70a0"
-      ]
-    },
-    "Button": {
-      "rva": "0x1b6a80",
-      "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
-      "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 57 48 81 EC ? ? ? ? 32 DB",
-      "matches": [
-        "0x1b6a80"
-      ]
-    },
-    "BeginList": {
-      "rva": "0x1b7cd0",
-      "entry32": "48895c240848896c2410488974241857415641574883ec2033db488d792c8959",
-      "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 33 DB 48 8D 79 ? 89 59",
-      "matches": [
-        "0x1b7cd0"
-      ]
-    },
-    "ListOption": {
-      "rva": "0x1b7df0",
-      "entry32": "40534883ec2048634120488d59204c8bca83f83f0f87870000004869c8840000",
-      "pattern": "40 53 48 83 EC ? 48 63 41 ? 48 8D 59",
-      "matches": [
-        "0x1b7df0"
-      ]
-    },
-    "EndPage": {
-      "rva": "0x1ba180",
-      "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
-      "pattern": "48 8B C4 55 57 48 8D 68 ? 48 81 EC ? ? ? ? 83 79",
-      "matches": [
-        "0x1ba180"
-      ]
-    },
-    "FinalizePage": {
-      "rva": "0x1b9e90",
-      "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
-      "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 55 41 56 41 57 48 83 EC ? 48 8B 81 ? ? ? ? 45 33 FF",
-      "matches": [
-        "0x1b9e90"
-      ]
-    },
-    "DoOptions": {
-      "rva": "0x6e08b0",
-      "entry32": "4055488dac24a0d8ffffb860280000e80c26d002482be0833d165c7d06000f84",
-      "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
-      "matches": [
-        "0x6e08b0"
-      ]
-    },
-    "DoGameSwitcher": {
-      "rva": "0x6e16a0",
-      "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
-      "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
-      "matches": [
-        "0x6e16a0"
-      ]
-    },
-    "UpdateRender": {
-      "rva": "0x8fa160",
-      "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
-      "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
-      "matches": [
-        "0x8fa160"
-      ]
-    },
-    "ApplicationUpdate": {
-      "rva": "0x2d7580",
-      "entry32": "40534883ec20e8e58392024889058efdf206e8d964efff803d8a7ff904000fb6",
-      "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
-      "matches": [
-        "0x2d7580"
-      ]
-    },
-    "RequestOptionsPage": {
-      "rva": "0x2e44f0",
-      "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0df991ba0648",
-      "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
-      "matches": [
-        "0x2e44f0"
-      ]
-    },
-    "RenderPage": {
-      "rva": "0x907b50",
-      "entry32": "48894c24085553488dac2438d7ffffb8c8290000e867b3ad02482be04889b424",
-      "pattern": "48 89 4C 24 ? 55 53 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 89 B4 24 ? ? ? ? 48 89 BC 24",
-      "matches": [
-        "0x907b50"
-      ]
-    },
-    "Activate": {
-      "rva": "0x8fe180",
-      "entry32": "405556574157488bec4883ec588b8108c40100450fb6f84863f2488bf983f804",
-      "pattern": "40 55 56 57 41 57 48 8B EC",
-      "matches": [
-        "0x8fe180"
-      ]
-    }
+ "file_version": "180836",
+ "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
+ "steam_buildid": "25732212",
+ "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
+ "targets": {
+  "BeginPage": {
+   "rva": "0x1b99a0",
+   "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
+   "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 0F 57 C0 33 C0",
+   "matches": [
+    "0x1b99a0"
+   ]
   },
-  "globals": {
-    "mOpenMenuIndex": "0x6eb64e4",
-    "mOpenMenus_slot": "0x6eb64e8",
-    "selection": "index == 0 means closed; otherwise menus[index-1]"
+  "Header": {
+   "rva": "0x1b68a0",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100de2339704488d",
+   "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
+   "matches": [
+    "0x1b68a0"
+   ]
   },
-  "source": {
-    "types_sha256": "5686b8689372d0a0418bc7809354b9d0648c2066e320d9306241a3ffd7b55434"
+  "Boolean": {
+   "rva": "0x1b6c30",
+   "entry32": "4c894424185657415541574883ec7883790801410fb6f94c8bac24c80000004c",
+   "pattern": "4C 89 44 24 ? 56 57 41 55",
+   "matches": [
+    "0x1b6c30"
+   ]
   },
-  "builders": {
-    "General": {
-      "rva": "0x6eea40",
-      "direct_ui_calls": [
-        {
-          "call_rva": "0x6eea82",
-          "return_rva": "0x6eea87",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6eeadc",
-          "return_rva": "0x6eeae1",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6eeb72",
-          "return_rva": "0x6eeb77",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6eec00",
-          "return_rva": "0x6eec05",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6eec8a",
-          "return_rva": "0x6eec8f",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6eec9c",
-          "return_rva": "0x6eeca1",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eecae",
-          "return_rva": "0x6eecb3",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eecd8",
-          "return_rva": "0x6eecdd",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eed21",
-          "return_rva": "0x6eed26",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6eed33",
-          "return_rva": "0x6eed38",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eed45",
-          "return_rva": "0x6eed4a",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eed5a",
-          "return_rva": "0x6eed5f",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eed6f",
-          "return_rva": "0x6eed74",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eed90",
-          "return_rva": "0x6eed95",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6eeddb",
-          "return_rva": "0x6eede0",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6eee1f",
-          "return_rva": "0x6eee24",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6eee79",
-          "return_rva": "0x6eee7e",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6eee8b",
-          "return_rva": "0x6eee90",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eeea0",
-          "return_rva": "0x6eeea5",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eeeb5",
-          "return_rva": "0x6eeeba",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6eef3b",
-          "return_rva": "0x6eef40",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6eef78",
-          "return_rva": "0x6eef7d",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6ef02d",
-          "return_rva": "0x6ef032",
-          "function": "Float"
-        },
-        {
-          "call_rva": "0x6ef06b",
-          "return_rva": "0x6ef070",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6ef07d",
-          "return_rva": "0x6ef082",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6ef0c3",
-          "return_rva": "0x6ef0c8",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6ef0e6",
-          "return_rva": "0x6ef0eb",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6ef11f",
-          "return_rva": "0x6ef124",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6ef19d",
-          "return_rva": "0x6ef1a2",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6ef1fc",
-          "return_rva": "0x6ef201",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6ef20e",
-          "return_rva": "0x6ef213",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6ef220",
-          "return_rva": "0x6ef225",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6ef273",
-          "return_rva": "0x6ef278",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6ef34e",
-          "return_rva": "0x6ef353",
-          "function": "Button"
-        },
-        {
-          "call_rva": "0x6ef3ea",
-          "return_rva": "0x6ef3ef",
-          "function": "Button"
-        },
-        {
-          "call_rva": "0x6ef4d6",
-          "return_rva": "0x6ef4db",
-          "function": "Button"
-        },
-        {
-          "call_rva": "0x6ef510",
-          "return_rva": "0x6ef515",
-          "function": "FinalizePage"
-        }
-      ]
-    },
-    "Controls": {
-      "rva": "0x6e5ed0",
-      "direct_ui_calls": [
-        {
-          "call_rva": "0x6e5f34",
-          "return_rva": "0x6e5f39",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e5f54",
-          "return_rva": "0x6e5f59",
-          "function": "Button"
-        },
-        {
-          "call_rva": "0x6e5f7c",
-          "return_rva": "0x6e5f81",
-          "function": "Button"
-        },
-        {
-          "call_rva": "0x6e5f8c",
-          "return_rva": "0x6e5f91",
-          "function": "RequestOptionsPage"
-        },
-        {
-          "call_rva": "0x6e5fba",
-          "return_rva": "0x6e5fbf",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e601a",
-          "return_rva": "0x6e601f",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e6083",
-          "return_rva": "0x6e6088",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e6095",
-          "return_rva": "0x6e609a",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e60b8",
-          "return_rva": "0x6e60bd",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e6135",
-          "return_rva": "0x6e613a",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e6147",
-          "return_rva": "0x6e614c",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e615c",
-          "return_rva": "0x6e6161",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e6171",
-          "return_rva": "0x6e6176",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e61da",
-          "return_rva": "0x6e61df",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e61ec",
-          "return_rva": "0x6e61f1",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e6201",
-          "return_rva": "0x6e6206",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e6266",
-          "return_rva": "0x6e626b",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e627b",
-          "return_rva": "0x6e6280",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e628d",
-          "return_rva": "0x6e6292",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e62ed",
-          "return_rva": "0x6e62f2",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e6340",
-          "return_rva": "0x6e6345",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e63a0",
-          "return_rva": "0x6e63a5",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e63ee",
-          "return_rva": "0x6e63f3",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e6409",
-          "return_rva": "0x6e640e",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e6499",
-          "return_rva": "0x6e649e",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6e6558",
-          "return_rva": "0x6e655d",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6e65a2",
-          "return_rva": "0x6e65a7",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6e65e2",
-          "return_rva": "0x6e65e7",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6e6622",
-          "return_rva": "0x6e6627",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e667c",
-          "return_rva": "0x6e6681",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e66f2",
-          "return_rva": "0x6e66f7",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e672c",
-          "return_rva": "0x6e6731",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e6769",
-          "return_rva": "0x6e676e",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e677b",
-          "return_rva": "0x6e6780",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e6790",
-          "return_rva": "0x6e6795",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e67a5",
-          "return_rva": "0x6e67aa",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e67d3",
-          "return_rva": "0x6e67d8",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e681b",
-          "return_rva": "0x6e6820",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e6848",
-          "return_rva": "0x6e684d",
-          "function": "FinalizePage"
-        }
-      ]
-    },
-    "Camera": {
-      "rva": "0x6e4f10",
-      "direct_ui_calls": [
-        {
-          "call_rva": "0x6e4faf",
-          "return_rva": "0x6e4fb4",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e5034",
-          "return_rva": "0x6e5039",
-          "function": "Float"
-        },
-        {
-          "call_rva": "0x6e506f",
-          "return_rva": "0x6e5074",
-          "function": "Float"
-        },
-        {
-          "call_rva": "0x6e50cc",
-          "return_rva": "0x6e50d1",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e511d",
-          "return_rva": "0x6e5122",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e5156",
-          "return_rva": "0x6e515b",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e51a7",
-          "return_rva": "0x6e51ac",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e51c2",
-          "return_rva": "0x6e51c7",
-          "function": "Header"
-        },
-        {
-          "call_rva": "0x6e520d",
-          "return_rva": "0x6e5212",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e5251",
-          "return_rva": "0x6e5256",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e52b1",
-          "return_rva": "0x6e52b6",
-          "function": "Int"
-        },
-        {
-          "call_rva": "0x6e52f1",
-          "return_rva": "0x6e52f6",
-          "function": "BeginList"
-        },
-        {
-          "call_rva": "0x6e5306",
-          "return_rva": "0x6e530b",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e5318",
-          "return_rva": "0x6e531d",
-          "function": "ListOption"
-        },
-        {
-          "call_rva": "0x6e53c4",
-          "return_rva": "0x6e53c9",
-          "function": "Float"
-        },
-        {
-          "call_rva": "0x6e5449",
-          "return_rva": "0x6e544e",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e5495",
-          "return_rva": "0x6e549a",
-          "function": "Boolean"
-        },
-        {
-          "call_rva": "0x6e54ed",
-          "return_rva": "0x6e54f2",
-          "function": "FinalizePage"
-        }
-      ]
-    }
+  "Int": {
+   "rva": "0x1b6e20",
+   "entry32": "44894c24204c8944241855564157488d6c24d94881ece0000000837908014c8b",
+   "pattern": "44 89 4C 24 ? 4C 89 44 24 ? 55 56 41 57",
+   "matches": [
+    "0x1b6e20"
+   ]
   },
-  "driver_ui_calls": [
+  "Float": {
+   "rva": "0x1b70a0",
+   "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
+   "pattern": "F3 0F 11 5C 24 ? 55 53 41 54",
+   "matches": [
+    "0x1b70a0"
+   ]
+  },
+  "Button": {
+   "rva": "0x1b6a80",
+   "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
+   "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 57 48 81 EC ? ? ? ? 32 DB",
+   "matches": [
+    "0x1b6a80"
+   ]
+  },
+  "BeginList": {
+   "rva": "0x1b7cd0",
+   "entry32": "48895c240848896c2410488974241857415641574883ec2033db488d792c8959",
+   "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 33 DB 48 8D 79 ? 89 59",
+   "matches": [
+    "0x1b7cd0"
+   ]
+  },
+  "ListOption": {
+   "rva": "0x1b7df0",
+   "entry32": "40534883ec2048634120488d59204c8bca83f83f0f87870000004869c8840000",
+   "pattern": "40 53 48 83 EC ? 48 63 41 ? 48 8D 59",
+   "matches": [
+    "0x1b7df0"
+   ]
+  },
+  "EndPage": {
+   "rva": "0x1ba180",
+   "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
+   "pattern": "48 8B C4 55 57 48 8D 68 ? 48 81 EC ? ? ? ? 83 79",
+   "matches": [
+    "0x1ba180"
+   ]
+  },
+  "FinalizePage": {
+   "rva": "0x1b9e90",
+   "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
+   "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 55 41 56 41 57 48 83 EC ? 48 8B 81 ? ? ? ? 45 33 FF",
+   "matches": [
+    "0x1b9e90"
+   ]
+  },
+  "DoOptions": {
+   "rva": "0x6e08b0",
+   "entry32": "4055488dac24a0d8ffffb860280000e80c26d002482be0833d165c7d06000f84",
+   "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
+   "matches": [
+    "0x6e08b0"
+   ]
+  },
+  "DoGameSwitcher": {
+   "rva": "0x6e16a0",
+   "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
+   "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
+   "matches": [
+    "0x6e16a0"
+   ]
+  },
+  "UpdateRender": {
+   "rva": "0x8fa160",
+   "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
+   "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
+   "matches": [
+    "0x8fa160"
+   ]
+  },
+  "ApplicationUpdate": {
+   "rva": "0x2d7580",
+   "entry32": "40534883ec20e8e58392024889058efdf206e8d964efff803d8a7ff904000fb6",
+   "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
+   "matches": [
+    "0x2d7580"
+   ]
+  },
+  "RequestOptionsPage": {
+   "rva": "0x2e44f0",
+   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0df991ba0648",
+   "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
+   "matches": [
+    "0x2e44f0"
+   ]
+  },
+  "RenderPage": {
+   "rva": "0x907b50",
+   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e867b3ad02482be04889b424",
+   "pattern": "48 89 4C 24 ? 55 53 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 89 B4 24 ? ? ? ? 48 89 BC 24",
+   "matches": [
+    "0x907b50"
+   ]
+  },
+  "Activate": {
+   "rva": "0x8fe180",
+   "entry32": "405556574157488bec4883ec588b8108c40100450fb6f84863f2488bf983f804",
+   "pattern": "40 55 56 57 41 57 48 8B EC",
+   "matches": [
+    "0x8fe180"
+   ]
+  }
+ },
+ "globals": {
+  "mOpenMenuIndex": "0x6eb64e4",
+  "mOpenMenus_slot": "0x6eb64e8",
+  "selection": "index == 0 means closed; otherwise menus[index-1]"
+ },
+ "source": {
+  "types_sha256": "5686b8689372d0a0418bc7809354b9d0648c2066e320d9306241a3ffd7b55434"
+ },
+ "builders": {
+  "General": {
+   "rva": "0x6eea40",
+   "direct_ui_calls": [
     {
-      "call_rva": "0x6e0901",
-      "return_rva": "0x6e0906",
-      "function": "BeginPage"
+     "call_rva": "0x6eea82",
+     "return_rva": "0x6eea87",
+     "function": "Header"
     },
     {
-      "call_rva": "0x6e09be",
-      "return_rva": "0x6e09c3",
-      "function": "Button"
+     "call_rva": "0x6eeadc",
+     "return_rva": "0x6eeae1",
+     "function": "Int"
     },
     {
-      "call_rva": "0x6e09cb",
-      "return_rva": "0x6e09d0",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eeb72",
+     "return_rva": "0x6eeb77",
+     "function": "Int"
     },
     {
-      "call_rva": "0x6e09ed",
-      "return_rva": "0x6e09f2",
-      "function": "Button"
+     "call_rva": "0x6eec00",
+     "return_rva": "0x6eec05",
+     "function": "Int"
     },
     {
-      "call_rva": "0x6e09fd",
-      "return_rva": "0x6e0a02",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eec8a",
+     "return_rva": "0x6eec8f",
+     "function": "BeginList"
     },
     {
-      "call_rva": "0x6e0a35",
-      "return_rva": "0x6e0a3a",
-      "function": "Button"
+     "call_rva": "0x6eec9c",
+     "return_rva": "0x6eeca1",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0a45",
-      "return_rva": "0x6e0a4a",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eecae",
+     "return_rva": "0x6eecb3",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0a67",
-      "return_rva": "0x6e0a6c",
-      "function": "Button"
+     "call_rva": "0x6eecd8",
+     "return_rva": "0x6eecdd",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0a77",
-      "return_rva": "0x6e0a7c",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eed21",
+     "return_rva": "0x6eed26",
+     "function": "BeginList"
     },
     {
-      "call_rva": "0x6e0a99",
-      "return_rva": "0x6e0a9e",
-      "function": "Button"
+     "call_rva": "0x6eed33",
+     "return_rva": "0x6eed38",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0aa9",
-      "return_rva": "0x6e0aae",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eed45",
+     "return_rva": "0x6eed4a",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0acb",
-      "return_rva": "0x6e0ad0",
-      "function": "Button"
+     "call_rva": "0x6eed5a",
+     "return_rva": "0x6eed5f",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0adb",
-      "return_rva": "0x6e0ae0",
-      "function": "RequestOptionsPage"
+     "call_rva": "0x6eed6f",
+     "return_rva": "0x6eed74",
+     "function": "ListOption"
     },
     {
-      "call_rva": "0x6e0afd",
-      "return_rva": "0x6e0b02",
-      "function": "Button"
+     "call_rva": "0x6eed90",
+     "return_rva": "0x6eed95",
+     "function": "Header"
     },
     {
-      "call_rva": "0x6e0b15",
-      "return_rva": "0x6e0b1a",
-      "function": "FinalizePage"
+     "call_rva": "0x6eeddb",
+     "return_rva": "0x6eede0",
+     "function": "Boolean"
     },
     {
-      "call_rva": "0x6e0b2b",
-      "return_rva": "0x6e0b30",
-      "function": "EndPage"
+     "call_rva": "0x6eee1f",
+     "return_rva": "0x6eee24",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6eee79",
+     "return_rva": "0x6eee7e",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6eee8b",
+     "return_rva": "0x6eee90",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6eeea0",
+     "return_rva": "0x6eeea5",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6eeeb5",
+     "return_rva": "0x6eeeba",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6eef3b",
+     "return_rva": "0x6eef40",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6eef78",
+     "return_rva": "0x6eef7d",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6ef02d",
+     "return_rva": "0x6ef032",
+     "function": "Float"
+    },
+    {
+     "call_rva": "0x6ef06b",
+     "return_rva": "0x6ef070",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6ef07d",
+     "return_rva": "0x6ef082",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6ef0c3",
+     "return_rva": "0x6ef0c8",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6ef0e6",
+     "return_rva": "0x6ef0eb",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6ef11f",
+     "return_rva": "0x6ef124",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6ef19d",
+     "return_rva": "0x6ef1a2",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6ef1fc",
+     "return_rva": "0x6ef201",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6ef20e",
+     "return_rva": "0x6ef213",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6ef220",
+     "return_rva": "0x6ef225",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6ef273",
+     "return_rva": "0x6ef278",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6ef34e",
+     "return_rva": "0x6ef353",
+     "function": "Button"
+    },
+    {
+     "call_rva": "0x6ef3ea",
+     "return_rva": "0x6ef3ef",
+     "function": "Button"
+    },
+    {
+     "call_rva": "0x6ef4d6",
+     "return_rva": "0x6ef4db",
+     "function": "Button"
+    },
+    {
+     "call_rva": "0x6ef510",
+     "return_rva": "0x6ef515",
+     "function": "FinalizePage"
     }
-  ],
-  "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
-  "menu_index_instructions": [
+   ]
+  },
+  "Controls": {
+   "rva": "0x6e5ed0",
+   "direct_ui_calls": [
     {
-      "rva": "0x6e0906",
-      "instruction": "mov ecx, dword ptr [rip + 0x67d5bd8]"
+     "call_rva": "0x6e5f34",
+     "return_rva": "0x6e5f39",
+     "function": "Header"
     },
     {
-      "rva": "0x6e090c",
-      "instruction": "lea r15, [rip - 0x6e0913]"
+     "call_rva": "0x6e5f54",
+     "return_rva": "0x6e5f59",
+     "function": "Button"
     },
     {
-      "rva": "0x6e0913",
-      "instruction": "mov rax, qword ptr [rip + 0x67d5bce]"
+     "call_rva": "0x6e5f7c",
+     "return_rva": "0x6e5f81",
+     "function": "Button"
     },
     {
-      "rva": "0x6e091a",
-      "instruction": "dec ecx"
+     "call_rva": "0x6e5f8c",
+     "return_rva": "0x6e5f91",
+     "function": "RequestOptionsPage"
     },
     {
-      "rva": "0x6e091c",
-      "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
+     "call_rva": "0x6e5fba",
+     "return_rva": "0x6e5fbf",
+     "function": "Header"
     },
     {
-      "rva": "0x6e0923",
-      "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
+     "call_rva": "0x6e601a",
+     "return_rva": "0x6e601f",
+     "function": "Boolean"
     },
     {
-      "rva": "0x6e092a",
-      "instruction": "mov rcx, qword ptr [rax + rcx*8]"
+     "call_rva": "0x6e6083",
+     "return_rva": "0x6e6088",
+     "function": "BeginList"
     },
     {
-      "rva": "0x6e092e",
-      "instruction": "movsxd rax, dword ptr [rcx]"
+     "call_rva": "0x6e6095",
+     "return_rva": "0x6e609a",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e60b8",
+     "return_rva": "0x6e60bd",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e6135",
+     "return_rva": "0x6e613a",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6e6147",
+     "return_rva": "0x6e614c",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e615c",
+     "return_rva": "0x6e6161",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e6171",
+     "return_rva": "0x6e6176",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e61da",
+     "return_rva": "0x6e61df",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6e61ec",
+     "return_rva": "0x6e61f1",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e6201",
+     "return_rva": "0x6e6206",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e6266",
+     "return_rva": "0x6e626b",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6e627b",
+     "return_rva": "0x6e6280",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e628d",
+     "return_rva": "0x6e6292",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e62ed",
+     "return_rva": "0x6e62f2",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e6340",
+     "return_rva": "0x6e6345",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e63a0",
+     "return_rva": "0x6e63a5",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e63ee",
+     "return_rva": "0x6e63f3",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e6409",
+     "return_rva": "0x6e640e",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6e6499",
+     "return_rva": "0x6e649e",
+     "function": "Int"
+    },
+    {
+     "call_rva": "0x6e6558",
+     "return_rva": "0x6e655d",
+     "function": "Int"
+    },
+    {
+     "call_rva": "0x6e65a2",
+     "return_rva": "0x6e65a7",
+     "function": "Int"
+    },
+    {
+     "call_rva": "0x6e65e2",
+     "return_rva": "0x6e65e7",
+     "function": "Int"
+    },
+    {
+     "call_rva": "0x6e6622",
+     "return_rva": "0x6e6627",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6e667c",
+     "return_rva": "0x6e6681",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e66f2",
+     "return_rva": "0x6e66f7",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e672c",
+     "return_rva": "0x6e6731",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e6769",
+     "return_rva": "0x6e676e",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6e677b",
+     "return_rva": "0x6e6780",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e6790",
+     "return_rva": "0x6e6795",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e67a5",
+     "return_rva": "0x6e67aa",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e67d3",
+     "return_rva": "0x6e67d8",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6e681b",
+     "return_rva": "0x6e6820",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e6848",
+     "return_rva": "0x6e684d",
+     "function": "FinalizePage"
     }
-  ]
+   ]
+  },
+  "Camera": {
+   "rva": "0x6e4f10",
+   "direct_ui_calls": [
+    {
+     "call_rva": "0x6e4faf",
+     "return_rva": "0x6e4fb4",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6e5034",
+     "return_rva": "0x6e5039",
+     "function": "Float"
+    },
+    {
+     "call_rva": "0x6e506f",
+     "return_rva": "0x6e5074",
+     "function": "Float"
+    },
+    {
+     "call_rva": "0x6e50cc",
+     "return_rva": "0x6e50d1",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e511d",
+     "return_rva": "0x6e5122",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e5156",
+     "return_rva": "0x6e515b",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e51a7",
+     "return_rva": "0x6e51ac",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e51c2",
+     "return_rva": "0x6e51c7",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6e520d",
+     "return_rva": "0x6e5212",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e5251",
+     "return_rva": "0x6e5256",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e52b1",
+     "return_rva": "0x6e52b6",
+     "function": "Int"
+    },
+    {
+     "call_rva": "0x6e52f1",
+     "return_rva": "0x6e52f6",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6e5306",
+     "return_rva": "0x6e530b",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e5318",
+     "return_rva": "0x6e531d",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6e53c4",
+     "return_rva": "0x6e53c9",
+     "function": "Float"
+    },
+    {
+     "call_rva": "0x6e5449",
+     "return_rva": "0x6e544e",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e5495",
+     "return_rva": "0x6e549a",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6e54ed",
+     "return_rva": "0x6e54f2",
+     "function": "FinalizePage"
+    }
+   ]
+  }
+ },
+ "driver_ui_calls": [
+  {
+   "call_rva": "0x6e0901",
+   "return_rva": "0x6e0906",
+   "function": "BeginPage"
+  },
+  {
+   "call_rva": "0x6e09be",
+   "return_rva": "0x6e09c3",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e09cb",
+   "return_rva": "0x6e09d0",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e09ed",
+   "return_rva": "0x6e09f2",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e09fd",
+   "return_rva": "0x6e0a02",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e0a35",
+   "return_rva": "0x6e0a3a",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e0a45",
+   "return_rva": "0x6e0a4a",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e0a67",
+   "return_rva": "0x6e0a6c",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e0a77",
+   "return_rva": "0x6e0a7c",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e0a99",
+   "return_rva": "0x6e0a9e",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e0aa9",
+   "return_rva": "0x6e0aae",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e0acb",
+   "return_rva": "0x6e0ad0",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e0adb",
+   "return_rva": "0x6e0ae0",
+   "function": "RequestOptionsPage"
+  },
+  {
+   "call_rva": "0x6e0afd",
+   "return_rva": "0x6e0b02",
+   "function": "Button"
+  },
+  {
+   "call_rva": "0x6e0b15",
+   "return_rva": "0x6e0b1a",
+   "function": "FinalizePage"
+  },
+  {
+   "call_rva": "0x6e0b2b",
+   "return_rva": "0x6e0b30",
+   "function": "EndPage"
+  }
+ ],
+ "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
+ "menu_index_instructions": [
+  {
+   "rva": "0x6e0906",
+   "instruction": "mov ecx, dword ptr [rip + 0x67d5bd8]"
+  },
+  {
+   "rva": "0x6e090c",
+   "instruction": "lea r15, [rip - 0x6e0913]"
+  },
+  {
+   "rva": "0x6e0913",
+   "instruction": "mov rax, qword ptr [rip + 0x67d5bce]"
+  },
+  {
+   "rva": "0x6e091a",
+   "instruction": "dec ecx"
+  },
+  {
+   "rva": "0x6e091c",
+   "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
+  },
+  {
+   "rva": "0x6e0923",
+   "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
+  },
+  {
+   "rva": "0x6e092a",
+   "instruction": "mov rcx, qword ptr [rax + rcx*8]"
+  },
+  {
+   "rva": "0x6e092e",
+   "instruction": "movsxd rax, dword ptr [rcx]"
+  }
+ ]
 }

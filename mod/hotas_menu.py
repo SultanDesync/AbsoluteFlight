@@ -32,7 +32,7 @@ AIR_STYLE_KEYS=('air-terminal-speed','air-engine-loss','air-boost','air-damping'
                 'air-omni','air-mav-lift')
 HUD_CONTROLS=('hud-speed-readout','hud-velocity-marker','hud-boost-gauge','hud-g-meter','hud-target-relative',
               'hud-planetary','hud-altitude','hud-vertical-speed','hud-atmosphere','hud-trim','hud-landing','hud-mode-tag','hud-scale','hud-font')
-ROUTE_TITLES={ROOT:'HOTAS',**{r:t for r,t,_ in ROUTES}}
+ROUTE_TITLES={ROOT:'Absolute Flight',**{r:t for r,t,_ in ROUTES}}
 SUPPORT_HELP=('Save your settings and recent logs as one zip to attach to a bug report. It goes in the support folder '
               'under %LOCALAPPDATA%\\AbsoluteHOTAS (config\\support in a dev install). Nothing is sent anywhere.')
 CAPTURE_PROMPT='Move an axis... (Delete clears, Back cancels)'
@@ -178,7 +178,7 @@ def _action_rows(action_id,label,help_text,b,device_names,has_modifier=False):
 
 
 CURSOR_STATES={'on':'STICK','flight':'IN FLIGHT, OFF','off':'OFF','key output off':'OFF','unfocused':'OFF',
-               'hotas menu':'OFF IN HOTAS MENU','no frontend flag':'NO MENU SIGNAL'}
+               'hotas menu':'OFF IN THIS MENU','no frontend flag':'NO MENU SIGNAL'}
 KEY_OUTPUT_STATES={'unqualified':'OFF: TURN ON THE SWITCH ABOVE','unfocused':'WAITING: NMS NOT FOCUSED','active':'ON','idle':'ON'}
 
 

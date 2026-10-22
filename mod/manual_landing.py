@@ -22,7 +22,7 @@ DRIFT_SCALE = 8.       # u/s of drift at the HUD ring
 
 @dataclass(frozen=True)
 class Touchdown:
-    """Thresholds. The first flights (2026-10-21, Fighter, DADS) read 1.5-3 u resting on the gear with 0.5-2 u/s of
+    """Thresholds. The first flights (2026-10-21, Fighter) read 1.5-3 u resting on the gear with 0.5-2 u/s of
     collision jitter."""
     height: float = 5.     # u: the game's height above ground or sea; a landed ship reads its gear height, not 0
     speed: float = 4.      # u/s

@@ -1,6 +1,6 @@
-"""Native NMS options rows for the HOTAS menu (D15/D18), build 180836 / Steam 25732212.
+"""Native NMS options rows for the Absolute Flight menu (D15/D18), build 180836 / Steam 25732212.
 
-Entry: the native Controls page gets an "ABSOLUTE HOTAS" header and a "HOTAS Flight Setup"
+Entry: the native Controls page gets an "ABSOLUTE FLIGHT" header and an "Absolute Flight Setup"
 button, inserted before FinalizePage as proven in F1/U3. Each HOTAS screen is another native
 Controls page pushed with RequestOptionsPage(2, True) (the navigation proven in F0), so native
 Back pops between our screens with no interception. While one of our depths is on screen the
@@ -16,8 +16,8 @@ from hotas_menu import ROOT,MenuController,build_page
 from hotas_settings import BY_ID,Control
 
 CONTROLS_PAGE=2
-ENTRY_HEADER='ABSOLUTE HOTAS'
-ENTRY_BUTTON='HOTAS Flight Setup'
+ENTRY_HEADER='ABSOLUTE FLIGHT'
+ENTRY_BUTTON='Absolute Flight Setup'
 ENTRY_HELP='Bind and tune your HOTAS or HOSAS flight controls.'
 FOCUS_SECONDS=3.
 FORMATS={'percent':(100.,' %','%.0f%s'),'multiplier':(1.,'x','%.2f%s'),'per-second':(1.,' /s','%.2f%s'),'speed':(1.,' u/s','%.0f%s'),

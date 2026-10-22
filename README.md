@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.6)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.7)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -25,7 +25,7 @@ ditching and crash damage.
 1. Start Steam.
 2. Double-click **Play.bat**. A console window opens, Steam starts the game, and the mod loads while
    the game starts. Leave the console open while you play; closing it unloads the mod.
-3. In game, open **Options > Controls > HOTAS Flight Setup** (at the bottom of the Controls page) and
+3. In game, open **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page) and
    bind your axes under **Flight Axes** and **Throttle**: select a binding, then move the axis.
 
 To play without the mod, start the game from Steam as usual.
@@ -39,7 +39,7 @@ own flight for now. Fly any class back to its shipped style with **Reset class**
 
 ## Tuning and sharing a flight model
 
-Each ship class has named tunings. In **HOTAS Flight Setup > Flight Tuning**, the **Tuning** row lists
+Each ship class has named tunings. In **Absolute Flight Setup > Flight Tuning**, the **Tuning** row lists
 **Sultan's** (built in, always there to go back to) and any tuning files for the class you're flying.
 
 - Change values on Flight Tuning or Atmosphere Flight; the tuning shows **(edited)** until you save.
@@ -54,7 +54,7 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 
 ## Reporting a problem
 
-1. In game: **Options > Controls > HOTAS Flight Setup > Save support bundle**.
+1. In game: **Options > Controls > Absolute Flight Setup > Save support bundle**.
 2. Send the newest zip from `%LOCALAPPDATA%\AbsoluteHOTAS\support` (paste that into Explorer's
    address bar) with a few lines on what you were doing.
 

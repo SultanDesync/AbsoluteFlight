@@ -39,7 +39,7 @@ NO_AIR = (1., 1., 0., 0.)  # scale, damping, pitch sway, yaw sway
 # Weathervane sway (T92): observed-rate signs that turn the nose up and right. Native forms observed
 # pitch/yaw/roll as the body angular velocity on matrix rows 0/1/2 (0x175DD25..0x175DE42, build
 # 180836) and the ship triad is right-handed (right x up = forward), so pitch and yaw rates move the
-# nose with opposite signs. Flight 2026-10-19 (user, DADS): with the first signs (+1, -1) the yaw sway
+# nose with opposite signs. Flight 2026-10-19 (user): with the first signs (+1, -1) the yaw sway
 # pushed the nose further off the flight path and wound into a spin, so the absolute sign was the other
 # one; the handedness result flips both together. CONFIRMED yaw by flight, pitch by handedness (to fly).
 NOSE_UP_PITCH, NOSE_RIGHT_YAW = -1., 1.

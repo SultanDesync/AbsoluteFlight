@@ -1,4 +1,4 @@
-"""AbsoluteHOTAS for No Man's Sky: release runtime (pyMHF mod), build 180836 / Steam 25732212.
+"""Absolute Flight for No Man's Sky (code name AbsoluteHOTAS): release runtime (pyMHF mod), build 180836 / Steam 25732212.
 
 Loads automatically. A separately enabled D21 developer pipe is disabled by default.
 Devices come from the input bus (D11) loaded
@@ -132,7 +132,7 @@ class AbsoluteHOTAS(Mod):
 
     def __init__(self):
         # Refuse before pyMHF can register hooks at offsets that only exist on this build.
-        if str(_internal.BINARY_HASH)!=BUILD_HASH:raise RuntimeError('AbsoluteHOTAS: unsupported game build; nothing hooked')
+        if str(_internal.BINARY_HASH)!=BUILD_HASH:raise RuntimeError('Absolute Flight: unsupported game build; nothing hooked')
         super().__init__()
         previous=getattr(sys,'_absolute_hotas_runtime',None)
         if previous is not None:

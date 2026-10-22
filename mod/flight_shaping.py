@@ -15,7 +15,7 @@ NEUTRAL_TOLERANCE=.02
 MAX_STEP_SECONDS=.25
 # Lateral strafe command per unit of stick pushed right. Sultan and the native MAV both move the ship to
 # port on +lateral (basis row 0 is the pilot's left; ditch purge sides, user flight 2026-10-20), and a
-# standard device reads X increasing to the right (S-TECS X probed on DADS 2026-10-20), so with Invert off
+# standard device reads X increasing to the right (S-TECS X probed 2026-10-20), so with Invert off
 # the command is negated. Before settings schema 4 the default strafed backwards and players set Invert on to fix it.
 LATERAL_COMMAND_SIGN=-1.
 

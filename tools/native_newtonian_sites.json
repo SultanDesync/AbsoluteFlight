@@ -1,6 +1,6 @@
 {
   "build": {
-    "exe": "D:\\SteamLibrary\\steamapps\\common\\No Man's Sky\\Binaries\\NMS.exe",
+    "exe": "Binaries\\NMS.exe",
     "file_version": "180836",
     "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
     "steam_buildid": "25732212",
