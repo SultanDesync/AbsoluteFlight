@@ -1,0 +1,2 @@
+# Pinned by SHA256 in config/runtime.json: keep identical bytes on every machine
+input_bus/** text=auto eol=lf
