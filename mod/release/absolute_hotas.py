@@ -12,8 +12,8 @@ Safety model, unchanged from the validated flights:
 - Native axes expire after 100 ms. In qualified Sultan flight, an expired
   translation command instead writes zero acceleration plus isolated gravity
   compensation, so a publisher stall coasts without resurrecting native braking.
-- A channel arms only while piloting with the game focused; stick axes ramp in from where they are,
-  and only a rebind or inversion waits for centre (hotas_control).
+- A channel arms only while piloting with the game focused; every axis ramps in from where it is and
+  none waits for centre (hotas_control, user 2026-10-22).
 - Native input on a substituted axis (e.g. Steam Input still mapping the HOTAS) is a conflict:
   the cave rejects the frame and the runtime reports it. The game's own throttle (launch/station
   auto-boost) is not: throttle hands over to it and the stick axes stay live.
@@ -789,12 +789,17 @@ class AbsoluteHOTAS(Mod):
                 self._observe_ai_aim(None)
                 return 2
             current=work_snapshot(work)
+            # T65: the Corvette autopilot (alignment selector 3) also uses the normal caller; let it fly.
+            autopilot=bool(bridge.fixture['ship_class']==10 and current.get('alignment')==3)
+            if autopilot!=getattr(self,'corvette_autopilot',False):
+                self.corvette_autopilot=autopilot;self.log('Corvette autopilot '+('engaged: native flight' if autopilot else 'off: Sultan resumes'))
             native={'ship':current['ship'],'body':current['body'],
                     'class_id':bridge.fixture['ship_class'],
                     'basis':tuple(tuple(current[k][:3]) for k in ('right','up','forward')),
                     'velocity':current['outer_velocity'],
                     'thrust_force':current['thrust_force'],
                     'boost_thrust_force':current.get('boost_thrust_force'),'dt':current['dt_eff']}
+            if autopilot:native.update(admitted=False,reason='Corvette autopilot')
             env=getattr(self,'air_env',None)
             if env is not None and native['class_id'] in planetary_flight.AIR_CLASSES:
                 planet=planetary_flight.planet_state(current['position'],env[1],env[0]) if env[1] else None
@@ -1612,7 +1617,7 @@ class AbsoluteHOTAS(Mod):
             handback=getattr(self,'agent_test_owns',False) and selection is None
             self.agent_test_owns=selection is not None
             if handback:
-                self.control.disarm_all('binding changed')  # requires fresh physical centre
+                self.control.disarm_all('agent test ended')  # physical inputs ramp back in from where they are
                 self.translation.disarm('agent test ended')
             return selection,handback
         except Exception as error:
@@ -1640,6 +1645,20 @@ class AbsoluteHOTAS(Mod):
             agent.published_generation(generation)
             return generation
         return agent.owner.publish(selection,publish)
+
+    def _log_axis_states(self):
+        """One log line whenever any axis changes state: armed, arming, or why it is held (user 2026-10-22:
+        dead-axis reports need this in support bundles). Native channels and Sultan translation separately."""
+        native=getattr(self.control,'reasons',None)
+        translation=getattr(getattr(self,'translation',None),'reasons',None)
+        states=dict(native) if isinstance(native,dict) else {}
+        if isinstance(translation,dict):states.update({'sultan '+c:r for c,r in translation.items()})
+        last=getattr(self,'axis_states',{})
+        changed={c:r for c,r in states.items() if last.get(c)!=r}
+        self.axis_states=states
+        if not changed:return
+        self.axis_state_lines=getattr(self,'axis_state_lines',0)+1
+        if self.axis_state_lines<=3000:self.log('axes: '+', '.join(f'{c} {r}' for c,r in sorted(changed.items())))
 
     def _focused(self):
         pid=C.c_ulong();U.GetWindowThreadProcessId(U.GetForegroundWindow(),C.byref(pid));return pid.value==os.getpid()
@@ -1771,6 +1790,7 @@ class AbsoluteHOTAS(Mod):
                     except BaseException as error:  # never costs the tick; the Land key stays up
                         self.buttons.synthetic_keys=frozenset()
                         if not getattr(self,'touchdown_failed',False):self.touchdown_failed=True;self.log('touchdown error: '+repr(error))
+                    self._log_axis_states()
                     self.buttons.step(self.table.digital,now,reason is None,
                                       self.capture is None and not self.menu_open and self._focused())
                     self._eject_hold(now,tick,reason is None)

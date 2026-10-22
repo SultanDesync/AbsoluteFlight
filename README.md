@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.10)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.11)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -34,8 +34,9 @@ To play without the mod, start the game from Steam as usual.
 
 Sultan's flight model has its own style for each ship class. Fighter, Explorer, Shuttle and Exotic have
 been flown and tuned. **Hauler, Living ship, Solar and Sentinel interceptor are untested**: their styles
-are first drafts, so your feedback there is the first anyone has flown them. The Corvette uses the game's
-own flight for now. Fly any class back to its shipped style with **Reset class** on the Flight Tuning page.
+are first drafts, so your feedback there is the first anyone has flown them. **The Corvette is incomplete**:
+it flies a first baseline while its style is still being decided, and its autopilot hands control back to
+the game while engaged. Fly any class back to its shipped style with **Reset class** on the Flight Tuning page.
 
 ## Tuning and sharing a flight model
 
@@ -65,7 +66,7 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 - **Flight actions only work while you fly.** Sultan boost, parking brake, landing gear, trim and eject
   do nothing on foot, landed, or in menus. Keyboard and mouse bindings work everywhere.
 - **Bindings pause in the Absolute Flight menu** and while a binding is being recorded.
-- **Four ship classes are untested** (see "What's been flown"), and the Corvette uses the game's own flight.
+- **Four ship classes are untested and the Corvette is incomplete** (see "What's been flown").
 
 ## Reporting a problem
 

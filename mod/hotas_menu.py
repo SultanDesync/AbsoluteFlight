@@ -359,7 +359,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
         if tuning:rows+=tuning_rows(tuning)
-        if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: NATIVE FALLBACK UNTIL QUALIFIED'))
+        if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: BASELINE, INCOMPLETE'))
         groups=(('THRUST',('acceleration-scale','forward-ratio','retro-ratio','lateral-ratio','up-ratio','down-ratio')),
                 ('SPEED',('speed-cap','speed-cap-multiplier','speed-hold-gain','accel-fade-exponent','brake-floor','momentum','overspeed-bleed-time')),
                 ('BOOST',('boost-enabled','boost-source','boost-multiplier','boost-heat-time','boost-cool-time','boost-cold-strength','boost-hot-zone','boost-relight-level')),

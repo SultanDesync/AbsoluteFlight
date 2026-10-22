@@ -17,9 +17,9 @@ import math
 from newtonian_flight import FlightResult, compute_acceleration
 
 # Fighter first (user 2026-10-19); Hauler and Shuttle bricks (T92); the rest by class (T98, user 2026-10-20):
-# the specials fly aero in every direction, Explorer is balanced. Corvette (10) has a style ready but flies
-# native until T65 qualifies it for Sultan at all.
-AIR_CLASSES = frozenset((1, 2, 3, 4, 6, 7, 8, 9))
+# the specials fly aero in every direction, Explorer is balanced. Corvette (10): its baseline style, incomplete
+# (user 2026-10-22).
+AIR_CLASSES = frozenset((1, 2, 3, 4, 6, 7, 8, 9, 10))
 LIFT_SPEED = 150.  # u/s; below this lift fades out linearly (no carving at hover speeds), GUESS
 DRAG_LIMIT = 3.    # drag never exceeds this many times the forward authority (fast entries stay flyable)
 LIFT_LIMIT = 2.    # same bound for lift

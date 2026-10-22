@@ -50,7 +50,11 @@ DEFAULT_WATER_PUSH=50.
 # (min of height above sea and above the terrain ray hit, 0x1756F9C) into the work record at CLEARANCE.
 GEAR=0x3E8
 CLEARANCE=0x330
-SUPPORTED_CLASSES=frozenset((1,2,3,4,6,7,8,9))
+# Corvette (10): 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete. Only the normal piloted caller
+# (return 0x1751001) is latched, so its idle route (0x1750C82) stays native (T65 static map).
+SUPPORTED_CLASSES=frozenset((1,2,3,4,6,7,8,9,10))
+CORVETTE=10
+CORVETTE_AUTOPILOT=3  # ship+0x6420 alignment selector: the Corvette autopilot flies (hand back to native)
 REASONS={0:'idle',1:'native_disabled',2:'expired_coast',3:'identity_changed',
          4:'native_mode',5:'physics_unqualified',6:'missing_same_invocation_terms',
          7:'height_safety_active',8:'nonfinite_velocity_or_gravity',9:'applied',

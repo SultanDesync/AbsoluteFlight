@@ -26,8 +26,8 @@ FIGHTER_ENDPOINTS = {'pitch_negative': 1.1641868352890015, 'pitch_positive': -1.
                      'yaw_negative': -1., 'yaw_positive': 1.}
 # T90: per-class rotation shaping (Flight Tuning > Rotation): top pitch/yaw/roll rate multipliers
 # and one turn-response (gain) multiplier. Same seam and gates as additive; any Newtonian class.
-# Corvette (10) has no Newtonian fixture and stays native until T65.
-ROTATION_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9)
+# Corvette (10) since 2026-10-22 (user), except while its autopilot flies (runtime.corvette_autopilot).
+ROTATION_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9, 10)
 ROTATION_RANGE = (.5, 2.)
 ROTATION_FIELDS = {'pitch': 'pitch_rate', 'yaw': 'yaw_rate', 'roll': 'roll_rate', 'response': 'turn_response'}
 NATIVE_ROTATION = {key: 1. for key in ROTATION_FIELDS}
@@ -424,7 +424,7 @@ class AdditiveRotation:
                     self._replace_fixture(runtime)
                     self._disable('rotation settings changed; waiting for fresh input')
                     return
-                eligible = (reason is None and runtime.active and not runtime.stopping.is_set()
+                eligible = (reason is None and not getattr(runtime, 'corvette_autopilot', False) and runtime.active and not runtime.stopping.is_set()
                             and runtime._focused() and runtime._frontend() == 0
                             and not runtime.menu_open and runtime.capture is None
                             and getattr(runtime, 'pilot_recovery', None) is None

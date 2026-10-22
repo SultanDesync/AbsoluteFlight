@@ -2,15 +2,12 @@
 
 No hotkeys. A channel drives the ship only while the whole runtime is eligible (master switch
 on, piloting, game focused, no menu or capture open) and that channel has an armed, fresh
-input. A channel disarms the moment its input becomes unusable or eligibility drops. Stick channels
-(rotation, strafe) re-arm from wherever the stick is, ramped in over ARM_RAMP seconds, so nothing
-jolts. They wait for centre only after NEEDS_CENTRE events, where the axis changes meaning: a rebind
-or inversion, or strafe switched on. Live 2026-10-16: the old rule (arm only at centre) left a held
-or slightly off-centre pitch dead at load and after every menu, which also stops the flight clock
-('not piloting'). Live 2026-10-19: the same rule after a player-ship reacquire (launch, station
-exit) left a held pull-up dead until the stick passed centre; reacquires now ramp in too.
-The throttle keeps its own neutral rules (ThrottleChannel), and yields to the game while native
-throttle is active (launch/station auto-boost holds native u=1). Unarmed channels publish 0, which the native caves treat as
+input. A channel disarms the moment its input becomes unusable or eligibility drops. Every channel re-arms
+from wherever its input is, ramped in over ARM_RAMP seconds, so nothing jolts and nothing waits for
+centre (user, 2026-10-22: waiting for centre was too careful in every case). Live 2026-10-16 and
+2026-10-19: centre rules left a held or off-centre stick dead at load, after menus and after a
+player-ship reacquire. The throttle yields to the game while native throttle is active
+(launch/station auto-boost holds native u=1). Unarmed channels publish 0, which the native caves treat as
 "leave this axis to the game", so one missing device never takes the others down.
 """
 import math
@@ -21,13 +18,9 @@ MAILBOX_ORDER=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical
 ROTATION=('yaw','pitch','roll')
 STRAFE=('strafe-lateral','strafe-vertical')
 NEUTRAL=.02
-# Disarm reasons after which a stick channel re-arms only at centre: the axis changed meaning
-# (rebind, inversion, strafe switched on). A ship change or reacquire does not: the absolute stick
-# means the same thing in the new ship, and the ARM_RAMP keeps the resume smooth (user, 2026-10-19).
-NEEDS_CENTRE=frozenset(('binding changed','vanilla flight model'))
 NATIVE_THROTTLE=.0001  # |native u| above this: the game is driving throttle (matches the cave's idle limit)
 STALE_SECONDS=.25  # native receipts older than this mean the game is not consuming our axes
-ARM_RAMP=.3  # seconds from 0 to the full deflection when a stick channel arms off-centre
+ARM_RAMP=.3  # seconds from 0 to the full deflection when a channel arms off-centre (throttle too)
 NATIVE_LIMITS=(1.,1.,60.)  # mailbox authority qualified in the D16 full-native amendment
 # Never publish throttle u=1 exactly: the native speed smoothing time is (1-u)*20 (E5), and at 0 it
 # leaves a stale smooth-damp velocity at ship+0x6700 that launches the speed demand far past the
@@ -87,7 +80,6 @@ class FlightControl:
     def __init__(self,values):
         self.values=dict(values);self.armed={c:False for c in MAILBOX_ORDER}
         self.throttle=ThrottleChannel(self.values);self.reasons={};self.throttle_u=0.
-        self.centre=set()  # stick channels that must pass centre before arming (NEEDS_CENTRE)
         self.ramp={}  # channel -> ramp-in progress 0..1 after arming off-centre
 
     def reconfigure(self,values,changed=()):
@@ -98,7 +90,6 @@ class FlightControl:
 
     def _disarm(self,channel,reason):
         if channel=='throttle':self.throttle.disarm();self.throttle_u=0.
-        if reason in NEEDS_CENTRE:self.centre.add(channel)
         self.armed[channel]=False;self.reasons[channel]=reason;self.ramp.pop(channel,None)
 
     def disarm_all(self,reason):
@@ -125,9 +116,6 @@ class FlightControl:
                 self._disarm(channel,'unbound' if v[f'bind-{channel}-axis'] is None else 'device missing or stale');continue
             shaped=shape_axis(v,channel,unit)
             if not self.armed[channel]:
-                if channel in self.centre:
-                    if abs(shaped)>NEUTRAL:self.reasons[channel]='waiting for centre';continue
-                    self.centre.discard(channel)
                 self.armed[channel]=True
                 if abs(shaped)>NEUTRAL:self.ramp[channel]=0.;self.reasons[channel]='arming'
                 else:self.reasons[channel]='armed'
@@ -148,11 +136,18 @@ class FlightControl:
             return self._finish(out)
         cmd=self.throttle.step(unit,dt,native_u)
         if cmd is None:
-            self.armed['throttle']=False;self.throttle_u=0.
-            self.reasons['throttle']=('unbound' if v['bind-throttle-axis'] is None else 'device missing or stale') if unit is None else 'waiting for neutral'
+            self.armed['throttle']=False;self.throttle_u=0.;self.ramp.pop('throttle',None)
+            self.reasons['throttle']='unbound' if v['bind-throttle-axis'] is None else 'device missing or stale'
         else:
-            self.armed['throttle']=True;self.reasons['throttle']='armed'
             wanted=min(THROTTLE_MAX_U,max(0.,cmd.thrust))  # brake lane not qualified: back half holds idle
+            if not self.armed['throttle']:
+                self.armed['throttle']=True
+                if wanted>NEUTRAL:self.ramp['throttle']=0.
+            self.reasons['throttle']='armed'
+            if 'throttle' in self.ramp:  # armed with the lever up: ease the demand in, like the sticks
+                k=self.ramp['throttle']=min(1.,self.ramp['throttle']+max(0.,dt)/ARM_RAMP)
+                if k>=1.:del self.ramp['throttle']
+                else:wanted*=k;self.reasons['throttle']='arming'
             self.throttle_u=out['throttle']=release_limited(self.throttle_u,wanted,dt)
         return self._finish(out)
 

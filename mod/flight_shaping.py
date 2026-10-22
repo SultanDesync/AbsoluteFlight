@@ -100,11 +100,11 @@ class RateThrottle:
 
 
 class ThrottleChannel:
-    """Applies the configured throttle style to one calibrated input, with neutral arming.
+    """Applies the configured throttle style to one calibrated input.
 
-    After any change of style or stick mode (and on first use) the channel stays unarmed, and
-    step() returns None, until the input is at its neutral point: lever at idle for HOTAS,
-    stick centred for HOSAS. Switching mid-flight therefore can never jump the ship's speed.
+    It arms wherever the input is (user, 2026-10-22: no neutral wait); FlightControl ramps the demand
+    in over ARM_RAMP when it arms with the lever up. A change of style or stick mode re-arms it, and
+    rate mode resumes from the speed the game holds.
     """
     STYLE_KEYS=('throttle-style','hosas-stick-mode')
 
@@ -135,7 +135,6 @@ class ThrottleChannel:
         _finite(unit)
         c=self.config
         if not self.armed:
-            if not self.neutral(unit):return None
             self.armed=True
             # Rate mode resumes from the speed NMS currently holds when it is known.
             self.rate.set(native_u if native_u is not None else 0.)

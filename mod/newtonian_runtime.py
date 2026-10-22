@@ -8,7 +8,7 @@ import planetary_flight
 from ship_condition import ShipCondition
 
 
-SUPPORTED_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9)
+SUPPORTED_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9, 10)  # Corvette: 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete
 
 
 def boost_strength(heat, profile):
