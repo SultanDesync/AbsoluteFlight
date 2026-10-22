@@ -19,6 +19,8 @@ from ai_combat import COMBAT_KNOBS
 
 SCHEMA_VERSION=4
 SCHEMA_VERSIONS=(2,3,SCHEMA_VERSION)
+# The shipped class style, baked into the build: the first named flight tuning, never a file (flight_tunings).
+SULTAN_TUNING="Sultan's"
 # Schema 4 (2026-10-20) negated the lateral strafe command so Invert off follows the stick. Older files saved
 # Invert on to fix a backwards default and saved off by default, so both load as off.
 LATERAL_SIGN_SCHEMA=4
@@ -484,11 +486,15 @@ class SettingsStore:
         self._sync_profile();self.saved=dict(self.values)
         self.buttons=[];self.saved_buttons=[]  # canonical Binding.to_json() dicts (T61)
         self.button_modifier=None;self.saved_modifier=None  # shift-layer button token
+        # Named flight tunings (2026-10-22): the runtime attaches flight_tunings.FlightTunings; each class
+        # remembers which tuning it uses (absent = Sultan's), and Reset class returns to that tuning.
+        self.tuning_files=None;self.tunings={};self.saved_tunings={};self.tuning_error=None
 
     @property
     def dirty(self):
         return (any(self.values[k]!=self.saved[k] for k in self.values if k not in PROFILE_KEYS)
-                or self.profiles!=self.saved_profiles or self.buttons!=self.saved_buttons or self.button_modifier!=self.saved_modifier)
+                or self.profiles!=self.saved_profiles or self.buttons!=self.saved_buttons or self.button_modifier!=self.saved_modifier
+                or self.tunings!=self.saved_tunings)
 
     def _notify(self,changed):
         for listener in list(self.listeners):listener(dict(self.values),changed)
@@ -545,6 +551,13 @@ class SettingsStore:
                 if b.action in seen:issues.append(f'{b.action}: extra binding on {b.token} dropped');continue
                 seen.add(b.action);buttons.append(b.to_json())
             report.issues.extend('buttons: '+i for i in issues)
+        tunings={}
+        raw_tunings=data.get('tunings',{}) if isinstance(data,dict) else {}
+        if isinstance(raw_tunings,dict):
+            for class_key,name in raw_tunings.items():
+                if class_key in profiles and isinstance(name,str) and name and name!=SULTAN_TUNING:tunings[class_key]=name
+                else:report.issues.append(f'ignored invalid tuning selection {class_key}')
+        self.tunings=tunings;self.saved_tunings=dict(tunings)
         self.values=values;self.profiles=profiles;self.buttons=buttons;self.saved_buttons=[dict(b) for b in buttons]
         self.button_modifier=self.saved_modifier=modifier
         self._sync_profile();self.saved=dict(values)
@@ -565,8 +578,43 @@ class SettingsStore:
         self.current_class=class_id;self._sync_profile();return True
 
     def reset_class(self):
-        self.profiles[str(self.current_class)]=profile_defaults(self.current_class)
+        self.profiles[str(self.current_class)]=self.baseline(self.current_class)
         self._sync_profile();self._notify(set(PROFILE_KEYS))
+
+    # ----- named flight tunings (user design 2026-10-22) -----
+    def tuning(self,class_id):
+        return self.tunings.get(str(class_id),SULTAN_TUNING)
+
+    def baseline(self,class_id):
+        """The profile the class's selected tuning sets; Sultan's when it is selected or its file is unusable."""
+        name=self.tuning(class_id)
+        if name!=SULTAN_TUNING and self.tuning_files is not None:
+            try:return self.tuning_files.profile(class_id,name)
+            except (OSError,ValueError):pass
+        return profile_defaults(class_id)
+
+    def tuning_edited(self,class_id):
+        return self.profile(class_id)!=self.baseline(class_id)
+
+    def select_tuning(self,name):
+        """Load a named tuning into the edited class. A bad file leaves the profile as it was and is reported."""
+        class_id=self.current_class
+        try:profile=self.tuning_files.profile(class_id,name) if name!=SULTAN_TUNING else profile_defaults(class_id)
+        except (OSError,ValueError) as error:self.tuning_error=str(error);return False
+        self.tuning_error=None
+        if name==SULTAN_TUNING:self.tunings.pop(str(class_id),None)
+        else:self.tunings[str(class_id)]=name
+        self.profiles[str(class_id)]=profile;self._sync_profile();self._notify(set(PROFILE_KEYS))
+        return True
+
+    def save_tuning(self,new=False):
+        """Write the edited class's profile to its tuning file, or to a new <Class>_Custom.json. Sultan's is read-only."""
+        class_id=self.current_class;name=self.tuning(class_id)
+        if new:name=self.tuning_files.new_name(class_id)
+        elif name==SULTAN_TUNING:raise ValueError("Sultan's is built in; save as a new tuning instead")
+        path=self.tuning_files.save(class_id,name,self.profile(class_id))
+        if self.tunings.get(str(class_id))!=name:self.tunings[str(class_id)]=name;self._notify(set())
+        return path
 
     def reset_air_style(self):
         """The edited class's air style back to its baseline; space tuning and planet settings stay."""
@@ -593,8 +641,8 @@ class SettingsStore:
         self.values[binding_id]=_validate_binding(token);self._notify(changed)
 
     def reset(self,control_ids):
-        """Back to defaults; class tuning rows return to the edited class's baseline."""
-        baseline=profile_defaults(self.current_class)
+        """Back to defaults; class tuning rows return to the edited class's selected tuning."""
+        baseline=self.baseline(self.current_class)
         target={i:baseline[PROFILE_KEYS[i]] if i in PROFILE_KEYS else BY_ID[i].default for i in control_ids}
         changed={i for i in control_ids if self.values[i]!=target[i]}
         for i in control_ids:
@@ -675,6 +723,7 @@ class SettingsStore:
             changed.add('buttons');self.buttons=[dict(b) for b in self.saved_buttons];self.button_modifier=self.saved_modifier
         self.values=dict(self.saved)
         self.profiles={i:dict(p) for i,p in self.saved_profiles.items()};self._sync_profile()
+        self.tunings=dict(self.saved_tunings)
         if changed:self._notify(changed)
 
     def save(self):
@@ -682,8 +731,8 @@ class SettingsStore:
         self.path.parent.mkdir(parents=True,exist_ok=True)
         tmp=self.path.with_name(self.path.name+'.tmp')
         base={k:v for k,v in self.values.items() if k not in PROFILE_KEYS}
-        tmp.write_text(json.dumps({'schema':SCHEMA_VERSION,'values':base,'profiles':self.profiles,'buttons':{'bindings':self.buttons,'modifier':self.button_modifier}},indent=1,sort_keys=True),encoding='utf-8')
+        tmp.write_text(json.dumps({'schema':SCHEMA_VERSION,'values':base,'profiles':self.profiles,'tunings':self.tunings,'buttons':{'bindings':self.buttons,'modifier':self.button_modifier}},indent=1,sort_keys=True),encoding='utf-8')
         os.replace(tmp,self.path)
         self.saved=dict(self.values);self.saved_buttons=[dict(b) for b in self.buttons];self.saved_modifier=self.button_modifier
-        self.saved_profiles={i:dict(p) for i,p in self.profiles.items()}
+        self.saved_profiles={i:dict(p) for i,p in self.profiles.items()};self.saved_tunings=dict(self.tunings)
         return True

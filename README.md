@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.5)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.6)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -36,6 +36,21 @@ Sultan's flight model has its own style for each ship class. Fighter, Explorer, 
 been flown and tuned. **Hauler, Living ship, Solar and Sentinel interceptor are untested**: their styles
 are first drafts, so your feedback there is the first anyone has flown them. The Corvette uses the game's
 own flight for now. Fly any class back to its shipped style with **Reset class** on the Flight Tuning page.
+
+## Tuning and sharing a flight model
+
+Each ship class has named tunings. In **HOTAS Flight Setup > Flight Tuning**, the **Tuning** row lists
+**Sultan's** (built in, always there to go back to) and any tuning files for the class you're flying.
+
+- Change values on Flight Tuning or Atmosphere Flight; the tuning shows **(edited)** until you save.
+- **Save tuning** writes your changes back to the selected tuning's file. **Save as new tuning** writes a
+  new `<Class>_Custom.json` and selects it.
+- Tuning files live in `%LOCALAPPDATA%\AbsoluteHOTAS\flight-tunings`, named `<Class>_<Name>.json`, for
+  example `Exotic_MyCustom.json`. Rename a file to rename the tuning.
+- To share a tuning, send the file. To try someone else's, put their file in that folder and pick it on
+  the Tuning row.
+
+Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar, Interceptor, Corvette.
 
 ## Reporting a problem
 

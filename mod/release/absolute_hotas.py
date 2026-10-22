@@ -78,12 +78,15 @@ from pause_root import SOUND_HASH,PauseRootButton,key_bytes
 import runtime_config
 import code_patch
 import support_bundle
+import flight_tunings
 import rotation_validation
 import additive_rotation
 
 BUILD_HASH='d7e4c0b20e2fa555af2b7e1b358e05cebf8fabc8'
 DATA=runtime_config.data_dir(ROOT)  # dev checkout: config/; release: %LOCALAPPDATA%\AbsoluteHOTAS (T100)
 SETTINGS=DATA/'hotas-settings.json'
+TUNINGS=DATA/'flight-tunings'  # named per-class flight tunings, <Class>_<Name>.json
+GAME_BUILD='180836'  # NMS.exe FileVersion of BUILD_HASH, written into saved tunings
 LOGS=DATA/'logs'
 LEASE_MS=1000
 TICK_SECONDS=.004
@@ -166,6 +169,7 @@ class AbsoluteHOTAS(Mod):
             self.log('weapon lead disabled: '+repr(error))
         self.store=SettingsStore(SETTINGS);report=self.store.load()
         for issue in report.issues:self.log('settings: '+issue)
+        self.store.tuning_files=flight_tunings.FlightTunings(TUNINGS,build=GAME_BUILD)
         self.control=FlightControl(self.store.values);self.stall=StallMonitor();self.geffects=GEffects(log=self.log);self.buttons=ButtonActions(self.store,win32_lane(trace_path=self.log_path.with_name(self.log_path.name.replace('-runtime.log','-keys.log'))))
         self.translation=TranslationPublisher();self.translation_command=None;self.lift_trim=LiftTrim()
         self.translation_profiles={c:self.store.profile(c) for c in SUPPORTED_CLASSES}

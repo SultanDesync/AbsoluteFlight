@@ -1,6 +1,6 @@
 """Support bundle (T100): one zip a player attaches to a bug report, saved from the HOTAS menu.
 
-Holds settings, status, the runtime config, the last two sessions' runtime and key logs, the newest
+Holds settings, status, the flight tunings, the runtime config, the last two sessions' runtime and key logs, the newest
 telemetry CSV when it is small enough, and an info.json the caller fills (game build, versions). Goes to
 <data>/support/. Only reads files; nothing is sent anywhere.
 """
@@ -22,6 +22,9 @@ def contents(data, config_dir=None):
     data = Path(data); logs = data / 'logs'; files = []
     for name in ('hotas-settings.json', 'hotas-status.json'):
         if (data / name).is_file(): files.append((name, data / name))
+    tunings = data / 'flight-tunings'
+    if tunings.is_dir():
+        files.extend(('flight-tunings/' + p.name, p) for p in sorted(tunings.glob('*.json')))
     if config_dir is not None:
         for name in ('runtime.json', 'runtime.local.json'):
             if (Path(config_dir) / name).is_file(): files.append(('config/' + name, Path(config_dir) / name))

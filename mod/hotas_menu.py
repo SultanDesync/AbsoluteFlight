@@ -7,7 +7,7 @@ help in the native description panel, values applied as they change and saved on
 """
 from dataclasses import dataclass,field
 import math
-from hotas_settings import AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
+from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
 import crash_damage
@@ -63,7 +63,7 @@ ALARM_CONTROLS=('alarm-sounds','alarm-voice-volume','alarm-lights')
 
 @dataclass
 class Row:
-    kind:str  # header | button | bool | float | choice | binding | meter
+    kind:str  # header | button | bool | float | choice | binding | meter | select (choice not backed by a setting)
     id:str
     label:str
     help:str=''
@@ -285,7 +285,22 @@ def route_controls(route):
     return []
 
 
-def build_page(route,values,live=None,focused=None,modal=None,device_names=None,editing_class=4,buttons=None):
+TUNING_HELP=("Which tuning this class flies. Sultan's is built in and always there to go back to. Others are files named "
+             "<Class>_<Name>.json in the flight-tunings folder; add one and it appears here. Your edits show as (edited) until saved.")
+
+
+def tuning_rows(tuning):
+    """Named flight tunings (2026-10-22): the Tuning choice for the edited class, plus a file error if one failed."""
+    names=list(tuning['names']);selected=tuning['selected']
+    if selected not in names:names.append(selected)  # its file was removed or renamed; the profile stays loaded
+    labels=tuple(n+(' (edited)' if n==selected and tuning['edited'] else '')+('' if n in tuning['names'] else ' (file missing)')
+                 for n in names)
+    rows=[Row('select','flight-tuning-select','Tuning',TUNING_HELP,value=names.index(selected),options=labels)]
+    if tuning.get('error'):rows.append(Row('header','flight-tuning-error','TUNING NOT LOADED: '+tuning['error'].upper()))
+    return rows
+
+
+def build_page(route,values,live=None,focused=None,modal=None,device_names=None,editing_class=4,buttons=None,tuning=None):
     """Rows for route. live: calibrated units by channel ('pitch', ..., 'throttle'), None = no data."""
     if route==ROOT:
         rows=[Row('button',f'open-{r}',t,reason or '',enabled=reason is None) for r,t,reason in ROUTES if r not in SULTAN_ROUTES or values['flight-model']=='sultan']
@@ -343,6 +358,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
     elif route=='flight-tuning':
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
+        if tuning:rows+=tuning_rows(tuning)
         if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: NATIVE FALLBACK UNTIL QUALIFIED'))
         groups=(('THRUST',('acceleration-scale','forward-ratio','retro-ratio','lateral-ratio','up-ratio','down-ratio')),
                 ('SPEED',('speed-cap','speed-cap-multiplier','speed-hold-gain','accel-fade-exponent','brake-floor','momentum','overspeed-bleed-time')),
@@ -389,7 +405,15 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
             for axis,value in zip(('Lateral','Vertical','Forward'),(-port,up,forward)):
                 rows.append(Row('readout','tuning-live-'+axis.lower(),axis+' acceleration',value=value,suffix=' u/s²'))
         else:rows.append(Row('header','tuning-no-live','FLIGHT READOUT UNAVAILABLE'))
-        rows.extend((Row('header','tuning-actions-header','CLASS PROFILE'),Row('button','flight-tuning-copy-all','Copy to all classes','Copy the currently edited profile into every flyable class. Revert restores the saved profiles.')))
+        rows.append(Row('header','tuning-actions-header','CLASS PROFILE'))
+        if tuning:
+            builtin=tuning['selected']==SULTAN_TUNING
+            rows.append(Row('button','flight-tuning-save','Save tuning',f"Write this class's profile to {tuning['selected']}'s file.",
+                            enabled=not builtin,suffix="Sultan's is built in"))
+            rows.append(Row('button','flight-tuning-save-new','Save as new tuning',
+                            f"Write this class's profile to a new <Class>_Custom.json in {tuning['folder']} and select it. "
+                            'Rename the file to rename the tuning; share the file to share the tuning.'))
+        rows.append(Row('button','flight-tuning-copy-all','Copy to all classes','Copy the currently edited profile into every flyable class. Revert restores the saved profiles.'))
     elif route=='atmosphere':
         if values['flight-model']!='sultan':raise KeyError('Atmosphere Flight requires Sultan flight model')
         rows+=_visible_rows(['atmosphere-model'],values)
@@ -500,7 +524,23 @@ class MenuController:
                 text=f"{describe_binding(c['token'],device_names)} is bound to {_binding_title(c['owner'])}. Move it to {_binding_title(c['id'])}?"
             modal={'kind':'conflict','binding':c['id'],'text':text,'options':('Move binding','Keep current')}
         buttons={'bindings':getattr(self.store,'buttons',[]),'modifier':getattr(self.store,'button_modifier',None)}
-        return build_page(self.route,self.store.values,live,focused,modal,device_names,self.store.current_class,buttons)
+        return build_page(self.route,self.store.values,live,focused,modal,device_names,self.store.current_class,buttons,self._tuning())
+
+    def _tuning(self):
+        """Named tunings for the Flight Tuning page, or None when the runtime attached no tuning folder."""
+        files=getattr(self.store,'tuning_files',None)
+        if self.route!='flight-tuning' or files is None:return None
+        c=self.store.current_class
+        return {'names':files.names(c),'selected':self.store.tuning(c),'edited':self.store.tuning_edited(c),
+                'folder':str(files.folder),'error':self.store.tuning_error}
+
+    def choose(self,row_id,index):
+        """A choice row not backed by a setting (the Tuning row) stepped to index."""
+        if row_id!='flight-tuning-select' or self.capture:return 'ignored'
+        tuning=self._tuning()
+        names=list(tuning['names']) if tuning else []
+        if not 0<=index<len(names):return 'ignored'
+        return 'loaded' if self.store.select_tuning(names[index]) else 'failed'
 
     def change(self,row_id,display_value):
         """A native Float/Boolean/List row reported a new value; returns the display value to show."""
@@ -537,6 +577,10 @@ class MenuController:
             if self.capture_start is None:return 'unavailable'
             self.capture={'id':row_id,'modifier' if row_id=='button-modifier' else 'key':True};self.capture_start(row_id);return 'capturing'
         if row_id=='flight-tuning-copy-all':self.store.copy_class_to_all();return 'copied'
+        if row_id in ('flight-tuning-save','flight-tuning-save-new'):
+            if getattr(self.store,'tuning_files',None) is None:return 'unavailable'
+            try:self.store.save_tuning(new=row_id.endswith('new'));self.store.tuning_error=None;return 'saved'
+            except (OSError,ValueError) as error:self.store.tuning_error=str(error);return 'failed'
         if row_id=='flight-tuning-reset':self.store.reset_class();return 'reset'
         if row_id=='air-style-reset':self.store.reset_air_style();return 'reset'
         if row_id==f'{self.route}-reset':self.store.reset([i for i in route_controls(self.route) if BY_ID[i].kind!='axis-binding']);return 'reset'

@@ -13,7 +13,7 @@ api is a dict of native callables, so everything here is tested with a fake.
 """
 import struct,threading,time
 from hotas_menu import ROOT,MenuController,build_page
-from hotas_settings import BY_ID,Control,profile_defaults
+from hotas_settings import BY_ID,Control
 
 CONTROLS_PAGE=2
 ENTRY_HEADER='ABSOLUTE HOTAS'
@@ -176,6 +176,14 @@ class NativeMenu:
             label=f'{row.label} ({self._section})' if row.label in self._repeats and self._section else row.label
             if api['Button'](page,self._label(f'{label}:  {row.value}'),s(row.help),self.options.button):self._activate(row.id)
             return
+        if row.kind=='select':
+            # A choice not backed by a setting (the Tuning row): same native Float stepping as a choice.
+            current=row.value
+            new=api['Float'](page,self._label(row.label),s(row.help),float(current),0.,0.,float(len(row.options)-1),
+                             self.options.choice(row.options[current]))
+            new=min(len(row.options)-1,max(0,int(round(float(new)))))
+            if new!=current:self.controller.choose(row.id,new)
+            return
         if row.kind=='readout':
             # Ignore edits: each frame displays the measured value. Keep ordinary finite
             # bounds (a zero-width native range could divide by zero inside the widget).
@@ -187,7 +195,7 @@ class NativeMenu:
             control=Control(row.id,'float',row.label,row.help,value,unit=unit)
             api['Float'](page,self._label(row.label),s('Live measurement; changes here are ignored.'),value,value,-1e6,1e6,self.options.float(control));return
         control=BY_ID[row.id];value=self.store.values[row.id]
-        default=profile_defaults(self.store.current_class)[row.id[len('tuning-'):].replace('-','_')] if row.id.startswith('tuning-') else control.default
+        default=self.store.baseline(self.store.current_class)[row.id[len('tuning-'):].replace('-','_')] if row.id.startswith('tuning-') else control.default
         if row.kind in ('bool','choice'):
             if row.kind=='bool':keys,texts=(False,True),BOOL_TEXTS
             else:keys=[k for k,_ in control.choices];texts=[t for _,t in control.choices]
