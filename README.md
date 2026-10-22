@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.4)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.5)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -29,6 +29,13 @@ ditching and crash damage.
    bind your axes under **Flight Axes** and **Throttle**: select a binding, then move the axis.
 
 To play without the mod, start the game from Steam as usual.
+
+## What's been flown
+
+Sultan's flight model has its own style for each ship class. Fighter, Explorer, Shuttle and Exotic have
+been flown and tuned. **Hauler, Living ship, Solar and Sentinel interceptor are untested**: their styles
+are first drafts, so your feedback there is the first anyone has flown them. The Corvette uses the game's
+own flight for now. Fly any class back to its shipped style with **Reset class** on the Flight Tuning page.
 
 ## Reporting a problem
 

@@ -105,9 +105,9 @@ CONTROLS=(
     Control('hud-velocity-marker','bool','Velocity marker','Show where the ship is actually moving (prograde), where it is moving away from (retrograde), and an edge arrow when neither is on screen.',True,visible=SULTAN_ONLY,new=True),
     Control('g-effects-enabled','bool','G-force effects','Sustained G drains your vision to monochrome, darkens the edges, then fades you to black, as with G-safe off in Star Citizen. Short spikes are fine; pulse hard manoeuvres. Sultan flight, flat first-person cockpit.',True,visible=SULTAN_ONLY,new=True),
     Control('g-blackout-controls','bool','Blackout takes control','You keep full control until you black out; then your stick inputs drop out and the ship coasts until you recover.',True,visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
-    Control('g-tolerance-up','float','Tolerance: up (+G)','Sustained G you can hold accelerating up through the canopy, as when pulling a hard loop. Beyond it strain builds towards blackout.',9.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
-    Control('g-tolerance-down','float','Tolerance: down (-G)','Sustained G accelerating down, as when pushing the nose over hard (redout side). Usually the lowest.',4.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
-    Control('g-tolerance-lateral','float','Tolerance: sideways','Sustained G strafing or skidding sideways.',6.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
+    Control('g-tolerance-up','float','Tolerance: up (+G)','Sustained G you can hold accelerating up through the canopy, as when pulling a hard loop. Beyond it strain builds towards blackout.',11.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
+    Control('g-tolerance-down','float','Tolerance: down (-G)','Sustained G accelerating down, as when pushing the nose over hard (redout side). Usually the lowest.',6.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
+    Control('g-tolerance-lateral','float','Tolerance: sideways','Sustained G strafing or skidding sideways.',8.,1.,40.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
     Control('g-tolerance-forward','float','Tolerance: forward/back','Sustained G thrusting or braking along the nose. Usually the highest.',15.,1.,60.,.5,'g',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
     Control('g-onset','float','Strain onset','Seconds at twice your tolerance from clear vision to blackout. Higher overload gets there faster.',4.,.5,20.,.25,'seconds',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
     Control('g-recovery','float','Recovery','Seconds to recover fully once under tolerance, after a half-second delay.',4.,.5,20.,.25,'seconds',visible=SULTAN_ONLY+(('g-effects-enabled',True),),new=True),
@@ -276,14 +276,13 @@ SULTAN_BASELINES={
     2:dict(acceleration_scale=1.,retro_ratio=.4,lateral_ratio=.2,up_ratio=.45,down_ratio=.25,speed_cap_multiplier=.9,
            accel_fade_exponent=3.25,brake_floor=1.,momentum=1.,overspeed_bleed_time=2.,jerk_limit=250.,settle_time=1.,
            boost_heat_time=6.,boost_cool_time=7.,boost_cold_strength=.5,
-           pitch_rate=1.15,yaw_rate=.6,roll_rate=1.5,turn_response=1.,
-           # Air (T88): powerful mains that keep most thrust, low nose-on drag, a hull that carves.
-           # Flight 2026-10-19: air felt punchy and boost too strong; more engine loss, linear damping, half boost.
-           air_terminal_speed=450.,air_engine_loss=.35,air_lift=1.2,air_side_drag=3.,air_damping=.3,air_boost=.5,
-           # Sideslip (user design 2026-10-19): hard pulls bleed speed; a slide costs half the nose and
-           # the air snaps it back onto the flight path.
-           air_induced_drag=.3,air_slip_authority=.5,air_weathervane=2.,air_sway_damping=.6,air_buffet=.25,
-           air_overspeed_penalty=1.5,air_wing_support=1.,air_glide_ratio=4.),  # glides about 4:1 power off
+           pitch_rate=1.15,yaw_rate=.6,roll_rate=1.5,turn_response=1.,additive_pitch_yaw=True,
+           # Air (T88): powerful mains that keep most thrust, low nose-on drag, a hull that carves. The user's
+           # tuned air set from the 2026-10-19..21 Fighter flights, shipped as the default 2026-10-22: strong
+           # lift, little engine loss, light damping; hard pulls bleed speed and the air snaps a slide back.
+           air_terminal_speed=410.,air_engine_loss=.15,air_lift=2.4,air_side_drag=3.,air_damping=.05,air_boost=.45,
+           air_induced_drag=.65,air_nose_authority=.65,air_slip_authority=.4,air_weathervane=2.9,air_sway_damping=.35,
+           air_buffet=.25,air_overspeed_penalty=1.5,air_wing_support=1.,air_glide_ratio=2.75),
     # Exotic: drifter. Strafe as strong as forward and kept at speed; flat yaw turns, lazy roll.
     6:dict(acceleration_scale=.9,retro_ratio=.9,lateral_ratio=1.,up_ratio=.9,down_ratio=.8,speed_cap_multiplier=.85,
            accel_fade_exponent=3.5,brake_floor=1.,momentum=.25,overspeed_bleed_time=1.5,jerk_limit=300.,settle_time=.8,
