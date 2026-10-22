@@ -130,8 +130,13 @@ class NativeMenu:
             self.meters={};self._labels=set();self._section=''
             names=[r.label for r in view.rows if r.kind!='meter']
             self._repeats={n for n in names if names.count(n)>1}|({'Binding'} if names.count('Binding')>1 else set())
-            if view.modal:self._modal_rows(page,api,view.modal)
-            for row in view.rows:self._row(page,api,row)
+            # The prompt goes right above the row being bound, where the player is looking; on a long page
+            # the top is off-screen (alpha 2026-10-22). Top of the page if that row isn't shown.
+            modal=view.modal
+            if modal and not any(r.id==modal.get('binding') for r in view.rows):self._modal_rows(page,api,modal);modal=None
+            for row in view.rows:
+                if modal and row.id==modal.get('binding'):self._modal_rows(page,api,modal);modal=None
+                self._row(page,api,row)
             return len(view.rows)
 
     def _label(self,text):
@@ -145,7 +150,7 @@ class NativeMenu:
         return self.s(label)
 
     def _modal_rows(self,page,api,modal):
-        api['Header'](page,self._label(modal['text'].upper() if modal['kind']=='capture' else 'BINDING CONFLICT'),0)
+        api['Header'](page,self._label(modal['text'].upper()),0)
         if modal['kind']=='capture':
             if modal.get('clearable') and api['Button'](page,self._label('Clear binding'),self.s('Remove this binding.'),self.options.button):
                 self.controller.clear_capture();return

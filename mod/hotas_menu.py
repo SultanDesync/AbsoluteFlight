@@ -512,7 +512,10 @@ class MenuController:
         return self.store.set(row_id,display_value)
 
     def activate(self,row_id):
-        if self.capture or self.conflict:return 'busy'
+        if self.capture:return 'busy'  # a capture times out by itself (CAPTURE_TIMEOUT)
+        # A pending conflict never blocks the page: choosing another row keeps the current binding
+        # (alpha 2026-10-22: the prompt was off-screen on long pages and every row looked dead).
+        if self.conflict:self.conflict=None
         if row_id.startswith('open-'):
             route=row_id[5:]
             if dict((r,reason) for r,_,reason in ROUTES).get(route,'missing') is not None:return 'unavailable'
