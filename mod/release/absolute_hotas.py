@@ -898,6 +898,12 @@ class AbsoluteHOTAS(Mod):
                      f"{latest.get('speed',0.):.1f} u/s, tilt {air.get('tilt',float('nan')):.0f} deg"
                      +('' if v.get('key-output-enabled') else ' (keyboard output is off: the press cannot go out)'))
         self.buttons.synthetic_keys=frozenset((manual_landing.LAND_KEY,)) if detector.holding(now) else frozenset()
+        # The game's takeoff hands back with the gear still down; raise it so the ship leaves in normal air flight.
+        takeoff=getattr(self,'takeoff_watch',None)
+        if takeoff is None:takeoff=self.takeoff_watch=manual_landing.TakeoffWatch()
+        if takeoff.step(now,manual_landing.Touchdown.from_values(v),bool(getattr(self,'air_env',None) and self.air_env[3]),flying,
+                        (planetary or {}).get('clearance'),detector.pressed_at):
+            self.log('takeoff: gear up, normal air flight'+('' if self.buttons.raise_gear() else ' (gear binding still held: release it)'))
 
     def _gear(self,v):
         """T101: the hover settings while Manual landing is on and the Landing gear binding is down, else None."""

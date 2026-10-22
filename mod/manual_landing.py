@@ -86,6 +86,28 @@ class TouchdownDetector:
         return self.pressed_at is not None and now-self.pressed_at < PRESS_TIME
 
 
+LANDED_WINDOW = 4.  # s after a Land press within which the game taking the ship means it landed
+TAKEOFF_HEIGHT = 2.  # times the touchdown height: back in Sultan flight this high after landing = the game took off
+
+
+class TakeoffWatch:
+    """Raises the gear after the game's own takeoff (user 2026-10-22, alpha.13 Corvette: after a manual landing
+    the gear stayed down, so the ship left the game's takeoff climb in hover mode at 40 u/s and 10 u/s of climb).
+    Landed: Sultan stops flying soon after a Land press (the game owns a landed ship). Takeoff: Sultan flies again
+    well clear of the ground. A pause on the ground, or a refused Land, leaves the gear alone."""
+    def __init__(self):
+        self.landed = False
+
+    def step(self, now, settings, gear, flying, clearance, pressed_at):
+        """True on the tick the gear should go up."""
+        if not gear:self.landed = False;return False
+        if not flying and pressed_at is not None and now-pressed_at < LANDED_WINDOW:self.landed = True
+        if (self.landed and flying and clearance is not None and math.isfinite(clearance)
+                and clearance > TAKEOFF_HEIGHT*settings.height):
+            self.landed = False;return True
+        return False
+
+
 def panel(planetary, settings, status, values):
     """Landing HUD plan with the gear down and close to the ground, else None. Positions are fractions of the
     ring radius: level at the tilt limit sits on the ring, drift at DRIFT_SCALE does too."""

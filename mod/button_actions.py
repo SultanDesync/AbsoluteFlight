@@ -59,6 +59,11 @@ class ButtonActions:
         """T101 Landing gear: down while toggled on (or while a Press binding is held)."""
         return 'mod.gear' in self.state.held
 
+    def raise_gear(self):
+        """T101: put a toggled gear up (the game took off). False when it is not toggled down (a Press binding held)."""
+        if 'mod.gear' not in self.flight.latched:return False
+        self.flight.latched.discard('mod.gear');return True
+
     @property
     def eject(self):
         return 'mod.eject' in self.state.held
