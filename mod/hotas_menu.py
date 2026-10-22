@@ -17,21 +17,28 @@ ROOT='root'
 # Placement rule (user, 2026-10-17; docs/RELEASE-RUNTIME.md "Menu pages"): a setting lives on the one
 # page named for what it affects. route_controls() is the single map; tests fail if a setting is
 # on no page or on two.
+# Order rule (docs/RELEASE-RUNTIME.md "Order on a page"): root pages in three groups (flight model,
+# controls, ship and pilot); on a page, page-wide settings before per-section ones, each section's
+# switch before its knobs, a binding beside what it acts on, live readouts last, then page actions.
 ROUTES=(('flight-model','Flight Model',None),('flight-tuning','Flight Tuning',None),
-        ('atmosphere','Atmosphere Flight',None),('damage','Ship Damage',None),
+        ('atmosphere','Atmosphere Flight',None),
         ('flight-axes','Flight Axes',None),('throttle','Throttle',None),('buttons','Buttons',None),
-        ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),
         ('head-tracking','Head Tracking',None),
+        ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),('damage','Ship Damage',None),
         ('devices','Devices & Calibration','Waits on the input bus (T4/T35).'),
         ('status','Status','Not built yet.'))
 SULTAN_ROUTES=('flight-tuning','atmosphere','damage','hud','g-force')
 # T88 Atmosphere Flight page (user, 2026-10-19: its own mechanics, its own page): the choice, the
-# edited class's air style and the planet settings shared by every class.
-AIR_STYLE_KEYS=('air-terminal-speed','air-engine-loss','air-boost','air-damping','air-lift','air-induced-drag','air-side-drag',
-                'air-nose-authority','air-slip-authority','air-weathervane','air-sway-damping','air-buffet','air-overspeed-penalty','air-wing-support','air-glide-ratio',
-                'air-omni','air-mav-lift')
-HUD_CONTROLS=('hud-speed-readout','hud-velocity-marker','hud-boost-gauge','hud-g-meter','hud-target-relative',
-              'hud-planetary','hud-altitude','hud-vertical-speed','hud-atmosphere','hud-trim','hud-landing','hud-mode-tag','hud-scale','hud-font')
+# planet settings shared by every class, then the edited class's air style.
+AIR_STYLE_GROUPS=(('SPEED AND ENGINES',('air-terminal-speed','air-engine-loss','air-boost','air-mav-lift','air-damping')),
+                  ('LIFT AND GLIDE',('air-lift','air-induced-drag','air-wing-support','air-glide-ratio','air-omni')),
+                  ('HANDLING',('air-nose-authority','air-slip-authority','air-side-drag','air-weathervane','air-sway-damping',
+                               'air-buffet','air-overspeed-penalty')))
+AIR_STYLE_KEYS=tuple(k for _,keys in AIR_STYLE_GROUPS for k in keys)
+HUD_GROUPS=((None,('hud-scale','hud-font')),
+            ('FLIGHT READOUTS',('hud-mode-tag','hud-speed-readout','hud-target-relative','hud-velocity-marker','hud-boost-gauge','hud-g-meter')),
+            ('PLANETARY',('hud-planetary','hud-altitude','hud-vertical-speed','hud-atmosphere','hud-trim','hud-landing')))
+HUD_CONTROLS=tuple(k for _,keys in HUD_GROUPS for k in keys)
 ROUTE_TITLES={ROOT:'Absolute Flight',**{r:t for r,t,_ in ROUTES}}
 SUPPORT_HELP=('Save your settings and recent logs as one zip to attach to a bug report. It goes in the support folder '
               'under %LOCALAPPDATA%\\AbsoluteHOTAS (config\\support in a dev install). Nothing is sent anywhere.')
@@ -47,18 +54,26 @@ LIVE_MOD_ACTIONS=('mod.parking-brake','mod.gear','mod.boost','mod.trim-up','mod.
 HEAD_ACTIONS=('mod.head-recentre','mod.head-tracking-toggle','mod.head-tracking-on','mod.head-tracking-off')
 # Feature-specific bindings live beside their tuning, as on Head Tracking.
 COMBAT_ACTIONS=('mod.pip-toggle',)
-AIMING_CONTROLS=('pip-visible','pip-mode','aim-slowdown-enabled','aim-slowdown-strength','aim-slowdown-radius','aim-slowdown-escape')
-AI_CONTROLS=('ai-pilots','ai-readability','ai-lateral-grip','ai-turn-rate','ai-thrust-fade',
-             'ai-attack-delay','ai-evasive-commitment','ai-boost-alignment',
-             'ai-aim-tuning-enabled','ai-aim-precision','ai-evasion-loss',
-             'ai-evasion-acceleration','ai-aim-recovery',
-             'ai-low-health-beams','ai-beam-switch-health','ai-shield-recharge',
-             'ai-shield-delay-scale','ai-shield-refill-scale')
+PIP_CONTROLS=('pip-visible','pip-mode')  # the Lead/Lag binding follows these
+AIM_SLOWDOWN_CONTROLS=('aim-slowdown-enabled','aim-slowdown-strength','aim-slowdown-radius','aim-slowdown-escape')
+AIMING_CONTROLS=PIP_CONTROLS+AIM_SLOWDOWN_CONTROLS
+# Enemy pilot sections: (header id, title, controls). Header ids are kept from the earlier layout.
+AI_SECTIONS=(('ai-header','ENEMY PILOTS',('ai-pilots','ai-readability','ai-lateral-grip','ai-turn-rate','ai-thrust-fade',
+                                          'ai-attack-delay','ai-evasive-commitment','ai-boost-alignment')),
+             ('ai-aim-tuning-enabled-header','GUN ACCURACY',('ai-aim-tuning-enabled','ai-aim-precision','ai-evasion-loss',
+                                                            'ai-evasion-acceleration','ai-aim-recovery')),
+             ('ai-low-health-beams-header','LOW-HEALTH BEAMS',('ai-low-health-beams','ai-beam-switch-health')),
+             ('ai-shield-recharge-header','NPC SHIELDS',('ai-shield-recharge','ai-shield-delay-scale','ai-shield-refill-scale')))
+AI_CONTROLS=tuple(k for _,_,keys in AI_SECTIONS for k in keys)
 PENDING='pending live test'
 G_CONTROLS=('g-effects-enabled','g-blackout-controls','g-tolerance-up','g-tolerance-down','g-tolerance-lateral',
             'g-tolerance-forward','g-onset','g-recovery','g-unit-scale')
 CRASH_CONTROLS=('crash-damage','crash-safe-speed','crash-damage-per-us','crash-glancing','crash-break-speed','crash-disable-speed')
 ALARM_CONTROLS=('alarm-sounds','alarm-voice-volume','alarm-lights')
+# Sultan HOTAS lever, bottom to top: each zone's switch sits with its boundaries.
+LEVER_ORDER=('lever-controls','lever-reverse-mode','lever-reverse-end','lever-parking-end','lever-coast-end',
+             'lever-cruise-enabled','lever-cruise-start','lever-cruise-end','lever-cruise-level','lever-full-start',
+             'lever-boost-enabled','lever-boost-start')
 
 
 @dataclass
@@ -186,19 +201,19 @@ def button_rows(buttons,values,device_names=None,live=None):
     """Buttons page (T61). buttons: {'bindings': [...], 'modifier': token or None}."""
     bound={b['action']:b for b in buttons.get('bindings',())}
     modifier=buttons.get('modifier')
-    rows=[Row('header','buttons-flight-header','FLIGHT')]
+    # Shift first: it is held while binding everything below.
+    rows=[Row('header','buttons-modifier-header','SHIFT BUTTON'),
+          Row('binding','button-modifier','Shift button','Hold it while binding to put a binding on the shift layer, so one button or hat can carry two actions. Press the bound button again to clear.',
+              value=hotas_buttons.describe_input(modifier,device_names)),
+          Row('header','buttons-flight-header','FLIGHT')]
     for a in hotas_buttons.ACTIONS:
         if a.group!='flight' or a.id in HEAD_ACTIONS or a.id in COMBAT_ACTIONS:continue
         if a.id not in LIVE_MOD_ACTIONS:
             rows.append(Row('button','button-bind:'+a.id,a.label,a.help+' Not part of this runtime yet.',enabled=False));continue
         rows+=_action_rows(a.id,a.label,a.help,bound.get(a.id),device_names,modifier is not None)
-    rows.append(Row('header','buttons-modifier-header','SHIFT BUTTON'))
-    rows.append(Row('binding','button-modifier','Shift button','Hold it while binding to put a binding on the shift layer, so one button or hat can carry two actions. Press the bound button again to clear.',
-                    value=hotas_buttons.describe_input(modifier,device_names)))
+        if a.id=='mod.eject':rows+=_visible_rows(('eject-hold-time',),values)  # T93: this action's hold
     rows.append(Row('header','buttons-key-header','KEYBOARD & MOUSE'))
     rows.append(control_row(BY_ID['key-output-enabled'],values))
-    rows+=_visible_rows(('cursor-stick-enabled','cursor-speed','cursor-invert-y'),values)
-    rows+=_visible_rows(('eject-hold-time',),values)  # T93: the Eject (hold) action's hold
     status=(live or {}).get('key-output')
     if status:
         text='KEY OUTPUT: '+KEY_OUTPUT_STATES.get(status['output'],str(status['output']).upper())
@@ -208,6 +223,7 @@ def button_rows(buttons,values,device_names=None,live=None):
         rows.append(Row('header','buttons-key-status',text))
     for group,presets in hotas_buttons.KEY_PRESETS:
         rows.append(Row('header','buttons-preset-'+group.lower().replace(' ','-'),group))
+        if group=='DIALOGS & MENUS':rows+=_visible_rows(('cursor-stick-enabled','cursor-speed','cursor-invert-y'),values)
         for action_id,label in presets:
             rows+=_action_rows(action_id,label,'Sends this key to NMS while NMS has focus.',bound.get(action_id),device_names,modifier is not None)
     rows.append(Row('header','buttons-custom-header','CUSTOM KEYS'))
@@ -232,7 +248,7 @@ HEAD_CAMERA_STATES={'off':'NATIVE (HEAD TRACKING OFF)','applied':'HEAD TRACKING'
 
 
 def head_rows(values,live=None,buttons=None,device_names=None):
-    """Head Tracking page: switch, recentre, stick bindings, per-axis shaping, then the live readout."""
+    """Head Tracking page: switch, recentre, stick bindings, shaping for all axes then each axis, then the live readout."""
     rows=_visible_rows(['head-tracking-enabled'],values)
     rows.append(Row('button','head-recentre','Recentre now','Take your current head pose as straight ahead.'))
     rows.append(Row('header','head-bindings-header','STICK BUTTONS'))
@@ -240,11 +256,11 @@ def head_rows(values,live=None,buttons=None,device_names=None):
     for action_id in HEAD_ACTIONS:
         a=hotas_buttons.action(action_id)
         rows+=_action_rows(action_id,a.label,a.help,bound.get(action_id),device_names,buttons.get('modifier') is not None)
+    rows.append(Row('header','head-all-header','ALL AXES'))
+    rows+=_visible_rows(['head-deadzone','head-smoothing'],values)
     for axis in ('yaw','pitch','roll'):
         rows.append(Row('header',f'head-{axis}-header',axis.upper()))
         rows+=_visible_rows([f'head-{axis}-scale',f'head-{axis}-inverted'],values)
-    rows.append(Row('header','head-all-header','ALL AXES'))
-    rows+=_visible_rows(['head-deadzone','head-smoothing'],values)
     rows.append(Row('header','head-live-header','LIVE'))
     head=(live or {}).get('head')
     if not head:
@@ -307,8 +323,13 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         rows.append(Row('button','support-bundle','Save support bundle',SUPPORT_HELP))
         return Page(ROOT,ROUTE_TITLES[ROOT],rows,modal)
     rows=[]
-    if route in ('flight-model','hud'):
+    if route=='flight-model':
         rows+=_visible_rows(route_controls(route),values)
+    elif route=='hud':
+        for title,keys in HUD_GROUPS:
+            section=_visible_rows(keys,values)
+            if section and title:rows.append(Row('header','hud-'+keys[0]+'-header',title))
+            rows+=section
     elif route=='g-force':
         rows+=_visible_rows(route_controls(route),values)
         g=(live or {}).get('g')
@@ -317,26 +338,25 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
             rows.append(Row('header','g-live','G: '+('BLACKED OUT' if g.get('out') else f"STRAIN {5*round(20*g.get('strain',0.))}%")+
                             ('' if g.get('installed') else '  (NATIVE EFFECT NOT INSTALLED: '+str(g.get('reason','')).upper()+')')))
     elif route=='combat':
-        rows.append(Row('header','aiming-header','SHIP AIMING'))
-        rows+=_visible_rows(AIMING_CONTROLS,values)
+        rows.append(Row('header','aiming-header','AIMING PIP'))
+        rows+=_visible_rows(PIP_CONTROLS,values)
         bindings=buttons or {};bound={b['action']:b for b in bindings.get('bindings',())}
         for action_id in COMBAT_ACTIONS:
             a=hotas_buttons.action(action_id)
             rows+=_action_rows(action_id,a.label,a.help,bound.get(action_id),device_names,bindings.get('modifier') is not None)
-        rows.append(Row('header','ai-header','ENEMY PILOTS'))
-        rows+=_visible_rows(AI_CONTROLS,values)
-        for key,title in (('ai-aim-tuning-enabled','GUN ACCURACY'),('ai-low-health-beams','LOW-HEALTH BEAMS'),('ai-shield-recharge','NPC SHIELDS')):
-            index=next((i for i,row in enumerate(rows) if row.id==key),None)
-            if index is not None:rows.insert(index,Row('header',key+'-header',title))
-        ai=(live or {}).get('ai-pilots')
-        if ai:rows.append(Row('header','ai-live','PILOTS: '+str(ai.get('state','unknown')).upper()))
-        combat=(live or {}).get('npc-combat')
+        slowdown=_visible_rows(AIM_SLOWDOWN_CONTROLS,values)
+        if slowdown:rows+=[Row('header','aim-slowdown-header','AIM SLOWDOWN')]+slowdown
+        ai=(live or {}).get('ai-pilots');combat=(live or {}).get('npc-combat');aim=(live or {}).get('ai-aim')
+        for header_id,title,keys in AI_SECTIONS:
+            section=_visible_rows(keys,values)
+            if section or header_id=='ai-header':rows+=[Row('header',header_id,title)]+section
+            # Each section's live status closes it.
+            if header_id=='ai-header' and ai:rows.append(Row('header','ai-live','PILOTS: '+str(ai.get('state','unknown')).upper()))
+            if header_id=='ai-aim-tuning-enabled-header' and aim and values.get('ai-aim-tuning-enabled'):
+                rows.append(Row('header','ai-aim-live','AIM: '+str(aim.get('state','unknown')).upper()))
+                if 'disruption' in aim:
+                    rows.append(Row('header','ai-aim-disruption','LAST GUN AIM DISRUPTION: '+str(5*round(20*aim['disruption']))+'%'))
         if combat:rows.append(Row('header','npc-combat-live','BEAMS/SHIELDS: '+str(combat.get('state','unknown')).upper()))
-        aim=(live or {}).get('ai-aim')
-        if aim and values.get('ai-aim-tuning-enabled'):
-            rows.append(Row('header','ai-aim-live','AIM: '+str(aim.get('state','unknown')).upper()))
-            if 'disruption' in aim:
-                rows.append(Row('header','ai-aim-disruption','LAST GUN AIM DISRUPTION: '+str(5*round(20*aim['disruption']))+'%'))
     elif route=='flight-axes':
         rows+=_visible_rows(['turn-rate-scale','strafe-authority'],values)
         for channel,title in AXIS_CHANNELS:
@@ -352,19 +372,29 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         head=_visible_rows(['throttle-style','bind-throttle-axis'],values,device_names)
         rows+=[Row('header','throttle-header','THROTTLE'),*head,
                Row('meter','throttle-meter','',meter=throttle_meter(values,live,focused))]
-        rows+=_visible_rows([i for i in ids if i not in ('throttle-style','bind-throttle-axis')],values)
+        rows+=_visible_rows([i for i in ids if i not in ('throttle-style','bind-throttle-axis') and i not in LEVER_ORDER],values)
+        lever=_visible_rows(LEVER_ORDER,values)
+        if lever:rows+=[lever[0],Row('header','lever-zones-header','LEVER ZONES')]+lever[1:]
         if values['flight-model']=='sultan' and values['throttle-style']=='hosas':
             rows.insert(1,Row('header','signed-thrust-help','CENTRE COASTS / PULL FOR RETRO'))
     elif route=='flight-tuning':
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
-        if tuning:rows+=tuning_rows(tuning)
         if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: BASELINE, INCOMPLETE'))
-        groups=(('THRUST',('acceleration-scale','forward-ratio','retro-ratio','lateral-ratio','up-ratio','down-ratio')),
+        if tuning:
+            # The tuning file's own actions sit with its picker, where "(edited)" shows.
+            rows+=tuning_rows(tuning)
+            builtin=tuning['selected']==SULTAN_TUNING
+            rows.append(Row('button','flight-tuning-save','Save tuning',f"Write this class's profile to {tuning['selected']}'s file.",
+                            enabled=not builtin,suffix="Sultan's is built in"))
+            rows.append(Row('button','flight-tuning-save-new','Save as new tuning',
+                            f"Write this class's profile to a new <Class>_Custom.json in {tuning['folder']} and select it. "
+                            'Rename the file to rename the tuning; share the file to share the tuning.'))
+        groups=(('THRUST',('acceleration-scale','forward-ratio','retro-ratio','lateral-ratio','up-ratio','down-ratio','jerk-limit')),
                 ('SPEED',('speed-cap','speed-cap-multiplier','speed-hold-gain','accel-fade-exponent','brake-floor','momentum','overspeed-bleed-time')),
+                ('ROTATION',('pitch-rate','yaw-rate','roll-rate','turn-response','additive-pitch-yaw','auto-bank-on-yaw')),
                 ('BOOST',('boost-enabled','boost-source','boost-multiplier','boost-heat-time','boost-cool-time','boost-cold-strength','boost-hot-zone','boost-relight-level')),
-                ('PARKING BRAKE',('brake-strength','settle-time','hold-threshold')),
-                ('RESPONSE',('jerk-limit',)),('ROTATION',('pitch-rate','yaw-rate','roll-rate','turn-response','additive-pitch-yaw','auto-bank-on-yaw')))
+                ('PARKING BRAKE',('brake-strength','settle-time','hold-threshold')))
         for group,keys in groups:
             rows.append(Row('header','tuning-group-'+keys[0],group))
             rows+=_visible_rows(['tuning-'+k for k in keys],values)
@@ -406,27 +436,22 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                 rows.append(Row('readout','tuning-live-'+axis.lower(),axis+' acceleration',value=value,suffix=' u/s²'))
         else:rows.append(Row('header','tuning-no-live','FLIGHT READOUT UNAVAILABLE'))
         rows.append(Row('header','tuning-actions-header','CLASS PROFILE'))
-        if tuning:
-            builtin=tuning['selected']==SULTAN_TUNING
-            rows.append(Row('button','flight-tuning-save','Save tuning',f"Write this class's profile to {tuning['selected']}'s file.",
-                            enabled=not builtin,suffix="Sultan's is built in"))
-            rows.append(Row('button','flight-tuning-save-new','Save as new tuning',
-                            f"Write this class's profile to a new <Class>_Custom.json in {tuning['folder']} and select it. "
-                            'Rename the file to rename the tuning; share the file to share the tuning.'))
         rows.append(Row('button','flight-tuning-copy-all','Copy to all classes','Copy the currently edited profile into every flyable class. Revert restores the saved profiles.'))
     elif route=='atmosphere':
         if values['flight-model']!='sultan':raise KeyError('Atmosphere Flight requires Sultan flight model')
         rows+=_visible_rows(['atmosphere-model'],values)
         if values['atmosphere-model']=='sultan':
-            rows.append(Row('header','air-style-header','AIR STYLE: '+SHIP_CLASSES[editing_class].upper()))
-            if editing_class not in AIR_CLASSES:
-                rows.append(Row('header','air-style-native','NATIVE ATMOSPHERE FLIGHT FOR THIS CLASS (NOT QUALIFIED FOR SULTAN YET)'))
-            rows+=_visible_rows(['tuning-'+k for k in AIR_STYLE_KEYS],values)
-            rows.append(Row('button','air-style-reset','Reset class air style',"Restore this class's air style. Space tuning and the planet settings stay."))
             rows.append(Row('header','air-planets-header','PLANETS (ALL CLASSES)'))
             rows+=_visible_rows([c.id for c in AIR_CONTROLS],values)
             rows.append(Row('header','landing-header','LANDING (ALL CLASSES)'))  # T101; Landing gear binds on Buttons
             rows+=_visible_rows([c.id for c in LANDING_CONTROLS],values)
+            rows.append(Row('header','air-style-header','AIR STYLE: '+SHIP_CLASSES[editing_class].upper()))
+            if editing_class not in AIR_CLASSES:
+                rows.append(Row('header','air-style-native','NATIVE ATMOSPHERE FLIGHT FOR THIS CLASS (NOT QUALIFIED FOR SULTAN YET)'))
+            for group,keys in AIR_STYLE_GROUPS:
+                rows.append(Row('header','air-group-'+keys[0],group))
+                rows+=_visible_rows(['tuning-'+k for k in keys],values)
+            rows.append(Row('button','air-style-reset','Reset class air style',"Restore this class's air style. Space tuning and the planet settings stay."))
             rows.append(Row('header','air-live-header','LIVE AIR'))
             air=((live or {}).get('newtonian') or {}).get('planetary')
             if air:
@@ -451,10 +476,24 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
             if rotation.get('air_authority') is not None:  # T92: pitch/yaw rate share left by the air
                 rows.append(Row('header','air-live-nose',f"NOSE AUTHORITY: {round(100*rotation['air_authority'])}%"))
     elif route=='damage':
-        # T93 ditch at sea (Sultan atmosphere flight only); T94 crash damage joins this page.
+        # T94 crash damage (anywhere you can hit something), T93 ditch at sea (Sultan atmosphere flight only).
+        rows.append(Row('header','damage-crash-header','CRASH DAMAGE'))
+        rows+=_visible_rows(CRASH_CONTROLS,values)
+        crash=(live or {}).get('crash-damage')
+        if crash and values.get('crash-damage'):
+            state='ACTIVE' if crash.get('enabled') else str(crash.get('state','waiting')).upper()
+            rows.append(Row('header','damage-crash-live','CRASH DAMAGE: '+state))
+            last_hit=crash_damage.format_last_hit(crash.get('last_hit'))
+            if last_hit:rows.append(Row('header','damage-crash-last-hit',last_hit))
         rows.append(Row('header','damage-ditch-header','DITCH AT SEA'))
         ditch=_visible_rows(['air-ditch','air-ditch-speed','air-ditch-sink-rate','air-sink-speed','air-purge-difficulty'],values)
         rows+=ditch or [Row('header','damage-ditch-unavailable','NEEDS SULTAN ATMOSPHERE FLIGHT (ATMOSPHERE FLIGHT PAGE)')]
+        # T95: what the ship sounds and looks like in trouble (ditch, crash).
+        alarms=_visible_rows(ALARM_CONTROLS,values)
+        if alarms:rows+=[Row('header','damage-alarms-header','ALARMS')]+alarms
+        alarm_state=(live or {}).get('ship-alarms') or {}
+        if alarm_state.get('unavailable'):rows.append(Row('header','damage-alarms-off','ALARMS UNAVAILABLE ON THIS BUILD'))
+        # Ship condition (from a crash or a ditch) closes the page, as live readouts do elsewhere.
         air=((live or {}).get('newtonian') or {}).get('planetary') or {}
         condition=air.get('condition','intact');purge=air.get('purge')
         if condition=='wrecked':rows.append(Row('header','damage-live-condition','WRECKED: HULL FAILED, EJECT'))
@@ -464,19 +503,6 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                                                                           else '' if remaining is None else f': RESTART IN {math.ceil(remaining)} S')))
         if air.get('hull') is not None and air['hull']<1.:
             rows.append(Row('header','damage-live-hull',f"HULL {round(100*air['hull'])}%"))
-        rows.append(Row('header','damage-crash-header','CRASH DAMAGE'))
-        rows+=_visible_rows(CRASH_CONTROLS,values)
-        crash=(live or {}).get('crash-damage')
-        if crash and values.get('crash-damage'):
-            state='ACTIVE' if crash.get('enabled') else str(crash.get('state','waiting')).upper()
-            rows.append(Row('header','damage-crash-live','CRASH DAMAGE: '+state))
-            last_hit=crash_damage.format_last_hit(crash.get('last_hit'))
-            if last_hit:rows.append(Row('header','damage-crash-last-hit',last_hit))
-        # T95: what the ship sounds and looks like in trouble (ditch, crash).
-        alarms=_visible_rows(ALARM_CONTROLS,values)
-        if alarms:rows+=[Row('header','damage-alarms-header','ALARMS')]+alarms
-        alarm_state=(live or {}).get('ship-alarms') or {}
-        if alarm_state.get('unavailable'):rows.append(Row('header','damage-alarms-off','ALARMS UNAVAILABLE ON THIS BUILD'))
     elif route=='buttons':
         rows+=button_rows(buttons or {},values,device_names,live)
     elif route=='head-tracking':
