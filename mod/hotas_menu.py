@@ -380,7 +380,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
     elif route=='flight-tuning':
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
-        if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: BASELINE, INCOMPLETE'))
+        if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: WORK IN PROGRESS'))
         if tuning:
             # The tuning file's own actions sit with its picker, where "(edited)" shows.
             rows+=tuning_rows(tuning)

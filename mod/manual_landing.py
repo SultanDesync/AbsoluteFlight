@@ -30,6 +30,11 @@ class Touchdown:
     climb: float = 1.      # u/s: rising faster than this is not a touchdown
     lift: float = .1       # share of up stick that means the pilot wants to stay up
     settle: float = .5     # s all of the above must hold
+    # alpha.15 Corvette (user 2026-10-22): its hull rested on the ground reading 13-20 u, so it never got under
+    # height. Higher up (within PANEL_HEIGHT), a ship that is asked to sink and doesn't is held up by contact.
+    push: float = .1       # share of down stick that asks to sink
+    blocked_sink: float = .5  # u/s: sinking slower than this while asked to sink = resting on something
+    blocked_settle: float = 1.  # s a blocked sink must hold
 
     @classmethod
     def from_values(cls, values):
@@ -63,21 +68,26 @@ class TouchdownDetector:
         self.since = self.pressed_at = None
 
     def ready(self, settings, planetary, vertical, speed, flying):
-        """Whether this tick looks like a ship resting on, or settling onto, the ground. Sets self.last."""
-        if not flying or not planetary or not planetary.get('gear'):self.last = 'gear up';return False
-        clearance = planetary.get('clearance')
-        if clearance is None or not math.isfinite(clearance) or clearance > settings.height:self.last = 'descend';return False
-        if vertical > settings.lift or (planetary.get('vertical_speed') or 0.) > settings.climb:self.last = 'climbing';return False
-        if speed is None or speed > settings.speed:self.last = 'slow down';return False
-        if planetary.get('tilt') is not None and planetary['tilt'] > settings.tilt:self.last = 'level off';return False
-        self.last = 'settling';return True
+        """The settle time this tick needs if it looks like a ship resting on, or settling onto, the ground (low:
+        settings.settle; held up higher by contact: settings.blocked_settle), else None. Sets self.last."""
+        if not flying or not planetary or not planetary.get('gear'):self.last = 'gear up';return None
+        clearance = planetary.get('clearance'); vs = planetary.get('vertical_speed') or 0.
+        if clearance is None or not math.isfinite(clearance):self.last = 'descend';return None
+        low = clearance <= settings.height
+        blocked = clearance <= PANEL_HEIGHT and vertical < -settings.push and vs > -settings.blocked_sink
+        if not (low or blocked):self.last = 'descend';return None
+        if vertical > settings.lift or vs > settings.climb:self.last = 'climbing';return None
+        if speed is None or speed > settings.speed:self.last = 'slow down';return None
+        if planetary.get('tilt') is not None and planetary['tilt'] > settings.tilt:self.last = 'level off';return None
+        self.last = 'settling';return settings.settle if low else settings.blocked_settle
 
     def step(self, now, settings, planetary, vertical, speed, flying):
         """True on the tick the Land key should go down."""
-        if not self.ready(settings, planetary, vertical, speed, flying):
+        settle = self.ready(settings, planetary, vertical, speed, flying)
+        if settle is None:
             self.since = None;return False
         if self.since is None:self.since = now
-        if now-self.since < settings.settle:return False
+        if now-self.since < settle:return False
         if self.pressed_at is not None and now-self.pressed_at < RETRY:self.last = 'landing';return False
         self.pressed_at = now;self.last = 'landing';return True
 
@@ -87,7 +97,7 @@ class TouchdownDetector:
 
 
 LANDED_WINDOW = 4.  # s after a Land press within which the game taking the ship means it landed
-TAKEOFF_HEIGHT = 2.  # times the touchdown height: back in Sultan flight this high after landing = the game took off
+TAKEOFF_CLIMB = 10.  # u above where it landed: back in Sultan flight this much higher = the game took off
 
 
 class TakeoffWatch:
@@ -97,13 +107,15 @@ class TakeoffWatch:
     well clear of the ground. A pause on the ground, or a refused Land, leaves the gear alone."""
     def __init__(self):
         self.landed = False
+        self.ground = 0.  # clearance last seen in Sultan flight before landing (a big hull rests well above 0)
 
-    def step(self, now, settings, gear, flying, clearance, pressed_at):
+    def step(self, now, gear, flying, clearance, pressed_at):
         """True on the tick the gear should go up."""
         if not gear:self.landed = False;return False
+        known = clearance is not None and math.isfinite(clearance)
+        if flying and known and not self.landed:self.ground = clearance
         if not flying and pressed_at is not None and now-pressed_at < LANDED_WINDOW:self.landed = True
-        if (self.landed and flying and clearance is not None and math.isfinite(clearance)
-                and clearance > TAKEOFF_HEIGHT*settings.height):
+        if self.landed and flying and known and clearance > self.ground+TAKEOFF_CLIMB:
             self.landed = False;return True
         return False
 
