@@ -152,6 +152,7 @@ CONTROLS=(
     Control('cursor-stick-enabled','bool','Stick moves cursor','While a dialog or menu is open, pitch and yaw move the mouse cursor; bind left click (Fire) to select. Needs Keyboard & mouse output. Never active in flight.',True,new=True),
     Control('cursor-speed','float','Cursor speed','Cursor speed at full stick deflection. Small deflections move much slower, for fine aiming.',1400.,200.,4000.,50.,'pixels',visible=(('cursor-stick-enabled',True),),new=True),
     Control('cursor-invert-y','bool','Invert cursor vertical','Reverse the cursor direction for pitch, without changing flight.',False,visible=(('cursor-stick-enabled',True),),new=True),
+    Control('parking-brake-mode','choice','Parking brake mode',"Latched: press the Parking brake button once to stop the ship and hold it there, press again to release. Hold to brake: the brake works only while you hold the button. Either way, translation input is ignored while it brakes; boost still gets through.",'toggle',choices=(('toggle','Latched'),('hold','Hold to brake')),new=True),
     Control('eject-hold-time','float','Eject hold time','How long the Eject button must be held before you leave the ship. The HUD counts down while you hold it.',3.,1.,10.,.5,'seconds',new=True),
     Control('lever-boost-enabled','bool','Boost zone','Request Sultan boost above the boost boundary. Enable boost for the flown class in Flight Tuning; boost adds acceleration while leaving the speed cap unchanged.',False,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
 )
@@ -205,6 +206,12 @@ DAMAGE_CONTROLS=(
     Control('alarm-lights','bool','Red alarm lights','The cockpit alarm lamps pulse red while the ship is in trouble, faster as the hull fails, slowly once it is wrecked. Off: the game keeps its own alarm lights.',True,visible=SULTAN_ONLY,new=True),
 )
 CONTROLS+=DAMAGE_CONTROLS
+
+# Visuals page (user 2026-10-23): how the game looks, for every flight model.
+VISUAL_CONTROLS=(
+    Control('black-space','bool','Black space',"Space is black: the space colours, nebula clouds and space haze are turned off. Stars, suns and planets stay as they are, and ships stay lit. If some colour stays when you switch this on, warp to another system to see the rest. Off: the game's colourful space (fully back after a warp).",False,new=True),
+)
+CONTROLS+=VISUAL_CONTROLS
 
 # Active-class tuning rows are views into profiles, never a second persisted source of truth.
 PROFILE_CONTROLS=(
@@ -554,6 +561,9 @@ class SettingsStore:
                 if b.action in seen:issues.append(f'{b.action}: extra binding on {b.token} dropped');continue
                 seen.add(b.action);buttons.append(b.to_json())
             report.issues.extend('buttons: '+i for i in issues)
+            # A file from before Parking brake mode (T106) keeps a brake saved as held: Hold to brake.
+            if 'parking-brake-mode' not in data['values'] and any(b['action']=='mod.parking-brake' and b['behaviour']=='press' for b in buttons):
+                values['parking-brake-mode']='hold'
         tunings={}
         raw_tunings=data.get('tunings',{}) if isinstance(data,dict) else {}
         if isinstance(raw_tunings,dict):

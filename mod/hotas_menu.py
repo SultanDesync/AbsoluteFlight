@@ -7,7 +7,7 @@ help in the native description panel, values applied as they change and saved on
 """
 from dataclasses import dataclass,field
 import math
-from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
+from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CONTROLS,VISUAL_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
 import crash_damage
@@ -25,6 +25,7 @@ ROUTES=(('flight-model','Flight Model',None),('flight-tuning','Flight Tuning',No
         ('flight-axes','Flight Axes',None),('throttle','Throttle',None),('buttons','Buttons',None),
         ('head-tracking','Head Tracking',None),
         ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),('damage','Ship Damage',None),
+        ('visuals','Visuals',None),
         ('devices','Devices & Calibration','Waits on the input bus (T4/T35).'),
         ('status','Status','Not built yet.'))
 SULTAN_ROUTES=('flight-tuning','atmosphere','damage','hud','g-force')
@@ -211,6 +212,7 @@ def button_rows(buttons,values,device_names=None,live=None):
         if a.id not in LIVE_MOD_ACTIONS:
             rows.append(Row('button','button-bind:'+a.id,a.label,a.help+' Not part of this runtime yet.',enabled=False));continue
         rows+=_action_rows(a.id,a.label,a.help,bound.get(a.id),device_names,modifier is not None)
+        if a.id=='mod.parking-brake':rows+=_visible_rows(('parking-brake-mode',),values)  # T106: latched or hold
         if a.id=='mod.eject':rows+=_visible_rows(('eject-hold-time',),values)  # T93: this action's hold
     rows.append(Row('header','buttons-key-header','KEYBOARD & MOUSE'))
     rows.append(control_row(BY_ID['key-output-enabled'],values))
@@ -291,12 +293,13 @@ def route_controls(route):
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
     if route=='combat':return list(AIMING_CONTROLS+AI_CONTROLS)
-    if route=='buttons':return ['key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','eject-hold-time']
+    if route=='buttons':return ['key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
     if route=='throttle':
         return [c.id for c in CONTROLS if c.id in ('throttle-style','bind-throttle-axis','throttle-inverted','hosas-stick-mode','cruise-detent-enabled') or c.id.startswith(('throttle-','hosas-','rate-throttle-','lever-'))]
     if route=='flight-tuning':return [c.id for c in PROFILE_CONTROLS if c.id[len('tuning-'):] not in AIR_STYLE_KEYS]
     if route=='atmosphere':return ['atmosphere-model']+['tuning-'+k for k in AIR_STYLE_KEYS]+[c.id for c in AIR_CONTROLS+LANDING_CONTROLS]
     if route=='damage':return [c.id for c in DAMAGE_CONTROLS]
+    if route=='visuals':return [c.id for c in VISUAL_CONTROLS]
     if route=='head-tracking':return [c.id for c in HEAD_CONTROLS]
     return []
 
@@ -503,6 +506,15 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                                                                           else '' if remaining is None else f': RESTART IN {math.ceil(remaining)} S')))
         if air.get('hull') is not None and air['hull']<1.:
             rows.append(Row('header','damage-live-hull',f"HULL {round(100*air['hull'])}%"))
+    elif route=='visuals':
+        rows+=_visible_rows(route_controls(route),values)
+        sky=(live or {}).get('black-space') or {}
+        if values.get('black-space') and sky.get('state') in ('waiting','unavailable','error'):
+            rows.append(Row('header','black-space-live',{'waiting':'BLACK SPACE: WAITING FOR THE GAME',
+                                                         'unavailable':'BLACK SPACE: SKY CHANGED BY ANOTHER MOD OR BUILD',
+                                                         'error':'BLACK SPACE: OFF AFTER AN ERROR (SEE LOG)'}[sky['state']]))
+        elif values.get('black-space') and sky.get('palettes')=='unavailable':
+            rows.append(Row('header','black-space-live','BLACK SPACE: COLOURS CHANGED BY ANOTHER MOD OR BUILD'))
     elif route=='buttons':
         rows+=button_rows(buttons or {},values,device_names,live)
     elif route=='head-tracking':

@@ -45,7 +45,7 @@ from command_mailbox import CommandMailbox,PAYLOAD,STRICT_ROTATION
 from hotas_control import FlightControl,MAILBOX_ORDER,NATIVE_LIMITS,StallMonitor
 from hotas_input import AxisCapture,BusReader,ButtonCapture,ClearableCapture,DeviceTable,KeyCapture
 from key_lane import win32_lane
-from button_actions import ButtonActions
+from button_actions import ButtonActions,flight_buttons_live
 from g_effects import GEffects
 from flight_telemetry import SHIP_FIELDS,TelemetryWriter,build_row,decode_receipt
 from hotas_settings import SettingsStore
@@ -60,6 +60,7 @@ from head_tracking import HeadTracker,ProcessMemory
 from ai_pilots import AIPilotTuning,wanted_mode
 from ai_accuracy import EvasiveAccuracy,enabled as aim_tuning_enabled
 from ai_combat import NPCCombatTuning
+from black_space import BlackSpace
 from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES
 CRASH_BLACKOUT_HOLD=2.  # T93: seconds a ditched pilot stays out beyond the normal G recovery
 WRECK_CAUSES=('ditch','collision')  # ejecting from these has the game put the wreck down landed (user 2026-10-21)
@@ -156,6 +157,7 @@ class AbsoluteHOTAS(Mod):
         memory=ProcessMemory()  # AI tables are heap data: a stale pointer must fail, not fault
         self.ai_pilots=AIPilotTuning(int(_internal.BASE_ADDRESS),memory.read,memory.write)
         self.ai_combat=NPCCombatTuning(int(_internal.BASE_ADDRESS),memory.read,memory.write)
+        self.black_space=BlackSpace(int(_internal.BASE_ADDRESS),memory.read,memory.write)
         self.ai_aim=EvasiveAccuracy(int(_internal.BASE_ADDRESS),memory.read,K.GetTickCount64)
         try:self.ai_aim.verify()
         except Exception as error:self.log('enemy aim disabled: '+repr(error))
@@ -250,7 +252,7 @@ class AbsoluteHOTAS(Mod):
             self.control.reconfigure(values,changed)
             if any(k in changed for k in ('tuning-additive-pitch-yaw','tuning-pitch-rate','tuning-yaw-rate','tuning-roll-rate','tuning-turn-response')):
                 for axis in ('pitch','yaw'):self.control._disarm(axis,'rotation tuning changed')  # re-arms with the ramp
-            if 'buttons' in changed:self.buttons.reload()
+            if 'buttons' in changed or 'parking-brake-mode' in changed:self.buttons.reload()
             self.translation_profiles={c:self.store.profile(c) for c in SUPPORTED_CLASSES}
             if any(key.startswith('ai-') or key in ('flight-model','flight-controls-enabled') for key in changed):
                 aim=getattr(self,'ai_aim',None)
@@ -1797,7 +1799,7 @@ class AbsoluteHOTAS(Mod):
                         self.buttons.synthetic_keys=frozenset()
                         if not getattr(self,'touchdown_failed',False):self.touchdown_failed=True;self.log('touchdown error: '+repr(error))
                     self._log_axis_states()
-                    self.buttons.step(self.table.digital,now,reason is None,
+                    self.buttons.step(self.table.digital,now,flight_buttons_live(reason),
                                       self.capture is None and not self.menu_open and self._focused())
                     self._eject_hold(now,tick,reason is None)
                     # Dialogs and menus: the free stick drives the cursor (the frontend flag also releases flight axes).
@@ -1866,7 +1868,7 @@ class AbsoluteHOTAS(Mod):
                     self.log('Newtonian receipt export off: '+repr(error));self.newtonian_receipt_path=None
                 if now-last_status>=.5:
                     last_status=now
-                    self._update_cockpit_speed();self._update_ai_pilots();self._update_ai_combat()
+                    self._update_cockpit_speed();self._update_ai_pilots();self._update_ai_combat();self._update_black_space()
                     self.status={'state':'armed' if armed else (reason or 'waiting'),'channels':dict(self.control.reasons),
                                  'values':dict(zip(MAILBOX_ORDER,values)),'devices':self.table.names(),'errors':self.errors,'hook_errors':self.hook_errors,
                                  'newtonian':self._translation_status(),'translation_channels':dict(self.translation.reasons),
@@ -1878,6 +1880,7 @@ class AbsoluteHOTAS(Mod):
                                  'ai_pilots':self.ai_pilots.status() if getattr(self,'ai_pilots',None) else {'state':'not initialized'},
                                  'ai_aim':self.ai_aim.status() if getattr(self,'ai_aim',None) else {'state':'not initialized'},
                                  'npc_combat':self.ai_combat.status() if getattr(self,'ai_combat',None) else {'state':'not initialized'},
+                                 'black_space':self.black_space.status() if getattr(self,'black_space',None) else {'state':'not initialized'},
                                  'player_recoveries':getattr(self,'pilot_recoveries',0),
                                  'agent_test':self.agent_test.status() if getattr(self,'agent_test',None) else {'enabled':False},
                                  'player_recovery':getattr(self,'pilot_recovery',None),
@@ -1948,6 +1951,17 @@ class AbsoluteHOTAS(Mod):
         except Exception as error:
             self.log('NPC beams/shields disabled: '+repr(error))
             try:combat.restore()
+            except Exception:pass
+
+    def _update_black_space(self):
+        sky=getattr(self,'black_space',None)
+        if sky is None:return
+        try:
+            before=sky.status()['state'];after=sky.update(bool(self.store.values.get('black-space')))
+            if after['state']!=before:self.log('black space: '+json.dumps(after))
+        except Exception as error:
+            self.log('black space disabled: '+repr(error))
+            try:sky.restore()
             except Exception:pass
 
     # ---------- native menu (D15): rows on Controls-type pages, meters at nvgEndFrame ----------
@@ -2047,6 +2061,7 @@ class AbsoluteHOTAS(Mod):
         if getattr(self,'ai_pilots',None) is not None:live['ai-pilots']=self.ai_pilots.status()
         if getattr(self,'ai_aim',None) is not None:live['ai-aim']=self.ai_aim.status()
         if getattr(self,'ai_combat',None) is not None:live['npc-combat']=self.ai_combat.status()
+        if getattr(self,'black_space',None) is not None:live['black-space']=self.black_space.status()
         if getattr(self,'head',None) is not None:live['head']=self.head.status()
         live['crash-damage']=self._crash_damage_status()
         if getattr(self,'alarms',None) is not None:
@@ -2486,6 +2501,10 @@ class AbsoluteHOTAS(Mod):
         if combat is not None:
             try:self.log('NPC beams/shields restored: '+json.dumps(combat.restore()))
             except Exception as error:self.log('NPC beams/shields restore failed: '+repr(error))
+        sky=getattr(self,'black_space',None)
+        if sky is not None:
+            try:self.log('black space restored: '+json.dumps(sky.restore()))
+            except Exception as error:self.log('black space restore failed: '+repr(error))
         try:self.buttons.release(reason)  # never leave a key or mouse button down
         except BaseException:pass
         with self.newtonian_lock:

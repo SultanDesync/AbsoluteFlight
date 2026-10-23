@@ -9,6 +9,8 @@ step_cursor() moves the mouse cursor from pitch/yaw while a frontend page is ope
 Settings changes requested by buttons are returned by take_changes() so the runtime can apply them
 outside its own lock: the settings listener takes that lock again. Native actions wait for T67.
 """
+from dataclasses import replace
+
 from hotas_buttons import ButtonRouter, ButtonState
 from hotas_settings import FLIGHT_MODELS
 from stick_cursor import StickCursor, cursor_mode, cursor_reason
@@ -20,6 +22,14 @@ LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost', 'mod.trim-up',
                     'mod.head-tracking-toggle', 'mod.head-recentre', 'mod.head-tracking-on', 'mod.head-tracking-off',
                     'mod.eject')
 KEY_LANES = ('key', 'mouse')
+# Runtime disarm reasons under which mod actions still act. A receipt stall disarms the axes, but the
+# buttons stay live (alpha.18, 2026-10-23: braked to a stop, the game's flight updates stalled for up to
+# 39 s and every press of the toggled parking brake was dropped, so it could not be released).
+BUTTONS_LIVE_REASONS = (None, 'native receipts stale')
+
+
+def flight_buttons_live(reason):
+    return reason in BUTTONS_LIVE_REASONS
 EMPTY = ButtonState(frozenset(), (), frozenset())
 
 
@@ -44,11 +54,17 @@ class ButtonActions:
         self.reload()
 
     def reload(self):
-        """Settings changed: rebind. Held presses are released; a toggled parking brake survives."""
-        bindings = self.store.button_bindings()
+        """Settings changed: rebind. Held presses are released; a toggled parking brake survives
+        unless the brake was switched to Hold to brake."""
+        hold = self.store.values.get('parking-brake-mode') == 'hold'
+        # Parking brake mode (Buttons page, T106) decides the brake's behaviour, not the stored binding.
+        bindings = [replace(b, behaviour='press' if hold else 'toggle') if b.action == 'mod.parking-brake' else b
+                    for b in self.store.button_bindings()]
         modifier = self.store.button_modifier
         self.flight.configure([b for b in bindings if not is_key_action(b.action)], modifier)
         self.keys.configure([b for b in bindings if is_key_action(b.action)], modifier)
+        if hold:
+            self.flight.latched.discard('mod.parking-brake')
 
     @property
     def parking(self):

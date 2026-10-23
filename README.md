@@ -1,10 +1,15 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.16)
+# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.21)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
 ditching and crash damage.
 
-**Alpha:** for invited testers. Expect rough edges, and please send a support bundle with every report.
+**Public alpha:** open to anyone who wants to fly it. Expect rough edges, and please send a support bundle
+with every report. Your feedback is what shapes the next builds.
+
+**Made with AI:** the code was written by AI coding agents under my direction. I designed it, directed
+the research and flew every feature. See [HOW-IT-WAS-MADE.md](HOW-IT-WAS-MADE.md) for who did what, and
+what that means for you.
 
 **Discord:** https://discord.gg/KtrhfPBpr is where testing happens: bug reports, feedback, shared tunings,
 new builds and tester chat. See "Reporting a problem" below.
@@ -93,3 +98,11 @@ support bundle only leaves your PC when you post it.
 ## Uninstall
 
 Delete this folder and `%LOCALAPPDATA%\AbsoluteHOTAS`. The mod never changes game files.
+
+---
+
+Absolute Flight is MIT licensed (see [LICENSE](LICENSE)). The Python runtime, packages and Rust crates it
+ships keep their own licences: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Absolute Flight is an unofficial fan mod, not made, endorsed or supported by Hello Games. No Man's Sky
+is a trademark of Hello Games.
