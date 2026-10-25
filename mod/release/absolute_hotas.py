@@ -61,6 +61,7 @@ from ai_pilots import AIPilotTuning,wanted_mode
 from ai_accuracy import EvasiveAccuracy,enabled as aim_tuning_enabled
 from ai_combat import NPCCombatTuning
 from black_space import BlackSpace
+from terrain_lookahead import TerrainLookahead
 from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES
 CRASH_BLACKOUT_HOLD=2.  # T93: seconds a ditched pilot stays out beyond the normal G recovery
 WRECK_CAUSES=('ditch','collision')  # ejecting from these has the game put the wreck down landed (user 2026-10-21)
@@ -159,6 +160,10 @@ class AbsoluteHOTAS(Mod):
         self.ai_pilots=AIPilotTuning(int(_internal.BASE_ADDRESS),memory.read,memory.write)
         self.ai_combat=NPCCombatTuning(int(_internal.BASE_ADDRESS),memory.read,memory.write)
         self.black_space=BlackSpace(int(_internal.BASE_ADDRESS),memory.read,memory.write)
+        # T107: the hook moves the region map's own stack copy of the observer, so it reads and writes it directly.
+        self.terrain=TerrainLookahead(int(_internal.BASE_ADDRESS),memory.read,memory.write,
+                                      raw_read=C.string_at,raw_write=lambda address,data:C.memmove(address,data,len(data)))
+        self.terrain_motion=(0,None)
         self.ai_aim=EvasiveAccuracy(int(_internal.BASE_ADDRESS),memory.read,K.GetTickCount64)
         try:self.ai_aim.verify()
         except Exception as error:self.log('enemy aim disabled: '+repr(error))
@@ -1914,7 +1919,7 @@ class AbsoluteHOTAS(Mod):
                     self.log('Newtonian receipt export off: '+repr(error));self.newtonian_receipt_path=None
                 if now-last_status>=.5:
                     last_status=now
-                    self._update_cockpit_speed();self._update_ai_pilots();self._update_ai_combat();self._update_black_space()
+                    self._update_cockpit_speed();self._update_ai_pilots();self._update_ai_combat();self._update_black_space();self._update_terrain()
                     self.status={'state':'armed' if armed else (reason or 'waiting'),'channels':dict(self.control.reasons),
                                  'values':dict(zip(MAILBOX_ORDER,values)),'devices':self.table.names(),'errors':self.errors,'hook_errors':self.hook_errors,
                                  'newtonian':self._translation_status(),'translation_channels':dict(self.translation.reasons),
@@ -1927,6 +1932,7 @@ class AbsoluteHOTAS(Mod):
                                  'ai_aim':self.ai_aim.status() if getattr(self,'ai_aim',None) else {'state':'not initialized'},
                                  'npc_combat':self.ai_combat.status() if getattr(self,'ai_combat',None) else {'state':'not initialized'},
                                  'black_space':self.black_space.status() if getattr(self,'black_space',None) else {'state':'not initialized'},
+                                 'terrain_lookahead':self.terrain.status() if getattr(self,'terrain',None) else {'state':'not initialized'},
                                  'player_recoveries':getattr(self,'pilot_recoveries',0),
                                  'agent_test':self.agent_test.status() if getattr(self,'agent_test',None) else {'enabled':False},
                                  'player_recovery':getattr(self,'pilot_recovery',None),
@@ -2009,6 +2015,46 @@ class AbsoluteHOTAS(Mod):
             self.log('black space disabled: '+repr(error))
             try:sky.restore()
             except Exception:pass
+
+    def _update_terrain(self):
+        terrain=getattr(self,'terrain',None)
+        if terrain is None:return
+        try:
+            before=terrain.status();after=terrain.update(self.store.values)
+            # T107 live check: also every 20 s while the focus is being moved (offset, grid cell step).
+            now=time.monotonic()
+            if ((after['state'],after.get('budgets'),after.get('fade'))!=(before['state'],before.get('budgets'),before.get('fade'))
+                    or after.get('applied',0)>before.get('applied',0) and now-getattr(self,'terrain_logged',0.)>=20.):
+                self.terrain_logged=now;self.log('terrain look-ahead: '+json.dumps(after))
+        except Exception as error:
+            self.log('terrain look-ahead disabled: '+repr(error))
+            try:terrain.restore()
+            except Exception:pass
+
+    def _terrain_velocity(self):
+        """Ship velocity while piloting, read once per millisecond tick (the planet update runs once per planet)."""
+        now=K.GetTickCount64()
+        if self.terrain_motion[0]!=now:
+            motion=self._hud_motion(now) if self.block.ship else None
+            velocity=motion.get('velocity') if motion else None
+            self.terrain_motion=(now,tuple(velocity) if velocity is not None and len(velocity)==3 and all(math.isfinite(v) for v in velocity) else None)
+        return self.terrain_motion[1]
+
+    # T107: the planet update passes the region map its stack copy of the observer matrix (rdx); moving that copy
+    # moves only the terrain focus. The after hook puts it back.
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12801B0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
+    def terrain_focus_before(self,this,observer,extra):
+        terrain=getattr(self,'terrain',None)
+        if terrain is None or not terrain.enabled:return
+        try:terrain.focus_before(C.cast(observer,C.c_void_p).value,self._terrain_velocity())
+        except BaseException as error:terrain.fail(error);self.hook_errors+=1
+
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12801B0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
+    def terrain_focus_after(self,this,observer,extra):
+        terrain=getattr(self,'terrain',None)
+        if terrain is None or not (terrain.enabled or terrain.pending):return
+        try:terrain.focus_after(C.cast(this,C.c_void_p).value,C.cast(observer,C.c_void_p).value)
+        except BaseException as error:terrain.fail(error);self.hook_errors+=1
 
     # ---------- native menu (D15): rows on Controls-type pages, meters at nvgEndFrame ----------
     def _build_menu(self):
@@ -2108,6 +2154,7 @@ class AbsoluteHOTAS(Mod):
         if getattr(self,'ai_aim',None) is not None:live['ai-aim']=self.ai_aim.status()
         if getattr(self,'ai_combat',None) is not None:live['npc-combat']=self.ai_combat.status()
         if getattr(self,'black_space',None) is not None:live['black-space']=self.black_space.status()
+        if getattr(self,'terrain',None) is not None:live['terrain-lookahead']=self.terrain.status()
         if getattr(self,'head',None) is not None:live['head']=self.head.status()
         live['crash-damage']=self._crash_damage_status()
         if getattr(self,'alarms',None) is not None:
@@ -2552,6 +2599,10 @@ class AbsoluteHOTAS(Mod):
         if sky is not None:
             try:self.log('black space restored: '+json.dumps(sky.restore()))
             except Exception as error:self.log('black space restore failed: '+repr(error))
+        terrain=getattr(self,'terrain',None)
+        if terrain is not None:
+            try:self.log('terrain look-ahead restored: '+json.dumps(terrain.restore()))
+            except Exception as error:self.log('terrain look-ahead restore failed: '+repr(error))
         try:self.buttons.release(reason)  # never leave a key or mouse button down
         except BaseException:pass
         with self.newtonian_lock:

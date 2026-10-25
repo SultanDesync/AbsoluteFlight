@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.2.0-alpha)
+# Absolute Flight for No Man's Sky (alpha 0.2.1-alpha)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -17,7 +17,8 @@ new builds and tester chat. See "Reporting a problem" below.
 ## What you need
 
 - No Man's Sky on **Steam, build 180836** (Steam build id 25732212). On any other build the mod
-  stays off and the game plays as normal.
+  stays off and the game plays as normal. If the pause menu's Options list looks wrong after a game update,
+  delete `GAMEDATA\MODS\AbsoluteFlight\UI` until a new release catches up.
 - Windows 10 or 11, 64-bit.
 - Nothing else: Python and everything the mod needs come inside the zip. There's no launcher and nothing to run.
 
@@ -31,7 +32,8 @@ Other builds, stores (GOG, Microsoft Store) and Linux/Steam Deck: see [PLATFORMS
    Windows asks, choose to merge the folders.
 
 That adds one file, `Binaries\winmm.dll`, and one folder, `GAMEDATA\MODS\AbsoluteFlight`. No game file is
-changed.
+changed. The folder's `UI\SWITCHERPAGENEW.MBIN` adds the Absolute Flight button to the pause menu's Options
+list; if another mod changes that same file, only one of them wins.
 
 - Multiplayer can stay on. Online play is less tested than single player: if something misbehaves online,
   try it with **Options > Network > Multiplayer: Off** and send a support bundle.
@@ -45,8 +47,9 @@ changed.
    before loading a save: **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page).
 3. Bind your stick axes and throttle under **Flight Axes**: select a binding, then move the axis.
 
-If **Absolute Flight** isn't in the pause menu's Options list, or **Absolute Flight Setup** isn't at the
-bottom of the main menu's Controls page, the mod didn't load: see "Reporting a problem".
+If **Absolute Flight Setup** isn't at the bottom of the main menu's Controls page, the mod didn't load: see
+"Reporting a problem". If only the pause menu's **Absolute Flight** button is missing, check that
+`GAMEDATA\MODS\AbsoluteFlight\UI\SWITCHERPAGENEW.MBIN` is there and that no other mod replaces it.
 
 The game's own mod list shows ABSOLUTEFLIGHT. Turning mods off there doesn't turn Absolute Flight off; to
 play without it, rename `Binaries\winmm.dll` (for example to `winmm.dll.off`) and rename it back later.

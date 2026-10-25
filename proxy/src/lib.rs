@@ -4,6 +4,10 @@
 //! through a table filled from System32\winmm.dll at attach (src/exports.rs, generated). Then a thread
 //! of our own (never DllMain) finds the Absolute Flight folder, loads its embedded python311.dll and
 //! runs boot_inproc.py there. Anything missing or failing is logged and the game plays vanilla.
+//!
+//! Sharing winmm.dll with other mods: another mod's winmm.dll renamed winmm-original.dll gets every call
+//! it exports instead of System32, and each *.asi in Binaries is loaded at attach (OptiScaler supports
+//! running as OptiScaler.asi; it refuses to start under a name it doesn't know).
 #![allow(non_snake_case, clippy::missing_safety_doc)]
 
 mod exports;
@@ -27,6 +31,7 @@ extern "system" {
                     param: *mut c_void, flags: u32, id: *mut u32) -> Handle;
     fn CloseHandle(handle: Handle) -> i32;
     fn GetLocalTime(time: *mut [u16; 8]);
+    fn GetCurrentProcessId() -> u32;
 }
 
 #[link(name = "bcrypt")]
@@ -40,6 +45,10 @@ static mut RNG_WARM: i32 = -1;
 const DLL_PROCESS_ATTACH: u32 = 1;
 const LOAD_WITH_ALTERED_SEARCH_PATH: u32 = 0x8;
 const BOOT_SCRIPT: &str = "boot_inproc.py";
+const CHAIN_DLL: &str = "winmm-original.dll";
+// Set by the first copy of this proxy in the process, so a second one (a stale copy left as
+// winmm-original.dll, say) only forwards and never boots Python twice.
+const LOADED_FLAG: &str = "ABSOLUTE_FLIGHT_PROXY_LOADED";
 
 fn wide(path: &Path) -> Vec<u16> {
     path.as_os_str().encode_wide().chain(Some(0)).collect()
@@ -80,6 +89,37 @@ unsafe fn resolve_real_winmm() -> bool {
         *slot = GetProcAddress(real, key) as usize;
     }
     true
+}
+
+/// Point the table at <Binaries>\winmm-original.dll for every export it has (it forwards the rest to
+/// System32 itself, like any winmm proxy). Under the loader lock, as the other mod would run anyway.
+unsafe fn chain_original(binaries: &Path) {
+    let path = binaries.join(CHAIN_DLL);
+    if !path.is_file() { return; }
+    let chained = LoadLibraryW(wide(&path).as_ptr());
+    if chained.is_null() { log(&format!("{CHAIN_DLL} is there but did not load: calls go to System32")); return; }
+    let table = &mut *std::ptr::addr_of_mut!(exports::AF_WINMM_TABLE);
+    let mut taken = 0;
+    for (slot, (name, ordinal)) in table.iter_mut().zip(exports::EXPORTS.iter()) {
+        let key = match name { Some(name) => name.as_ptr(), None => *ordinal as usize as *const u8 };
+        let proc = GetProcAddress(chained, key);
+        if !proc.is_null() { *slot = proc as usize; taken += 1; }
+    }
+    log(&format!("chained {CHAIN_DLL}: {taken} of {} exports go through it", exports::COUNT));
+}
+
+/// Load every *.asi in Binaries, in name order. Loaded here so they start as early as they would as
+/// the game's winmm.dll; a file another ASI loader already loaded is only reference-counted.
+unsafe fn load_asi_plugins(binaries: &Path) {
+    let Ok(entries) = std::fs::read_dir(binaries) else { return };
+    let mut plugins: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_file() && p.extension().map(|x| x.eq_ignore_ascii_case("asi")).unwrap_or(false))
+        .collect();
+    plugins.sort();
+    for plugin in plugins {
+        let loaded = !LoadLibraryW(wide(&plugin).as_ptr()).is_null();
+        log(&format!("asi {}: {}", plugin.display(), if loaded { "loaded" } else { "did not load" }));
+    }
 }
 
 /// The Absolute Flight folder: ABSOLUTE_FLIGHT_HOME, else the path in <data>\install-path.txt,
@@ -151,6 +191,22 @@ pub unsafe extern "system" fn DllMain(module: Handle, reason: u32, _: *mut c_voi
         if !resolve_real_winmm() {
             log("could not load System32\\winmm.dll");
             return 0; // fail the load rather than hand the game null functions
+        }
+        // Keyed by process id: child processes inherit the environment and must still boot.
+        let flag = format!("{LOADED_FLAG}_{}", GetCurrentProcessId());
+        let own = module_path(module);
+        if std::env::var_os(&flag).is_some() {
+            log(&format!("another copy of this proxy is already loaded: {} only forwards", own.display()));
+            return 1;
+        }
+        std::env::set_var(&flag, "1");
+        let exe = module_path(std::ptr::null_mut());
+        if let Some(binaries) = own.parent() {
+            // We may be the winmm-original.dll another mod's winmm.dll loaded: chaining to ourselves would loop.
+            let is_chain = own.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(CHAIN_DLL)).unwrap_or(false);
+            if !is_chain { chain_original(binaries); }
+            let is_nms = exe.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case("NMS.exe")).unwrap_or(false);
+            if is_nms { load_asi_plugins(binaries); }
         }
         // Load bcrypt's system RNG now, under the loader lock. Py_InitializeEx calls BCryptGenRandom for its
         // hash seed; done cold on the boot thread that takes bcrypt's provider lock, then the loader lock,

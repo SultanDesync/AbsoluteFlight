@@ -285,6 +285,17 @@ def _action_title(action_id):
     return a.label if a else action_id
 
 
+def terrain_rows(values,live):
+    """T107 status line under the terrain rows, only while the switch is on and something needs saying."""
+    if not values.get('terrain-lookahead'):return []
+    state=live.get('state')
+    if state=='unavailable':return [Row('header','terrain-lookahead-live','TERRAIN LOOK-AHEAD: NOT AVAILABLE ON THIS GAME BUILD')]
+    if state=='error':return [Row('header','terrain-lookahead-live','TERRAIN LOOK-AHEAD: OFF AFTER AN ERROR (SEE LOG)')]
+    if 'unavailable' in (live.get('budgets'),live.get('fade')):
+        return [Row('header','terrain-lookahead-live','TERRAIN LOOK-AHEAD: SOME VALUES CHANGED BY ANOTHER MOD')]
+    return []
+
+
 def _visible_rows(ids,values,device_names=None):
     return [control_row(BY_ID[i],values,device_names) for i in ids if is_visible(BY_ID[i],values)]
 
@@ -520,7 +531,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         if air.get('hull') is not None and air['hull']<1.:
             rows.append(Row('header','damage-live-hull',f"HULL {round(100*air['hull'])}%"))
     elif route=='visuals':
-        rows+=_visible_rows(route_controls(route),values)
+        rows+=_visible_rows(['black-space'],values)
         sky=(live or {}).get('black-space') or {}
         if values.get('black-space') and sky.get('state') in ('waiting','unavailable','error'):
             rows.append(Row('header','black-space-live',{'waiting':'BLACK SPACE: WAITING FOR THE GAME',
@@ -528,6 +539,8 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                                                          'error':'BLACK SPACE: OFF AFTER AN ERROR (SEE LOG)'}[sky['state']]))
         elif values.get('black-space') and sky.get('palettes')=='unavailable':
             rows.append(Row('header','black-space-live','BLACK SPACE: COLOURS CHANGED BY ANOTHER MOD OR BUILD'))
+        rows+=_visible_rows([i for i in route_controls(route) if i!='black-space'],values)
+        rows+=terrain_rows(values,(live or {}).get('terrain-lookahead') or {})
     elif route=='buttons':
         rows+=button_rows(buttons or {},values,device_names,live)
     elif route=='head-tracking':

@@ -215,6 +215,11 @@ CONTROLS+=DAMAGE_CONTROLS
 # Visuals page (user 2026-10-23): how the game looks, for every flight model.
 VISUAL_CONTROLS=(
     Control('black-space','bool','Black space',"Space is black: the space colours, nebula clouds and space haze are turned off. Stars, suns and planets stay as they are, and ships stay lit. If some colour stays when you switch this on, warp to another system to see the rest. Off: the game's colourful space (fully back after a warp).",False,new=True),
+    # T107 terrain look-ahead (user 2026-10-24/25): rocks and trees ahead of the ship appear sooner.
+    Control('terrain-lookahead','bool','Terrain look-ahead',"Rocks, trees and the ground ahead of the ship appear sooner when you fly fast and low: the game builds them ahead of you in the direction you fly, builds faster and fades them in quicker. Costs some CPU time. Off: the game's own behaviour.",False,new=True),
+    Control('terrain-lead','float','Look ahead','Seconds of flight ahead of the ship that rocks, trees and terrain are built around, up to about 64 m so the ground around the ship keeps its rocks.',1.,0.,2.,.25,'seconds',visible=(('terrain-lookahead',True),),new=True),
+    Control('terrain-build-speed','float','Build speed','How much terrain, rocks and trees the game builds each frame, times its own amount. Higher fills in the ground ahead faster and costs CPU time.',2.,1.,4.,.5,'multiplier',visible=(('terrain-lookahead',True),),new=True),
+    Control('terrain-fade','float','Fade-in','Longest time a new plant, tree or rock takes to fade in. The game uses up to 2.25 s. Shorter makes a new hazard solid sooner, so it pops in instead of fading.',.5,0.,2.25,.25,'seconds',visible=(('terrain-lookahead',True),),new=True),
 )
 CONTROLS+=VISUAL_CONTROLS
 
