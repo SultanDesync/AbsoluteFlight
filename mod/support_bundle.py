@@ -1,7 +1,8 @@
 """Support bundle (T100): one zip a player attaches to a bug report, saved from the Absolute Flight menu.
 
-Holds settings, status, the flight tunings, the runtime config, the last two sessions' runtime and key logs, the newest
-telemetry CSV when it is small enough, and an info.json the caller fills (game build, versions). Goes to
+Holds settings, status, the flight tunings, the runtime config, the last two sessions' runtime and key logs, the startup
+logs (proxy.log, python-boot.log and the last two pyMHF logs, D22), the newest telemetry CSV when it is small enough,
+and an info.json the caller fills (game build, versions). Goes to
 <data>/support/. Only reads files; nothing is sent anywhere.
 """
 import json
@@ -33,6 +34,9 @@ def contents(data, config_dir=None):
             stamp = runtime.name[:-len('-runtime.log')]
             for log in (runtime, logs / (stamp + '-keys.log')):
                 if log.is_file(): files.append(('logs/' + log.name, log))
+        # How the game-folder install started: the proxy, Python, then pyMHF's hooks (D22).
+        startup = [logs / 'proxy.log', logs / 'python-boot.log', *_newest(logs, 'pymhf-*.log', SESSIONS)]
+        files.extend(('logs/' + log.name, log) for log in startup if log.is_file())
         for telemetry in _newest(logs, '*-telemetry.csv', 1):
             if telemetry.stat().st_size <= TELEMETRY_LIMIT: files.append(('logs/' + telemetry.name, telemetry))
     return files

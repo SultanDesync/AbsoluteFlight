@@ -12,6 +12,11 @@ nothing else happens and it tries again after RETRY while the conditions hold.
 from dataclasses import dataclass
 import math
 
+# User 2026-10-25: manual landing and take-off are too experimental and iffy for release: off, the settings, the
+# landing guide and the Landing gear binding hidden. Hover mode, touchdown and the take-off gear raise all key on
+# this. Kept for later (the crash wreck-fall logic may feed a future landing). Launch is the Launch key binding.
+ENABLED = False
+
 LAND_KEY = 'key.0x45'  # E, the game's default Land; NMS reads holds as repeated key-downs (mod/key_lane.py)
 PRESS_TIME = .6        # s the Land key is held: long enough for the game's hold, short of a second request
 RETRY = 3.             # s before another press while the conditions still hold

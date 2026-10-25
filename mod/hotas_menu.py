@@ -11,6 +11,7 @@ from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CO
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
 import crash_damage
+import manual_landing
 from planetary_flight import AIR_CLASSES
 
 ROOT='root'
@@ -22,7 +23,7 @@ ROOT='root'
 # switch before its knobs, a binding beside what it acts on, live readouts last, then page actions.
 ROUTES=(('flight-model','Flight Model',None),('flight-tuning','Flight Tuning',None),
         ('atmosphere','Atmosphere Flight',None),
-        ('flight-axes','Flight Axes',None),('throttle','Throttle',None),('buttons','Buttons',None),
+        ('flight-axes','Flight Axes',None),('buttons','Buttons',None),
         ('head-tracking','Head Tracking',None),
         ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),('damage','Ship Damage',None),
         ('visuals','Visuals',None),
@@ -181,6 +182,7 @@ def throttle_meter(values,live=None,focused=None):
 def bindable(action_id):
     """Actions the release runtime delivers today: live mod actions and keyboard/mouse output."""
     a=hotas_buttons.action(action_id)
+    if a is not None and a.id=='mod.gear' and not manual_landing.ENABLED:return False  # manual landing off (user 2026-10-25)
     return a is not None and (a.id in LIVE_MOD_ACTIONS or a.lane in ('key','mouse'))
 
 
@@ -209,6 +211,7 @@ def button_rows(buttons,values,device_names=None,live=None):
           Row('header','buttons-flight-header','FLIGHT')]
     for a in hotas_buttons.ACTIONS:
         if a.group!='flight' or a.id in HEAD_ACTIONS or a.id in COMBAT_ACTIONS:continue
+        if a.id=='mod.gear' and not manual_landing.ENABLED:continue  # manual landing off (user 2026-10-25)
         if a.id not in LIVE_MOD_ACTIONS:
             rows.append(Row('button','button-bind:'+a.id,a.label,a.help+' Not part of this runtime yet.',enabled=False));continue
         rows+=_action_rows(a.id,a.label,a.help,bound.get(a.id),device_names,modifier is not None)
@@ -286,16 +289,20 @@ def _visible_rows(ids,values,device_names=None):
     return [control_row(BY_ID[i],values,device_names) for i in ids if is_visible(BY_ID[i],values)]
 
 
+def throttle_controls():
+    """The throttle section of Flight Axes (its own page until 2026-10-24: user found it confusing apart)."""
+    return [c.id for c in CONTROLS if c.id in ('throttle-style','bind-throttle-axis','throttle-inverted','hosas-stick-mode','cruise-detent-enabled') or c.id.startswith(('throttle-','hosas-','rate-throttle-','lever-'))]
+
+
 def route_controls(route):
     if route=='flight-model':return ['flight-controls-enabled','flight-model']
     if route=='flight-axes':
-        return ['turn-rate-scale','strafe-authority']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
+        return (['turn-rate-scale','strafe-authority']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
+                +throttle_controls())
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
     if route=='combat':return list(AIMING_CONTROLS+AI_CONTROLS)
     if route=='buttons':return ['key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
-    if route=='throttle':
-        return [c.id for c in CONTROLS if c.id in ('throttle-style','bind-throttle-axis','throttle-inverted','hosas-stick-mode','cruise-detent-enabled') or c.id.startswith(('throttle-','hosas-','rate-throttle-','lever-'))]
     if route=='flight-tuning':return [c.id for c in PROFILE_CONTROLS if c.id[len('tuning-'):] not in AIR_STYLE_KEYS]
     if route=='atmosphere':return ['atmosphere-model']+['tuning-'+k for k in AIR_STYLE_KEYS]+[c.id for c in AIR_CONTROLS+LANDING_CONTROLS]
     if route=='damage':return [c.id for c in DAMAGE_CONTROLS]
@@ -316,6 +323,19 @@ def tuning_rows(tuning):
                  for n in names)
     rows=[Row('select','flight-tuning-select','Tuning',TUNING_HELP,value=names.index(selected),options=labels)]
     if tuning.get('error'):rows.append(Row('header','flight-tuning-error','TUNING NOT LOADED: '+tuning['error'].upper()))
+    return rows
+
+
+def _throttle_rows(values,live,focused,device_names):
+    """Flight Axes' THROTTLE section: style and binding, the meter, behaviour, then the lever zones."""
+    rows=[Row('header','throttle-header','THROTTLE')]
+    if values['flight-model']=='sultan' and values['throttle-style']=='hosas':
+        rows.append(Row('header','signed-thrust-help','CENTRE COASTS / PULL FOR RETRO'))
+    rows+=_visible_rows(['throttle-style','bind-throttle-axis'],values,device_names)
+    rows.append(Row('meter','throttle-meter','',meter=throttle_meter(values,live,focused)))
+    rows+=_visible_rows([i for i in throttle_controls() if i not in ('throttle-style','bind-throttle-axis') and i not in LEVER_ORDER],values)
+    lever=_visible_rows(LEVER_ORDER,values)
+    if lever:rows+=[lever[0],Row('header','lever-zones-header','LEVER ZONES')]+lever[1:]
     return rows
 
 
@@ -362,24 +382,16 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         if combat:rows.append(Row('header','npc-combat-live','BEAMS/SHIELDS: '+str(combat.get('state','unknown')).upper()))
     elif route=='flight-axes':
         rows+=_visible_rows(['turn-rate-scale','strafe-authority'],values)
+        ids=route_controls(route)
+        # Stick axes, then the throttle, then the optional strafe axes.
         for channel,title in AXIS_CHANNELS:
+            if channel=='strafe-lateral':rows+=_throttle_rows(values,live,focused,device_names)
             if channel.startswith('strafe') and not strafe_enabled(values):continue
-            ids=[i for i in route_controls(route) if i==f'bind-{channel}-axis' or i.startswith(channel+'-')]
-            section=_visible_rows(ids,values,device_names)
+            section=_visible_rows([i for i in ids if i==f'bind-{channel}-axis' or i.startswith(channel+'-')],values,device_names)
             rows.append(Row('header',f'{channel}-header',title.upper()))
             rows.append(section[0])  # binding row, then the meter directly under it
             rows.append(Row('meter',f'{channel}-meter','',meter=axis_meter(channel,values,live,focused)))
             rows+=section[1:]
-    elif route=='throttle':
-        ids=route_controls(route)
-        head=_visible_rows(['throttle-style','bind-throttle-axis'],values,device_names)
-        rows+=[Row('header','throttle-header','THROTTLE'),*head,
-               Row('meter','throttle-meter','',meter=throttle_meter(values,live,focused))]
-        rows+=_visible_rows([i for i in ids if i not in ('throttle-style','bind-throttle-axis') and i not in LEVER_ORDER],values)
-        lever=_visible_rows(LEVER_ORDER,values)
-        if lever:rows+=[lever[0],Row('header','lever-zones-header','LEVER ZONES')]+lever[1:]
-        if values['flight-model']=='sultan' and values['throttle-style']=='hosas':
-            rows.insert(1,Row('header','signed-thrust-help','CENTRE COASTS / PULL FOR RETRO'))
     elif route=='flight-tuning':
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
@@ -446,8 +458,9 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         if values['atmosphere-model']=='sultan':
             rows.append(Row('header','air-planets-header','PLANETS (ALL CLASSES)'))
             rows+=_visible_rows([c.id for c in AIR_CONTROLS],values)
-            rows.append(Row('header','landing-header','LANDING (ALL CLASSES)'))  # T101; Landing gear binds on Buttons
-            rows+=_visible_rows([c.id for c in LANDING_CONTROLS],values)
+            if manual_landing.ENABLED:  # off for release (user 2026-10-25)
+                rows.append(Row('header','landing-header','LANDING (ALL CLASSES)'))  # T101; Landing gear binds on Buttons
+                rows+=_visible_rows([c.id for c in LANDING_CONTROLS],values)
             rows.append(Row('header','air-style-header','AIR STYLE: '+SHIP_CLASSES[editing_class].upper()))
             if editing_class not in AIR_CLASSES:
                 rows.append(Row('header','air-style-native','NATIVE ATMOSPHERE FLIGHT FOR THIS CLASS (NOT QUALIFIED FOR SULTAN YET)'))
@@ -489,7 +502,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
             last_hit=crash_damage.format_last_hit(crash.get('last_hit'))
             if last_hit:rows.append(Row('header','damage-crash-last-hit',last_hit))
         rows.append(Row('header','damage-ditch-header','DITCH AT SEA'))
-        ditch=_visible_rows(['air-ditch','air-ditch-speed','air-ditch-sink-rate','air-sink-speed','air-purge-difficulty'],values)
+        ditch=_visible_rows(['air-ditch','air-ditch-speed','air-ditch-sink-rate','air-sink-speed','air-purge-style','air-purge-length','air-purge-difficulty'],values)
         rows+=ditch or [Row('header','damage-ditch-unavailable','NEEDS SULTAN ATMOSPHERE FLIGHT (ATMOSPHERE FLIGHT PAGE)')]
         # T95: what the ship sounds and looks like in trouble (ditch, crash).
         alarms=_visible_rows(ALARM_CONTROLS,values)
@@ -650,6 +663,10 @@ class MenuController:
             if current and current['token']==hotas_buttons.canonical(token) and current['layer']==layer:
                 self.store.clear_button(action_id);return 'cleared'
             if owner is None:self.store.assign_button(action_id,token,layer=layer);return 'bound'
+            if owner=='mod.gear' and not manual_landing.ENABLED:
+                # A hidden Landing gear binding gives its button up without asking (user 2026-10-25: binding Land
+                # asked to move a binding they could no longer see).
+                self.store.assign_button(action_id,token,steal_from=owner,layer=layer);return 'bound'
             self.conflict={'id':binding_id,'action':action_id,'token':token,'layer':layer,'owner':owner};return 'conflict'
         owner=binding_conflict(self.store.values,binding_id,token)
         if owner is None:

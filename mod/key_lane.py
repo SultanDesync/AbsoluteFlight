@@ -25,7 +25,7 @@ import ctypes as C
 from ctypes import wintypes as W
 import os
 import time
-from hotas_buttons import KEY_NAMES,MOUSE_BUTTONS,action
+from hotas_buttons import KEY_NAMES,MOUSE_BUTTONS,action,output
 
 LEASE=.5  # seconds without a step before everything held is released
 REPEAT_DELAY=.25  # seconds before a held key starts repeating (Windows default is about 0.5 s)
@@ -41,8 +41,9 @@ def target(action_id,resolved=None):
     if resolved and action_id in resolved:return ('key',resolved[action_id])
     a=action(action_id)
     if a is None:return None
-    if a.lane=='key':return ('key',int(a.id[4:],16))
-    if a.lane=='mouse':return ('mouse',a.id[6:])
+    out=output(a.id)  # a function name (key.0x45:land) sends the bare key
+    if a.lane=='key':return ('key',int(out[4:],16))
+    if a.lane=='mouse':return ('mouse',out[6:])
     return None
 
 

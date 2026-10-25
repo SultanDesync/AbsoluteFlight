@@ -92,7 +92,7 @@ class GEffects:
             if self.lanes:
                 for lane in self.lanes.values(): lane.disable()
             self.last = None
-            return {'greyout': 0., 'tunnel': 0., 'fade': 0., 'blackout': False, 'control': 1.}
+            return {'greyout': 0., 'tunnel': 0., 'fade': 0., 'blackout': False, 'control': 1., 'red': 0.}
         effects = self.strain.step(acceleration_body, dt, values)
         self.last = effects
         if self.lanes:

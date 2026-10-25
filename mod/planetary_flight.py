@@ -335,6 +335,14 @@ BLAST_ACCEL = 150.      # u/s^2 up: the boost blast that throws a relit ship out
 BLAST_MS = 1500         # how long the blast lasts after the purge relights the thrusters
 WATER_DRAG_LIMIT = 400. # u/s^2 (about 20 g): the impact slam is bounded
 MIN_WATER_G = 5.        # u/s^2: water drag keeps its strength with planet gravity turned down
+# A hard ditch (user 2026-10-24: "hitting the water too hard can sink you below the planet surface"): the bounded
+# water drag can't stop a fast ship before it is far under, and nothing native stops it there. While the pilot is
+# blacked out, the ship is put on the surface instead: its velocity cancelled, its position held at sea level.
+# Then the flooded hull sinks at the sink speed.
+SETTLE_MS = 2500        # surfacing hold after a ditch: inside the shortest blackout (2 s hold + .5 s delay + wake)
+SURFACE_GAIN = 4.       # 1/s from altitude to the vertical speed that returns it to sea level
+SURFACE_RATE = 40.      # u/s the hold moves the ship toward sea level at most
+SURFACE_ACCEL_LIMIT = 30000.  # u/s^2: one frame stops even the integrator's top speed (about 306 u/s at 60 fps)
 
 
 @dataclass(frozen=True)
@@ -344,13 +352,16 @@ class Water:
     ditch_speed: float = 120.     # u/s at water contact, any direction, that wipes out
     ditch_sink_rate: float = 30.  # u/s of descent at water contact that wipes out
     sink_speed: float = 10.       # u/s a ditched ship settles at on its way to the sea floor
-    purge_difficulty: str = 'normal'  # thruster purge band width (mod/ditch_purge.py)
+    purge_difficulty: str = 'normal'  # thruster purge band width / gate gap (mod/ditch_purge.py)
+    purge_style: str = 'telemetry'    # thruster purge style: 'telemetry' or 'gates' (user 2026-10-24)
+    purge_length: str = 'short'       # telemetry: 'short' (mains, launch) or 'full' (all six translations)
 
     @classmethod
     def from_values(cls, values):
         return cls(bool(values.get('air-ditch', cls.ditch)), float(values.get('air-ditch-speed', cls.ditch_speed)),
                    float(values.get('air-ditch-sink-rate', cls.ditch_sink_rate)),
-                   float(values.get('air-sink-speed', cls.sink_speed)), str(values.get('air-purge-difficulty', cls.purge_difficulty)))
+                   float(values.get('air-sink-speed', cls.sink_speed)), str(values.get('air-purge-difficulty', cls.purge_difficulty)),
+                   str(values.get('air-purge-style', cls.purge_style)), str(values.get('air-purge-length', cls.purge_length)))
 
 
 def submersion(altitude):
@@ -361,6 +372,40 @@ def submersion(altitude):
 def ditch_impact(velocity, up, water):
     """True when hitting the water this fast (any direction) or this steeply wipes the ship out."""
     return _norm(velocity) > water.ditch_speed or -_dot(velocity, up) > water.ditch_sink_rate
+
+
+# Wreck fall drag (user 2026-10-24 crash cycles, log 20261025T004415Z: wrecks still slid at 34-176 u/s after 6 s of
+# engines-out air drag). User: "almost ragdoll the ship for a healthy enough period before clamping to where it
+# settles". The slide decays with WRECK_SLIDE_TIME plus a steady WRECK_SLIDE_FLOOR; bounces upward off the terrain are only eased (WRECK_BOUNCE_TIME), so the wreck can rebound.
+# User 2026-10-25 again: "carry more forward momentum and overall the speed of the collision tumble/physics to
+# increase the intensity": a slower slide decay, bounces eased less, and the wreck falls with extra weight.
+# And: "long and fast slide for a sense of mass and inertia".
+WRECK_SLIDE_TIME = 5.   # s (300 u/s slides on about 10.7 s, fast for most of it)
+WRECK_SLIDE_FLOOR = 8.  # u/s^2
+WRECK_BOUNCE_TIME = 1.5 # s
+WRECK_GRAVITY_EXTRA = .5  # extra share of gravity on a falling wreck: harder drops and impacts
+
+
+def wreck_drag(velocity, up, dt, gravity=(0., 0., 0.)):
+    """World acceleration that slows a falling wreck (its horizontal slide toward rest and any upward bounce,
+    never reversing either within the frame) and adds WRECK_GRAVITY_EXTRA of gravity to its fall."""
+    rise = _dot(velocity, up); flat = tuple(v-u*rise for v, u in zip(velocity, up))
+    speed = _norm(flat); dt = max(dt, 1e-3)
+    out = (0., 0., 0.)
+    if speed > 0.:
+        brake = min(speed/WRECK_SLIDE_TIME+WRECK_SLIDE_FLOOR, speed/dt)
+        out = _scale(flat, -brake/speed)
+    if rise > 0.:out = _add(out, _scale(up, -min(rise/WRECK_BOUNCE_TIME, rise/dt)))
+    return _add(out, _scale(gravity, WRECK_GRAVITY_EXTRA))
+
+
+def surface_hold(velocity, up, altitude, dt):
+    """World acceleration (gravity included) that takes the velocity this frame to a vertical speed returning
+    the position to sea level, with no horizontal motion: a hard ditch stops at the surface."""
+    rate = max(-SURFACE_RATE, min(SURFACE_RATE, -SURFACE_GAIN*altitude))
+    accel = _scale(tuple(u*rate-v for u, v in zip(up, velocity)), 1./max(dt, 1e-3))
+    magnitude = _norm(accel)
+    return _scale(accel, SURFACE_ACCEL_LIMIT/magnitude) if magnitude > SURFACE_ACCEL_LIMIT else accel
 
 
 def water_terms(velocity, up, gravity, submerged, water, engines_out):

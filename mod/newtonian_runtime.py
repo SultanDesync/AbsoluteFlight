@@ -1,11 +1,30 @@
 """Flight-thread T55 consumer. Pure state machine; no game memory or hooks here."""
+from collections import deque
 from dataclasses import replace
 import math
 
 from newtonian_flight import Basis, CommandLease, FlightProfile, compute_acceleration
 import manual_landing
 import planetary_flight
-from ship_condition import ShipCondition
+from ship_condition import MOMENTUM_MAX, MOMENTUM_SHARE, ShipCondition
+
+
+RECENT_MS = 600  # ms of velocity history kept for the wreck fall's pre-hit momentum
+
+
+def wreck_momentum(recent, since_ms, velocity, up, dt):
+    """World acceleration that restores a stopped wreck's horizontal speed to MOMENTUM_SHARE of the fastest it
+    had before the crash (at most MOMENTUM_MAX), in one frame, or None when it is still moving that fast."""
+    def flat(v):
+        d = sum(a*b for a, b in zip(v, up)); return tuple(a-b*d for a, b in zip(v, up))
+    before = [flat(v) for t, v in recent if since_ms is None or t <= since_ms]
+    if not before:return None
+    pre = max(before, key=lambda v: math.hypot(*v)); speed = math.hypot(*pre)
+    want = min(MOMENTUM_SHARE*speed, MOMENTUM_MAX)
+    now = flat(velocity)
+    if want <= 0. or math.hypot(*now) >= want:return None
+    target = tuple(a*want/speed for a in pre)
+    return tuple((t-n)/max(dt, 1e-3) for t, n in zip(target, now))
 
 
 SUPPORTED_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9, 10)  # Corvette: 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete
@@ -85,6 +104,7 @@ class BoostBudget:
 
 class FlightConsumer:
     def __init__(self, boost=None, condition=None):
+        self.recent = deque()  # (tick, velocity) over the last RECENT_MS, for a wreck's pre-hit momentum
         self.lease = CommandLease(ttl=.1, capacity=256)
         self.previous = (0., 0., 0.)
         self.boost = boost if boost is not None else BoostBudget()
@@ -124,6 +144,8 @@ class FlightConsumer:
             self.identity = identity
             self.density.reset()
         self.boost.select_ship(native.get('ship'))
+        self.recent.append((now_tick, native['velocity']))
+        while self.recent and now_tick-self.recent[0][0] > RECENT_MS:self.recent.popleft()
         condition = self.condition
         condition.select_ship(native.get('ship'))
         water = native.get('water')
@@ -155,7 +177,7 @@ class FlightConsumer:
                 condition.step(native['dt'], now_tick)
                 if (submerged > 0. and planetary_flight.ditch_impact(native['velocity'], planet['up'], water)
                         and condition.knock_out('ditch', impact=math.hypot(*native['velocity']))):
-                    self.previous = (0., 0., 0.)
+                    self.previous = (0., 0., 0.); condition.settle_until_ms = now_tick+planetary_flight.SETTLE_MS
             air = planetary_flight.compute(
                 profile, style, native['air'], planet, rho,
                 command.lateral, command.vertical, command.throttle, native['velocity'], basis,
@@ -170,6 +192,24 @@ class FlightConsumer:
                 up = planet['up']
                 result = replace(result, acceleration_world=tuple(a+u*planetary_flight.BLAST_ACCEL
                                                                   for a, u in zip(result.acceleration_world, up)))
+            if condition.falling:
+                # Wreck fall (user 2026-10-24): the blacked-out wreck falls to a resting place before the eject.
+                # If the hit stopped it, it carries on with part of its pre-hit horizontal speed (one frame).
+                if usable and condition.fall_kick:
+                    condition.fall_kick = False
+                    kick = wreck_momentum(self.recent, condition.fall_since_ms, native['velocity'], planet['up'], native['dt'])
+                    if kick is not None:
+                        result = replace(result, acceleration_world=tuple(a+k for a, k in zip(result.acceleration_world, kick)))
+                elif usable:  # it grinds to a stop where it falls
+                    drag = planetary_flight.wreck_drag(native['velocity'], planet['up'], native['dt'], planet['gravity'])
+                    result = replace(result, acceleration_world=tuple(a+d for a, d in zip(result.acceleration_world, drag)))
+                result = replace(result, acceleration_body=(0., 0., 0.))  # the landing is not felt: the blackout holds
+            if usable and owned and condition.settling(now_tick):
+                # A hard ditch stops at the surface while the pilot is out (user 2026-10-24); the slam is not felt
+                # as G (it would cut the blackout hold short) and is no pilot command.
+                result = replace(result, acceleration_world=planetary_flight.surface_hold(
+                    native['velocity'], planet['up'], planet['altitude'], native['dt']),
+                    acceleration_body=(0., 0., 0.), pilot_acceleration_world=(0., 0., 0.))
             speed = math.hypot(*native['velocity'])
             slip, slip_right, slip_up = planetary_flight.sideslip(native['velocity'], basis)
             planetary = {'density': rho, 'engine_efficiency': air.engine_efficiency,

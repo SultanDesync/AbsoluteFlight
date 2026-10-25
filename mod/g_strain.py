@@ -33,10 +33,19 @@ def _smooth(edge0, edge1, x):
     return t*t*(3.-2.*t)
 
 
+# Crash daze (user 2026-10-25: "a redout without full loss of consciousness ... you get to experience the crash"):
+# while a disabling crash's wreck falls, the strain is held just short of blackout, drawn red by the mod HUD with
+# little greying. The clamp at the end is a real knock-out, so the eject and respawn are never seen.
+DAZE_STRAIN = .55   # held through the daze: a light red edge, most of the view clear (user 2026-10-25: .75 too harsh)
+DAZE_GREY = .3      # share of the usual greyout while red: the scene keeps most of its colour
+
+
 class GStrain:
     def __init__(self):
         self.strain = 0.; self.out = False; self.under = 0.; self.load = 0.; self.g = (0., 0., 0.); self.negative = False
         self.crash = False  # T93: knocked out by a crash; plays out even with G effects off
+        self.dazed = 0.     # s of crash daze left
+        self.red = False    # the strain came from a crash daze: drawn red until it has recovered
 
     def reset(self):
         self.__init__()
@@ -56,14 +65,22 @@ class GStrain:
     def knock_out(self, hold):
         """Crash (T93 ditch, user 2026-10-19): the pilot passes out at once, so the dead stop is never seen,
         and stays out hold seconds longer than the normal recovery delay before recovering as usual."""
-        self.strain = 1.; self.out = True; self.under = -max(0., hold); self.crash = True
+        self.strain = 1.; self.out = True; self.under = -max(0., hold); self.crash = True; self.dazed = 0.
+
+    def daze(self, seconds):
+        """Crash daze for seconds: conscious, the view red and narrowed, then a normal recovery (or a
+        knock_out, which ends it)."""
+        self.dazed = max(0., seconds); self.strain = max(self.strain, DAZE_STRAIN); self.out = False
+        self.under = 0.; self.crash = True; self.red = True
 
     def step(self, acceleration_body, dt, values):
         """acceleration_body: (right, up, forward) u/s^2, or None when unknown (strain recovers)."""
         if not math.isfinite(dt) or dt <= 0.: return self.effects(values)
         dt = min(dt, .25)
         load = self.measure(acceleration_body, values)
-        if load > 1.:
+        if self.dazed > 0.:  # held, not recovering, until the daze ends
+            self.dazed = max(0., self.dazed-dt); self.strain = max(self.strain, DAZE_STRAIN); self.under = 0.
+        elif load > 1.:
             self.under = 0.
             self.strain = min(1., self.strain+(load-1.)*dt/values['g-onset'])
         else:
@@ -72,17 +89,18 @@ class GStrain:
                 self.strain = max(0., self.strain-dt/values['g-recovery'])
         if self.strain >= 1.: self.out = True
         elif self.out and self.strain <= WAKE: self.out = False
-        if self.strain <= 0.: self.crash = False
+        if self.strain <= 0.: self.crash = False; self.red = False
         return self.effects(values)
 
     def effects(self, values):
-        """{'greyout': 0..1, 'tunnel': 0..1, 'fade': 0..1, 'blackout': bool, 'control': 0..1}."""
+        """{'greyout': 0..1, 'tunnel': 0..1, 'fade': 0..1, 'blackout': bool, 'control': 0..1, 'red': 0..1}."""
         s = self.strain
         if self.out:
             return {'greyout': 1., 'tunnel': 1., 'fade': _smooth(WAKE, WAKE+.15, s), 'blackout': True,
-                    'control': 0. if values['g-blackout-controls'] else 1.}
-        return {'greyout': _smooth(.2, .7, s), 'tunnel': _smooth(.35, .9, s), 'fade': _smooth(.8, 1., s),
-                'blackout': False, 'control': 1.}
+                    'control': 0. if values['g-blackout-controls'] else 1., 'red': 0.}
+        red = min(1., s/DAZE_STRAIN) if self.red else 0.
+        return {'greyout': _smooth(.2, .7, s)*(1.-(1.-DAZE_GREY)*red), 'tunnel': _smooth(.35, .9, s),
+                'fade': _smooth(.8, 1., s), 'blackout': False, 'control': 1., 'red': red}
 
     def status(self):
         return {'strain': round(self.strain, 3), 'load': round(self.load, 2), 'out': self.out,

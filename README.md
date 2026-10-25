@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.1.0-alpha.21)
+# Absolute Flight for No Man's Sky (alpha 0.2.0-alpha)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -19,24 +19,46 @@ new builds and tester chat. See "Reporting a problem" below.
 - No Man's Sky on **Steam, build 180836** (Steam build id 25732212). On any other build the mod
   stays off and the game plays as normal.
 - Windows 10 or 11, 64-bit.
-- Nothing else: Python and everything the mod needs are inside this folder.
+- Nothing else: Python and everything the mod needs come inside the zip. There's no launcher and nothing to run.
+
+Other builds, stores (GOG, Microsoft Store) and Linux/Steam Deck: see [PLATFORMS.md](PLATFORMS.md).
 
 ## Install
 
-1. Unzip this folder anywhere **outside** OneDrive or other synced folders, for example `C:\Games\AbsoluteFlight`.
-2. In No Man's Sky: **Options > Network > Multiplayer: Off.**
-3. Steam Input can stay on, but don't bind your stick or throttle to game controls through it.
-   If the game also reads the HOTAS, the mod sees a conflict and hands those axes back to the game.
+1. Open the game folder: in Steam, right-click **No Man's Sky > Manage > Browse local files**. It's the
+   folder with `Binaries` and `GAMEDATA` in it.
+2. Open the zip and drag both of its folders, **Binaries** and **GAMEDATA**, into the game folder. If
+   Windows asks, choose to merge the folders.
+
+That adds one file, `Binaries\winmm.dll`, and one folder, `GAMEDATA\MODS\AbsoluteFlight`. No game file is
+changed.
+
+- Multiplayer can stay on. Online play is less tested than single player: if something misbehaves online,
+  try it with **Options > Network > Multiplayer: Off** and send a support bundle.
+- Steam Input can stay on, but don't bind your stick or throttle to game controls through it.
+  If the game also reads the HOTAS, the mod sees a conflict and hands those axes back to the game.
 
 ## Play
 
-1. Start Steam.
-2. Double-click **Play.bat**. A console window opens, Steam starts the game, and the mod loads while
-   the game starts. Leave the console open while you play; closing it unloads the mod.
-3. In game, open **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page) and
-   bind your axes under **Flight Axes** and **Throttle**: select a binding, then move the axis.
+1. Start No Man's Sky from Steam as usual. The mod loads with the game.
+2. Open **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page) and bind your
+   stick axes and throttle under **Flight Axes**: select a binding, then move the axis.
 
-To play without the mod, start the game from Steam as usual.
+If **Absolute Flight Setup** isn't at the bottom of the Controls page, the mod didn't load: see
+"Reporting a problem".
+
+The game's own mod list shows ABSOLUTEFLIGHT. Turning mods off there doesn't turn Absolute Flight off; to
+play without it, rename `Binaries\winmm.dll` (for example to `winmm.dll.off`) and rename it back later.
+
+## Update
+
+1. Delete `GAMEDATA\MODS\AbsoluteFlight` in the game folder.
+2. Install the new zip the same way. Your settings, bindings and tunings carry over: they live in
+   `%LOCALAPPDATA%\AbsoluteHOTAS`, not in the game folder.
+
+**Coming from a Play.bat build (alpha.21 or earlier):** install as above, then delete the folder you unzipped
+that build into. Your settings carry over. Don't run the old Play.bat with the new install in place: it would
+load the mod twice.
 
 ## What's been flown
 
@@ -90,6 +112,9 @@ Join the Discord at https://discord.gg/KtrhfPBpr. Once you have the Tester role:
      address bar) with a few lines on what you were doing.
 - **Flight feel, ideas and menu thoughts** go in **#feedback**. Say which ship class and where (space,
   atmosphere, landing).
+- **The mod didn't load** (no Absolute Flight Setup on the Controls page): post in **#bug-reports** with
+  `proxy.log`, `python-boot.log` and the newest `pymhf-*.log` from `%LOCALAPPDATA%\AbsoluteHOTAS\logs`.
+  If that folder has no `proxy.log`, the game never loaded `Binaries\winmm.dll`: check it's in the right folder.
 - **Questions and general chat** go in **#af-chat**. New builds are posted in **#builds**.
 
 Your settings and logs live in `%LOCALAPPDATA%\AbsoluteHOTAS`. The mod sends nothing anywhere; a
@@ -97,7 +122,10 @@ support bundle only leaves your PC when you post it.
 
 ## Uninstall
 
-Delete this folder and `%LOCALAPPDATA%\AbsoluteHOTAS`. The mod never changes game files.
+1. In the game folder, delete `Binaries\winmm.dll` and `GAMEDATA\MODS\AbsoluteFlight`.
+2. To remove your settings, bindings, tunings and logs too, delete `%LOCALAPPDATA%\AbsoluteHOTAS`.
+
+Deleting `winmm.dll` alone already turns the mod off. Absolute Flight never changes the game's own files.
 
 ---
 

@@ -71,6 +71,7 @@ import planetary_hud
 import manual_landing
 import planetary_flight
 import ditch_purge
+import ship_condition
 import ship_alarms
 import crash_damage
 from lift_trim import LiftTrim
@@ -872,11 +873,17 @@ class AbsoluteHOTAS(Mod):
             bridge.set_planetary(on);self.planetary_on=on
             self.log('planetary flight '+('on: Sultan flies down to landing' if on else 'off: native below the low-height gate'))
         if not on:self.air_env=None
-        # T101: gear down, the caves keep the native ground push out of Sultan's commands.
-        gear=bool(on and self.air_env[3] is not None)
+        # T101: gear down, the caves keep the native ground push out of Sultan's commands. So does a falling wreck
+        # (user 2026-10-24: the push held crashed wrecks up, some rose over 100 u before the eject), and normal flight
+        # with Terrain push off (user 2026-10-25: it kicked the ship up where the ground rose suddenly; D5's safety
+        # net, kept until hover mode and crash damage existed).
+        condition=getattr(getattr(self,'flight_consumer',None),'condition',None)
+        falling=bool(condition is not None and condition.falling);gear_down=bool(on and self.air_env[3] is not None)
+        gear=bool(on and (gear_down or falling or not v.get('air-ground-push',False)))
         if gear!=getattr(self,'planetary_gear',None):
             bridge.set_gear(gear);self.planetary_gear=gear
-            self.log('landing gear '+('down: hover mode, no ground push' if gear else 'up'))
+            self.log(('landing gear down: hover mode, no ground push' if gear_down else 'wreck falling: no ground push'
+                      if falling else 'terrain push off: no ground push') if gear else 'ground push on')
         # T93: the cave's water switch (no sea-as-ground push over water, a capped push in native frames).
         water=self._ditch_active(v)
         if water!=getattr(self,'planetary_water',None):
@@ -893,7 +900,7 @@ class AbsoluteHOTAS(Mod):
         planetary=latest.get('planetary') if latest.get('admitted') and not latest.get('reason') else None
         vertical=command.vertical if command is not None and command.enabled else 0.
         if detector.step(now,manual_landing.Touchdown.from_values(v),planetary,vertical,latest.get('speed'),
-                         bool(flying and v.get('landing-manual') and v['flight-model']=='sultan'
+                         bool(flying and manual_landing.ENABLED and v.get('landing-manual') and v['flight-model']=='sultan'
                               and v['atmosphere-model']=='sultan')):
             air=planetary or {}
             self.log(f"touchdown: pressing Land at {air.get('clearance',float('nan')):.1f} u above ground, "
@@ -908,8 +915,9 @@ class AbsoluteHOTAS(Mod):
             self.log('takeoff: gear up, normal air flight'+('' if self.buttons.raise_gear() else ' (gear binding still held: release it)'))
 
     def _gear(self,v):
-        """T101: the hover settings while Manual landing is on and the Landing gear binding is down, else None."""
-        if not (v.get('landing-manual') and getattr(getattr(self,'buttons',None),'gear',False)):return None
+        """T101: the hover settings while Manual landing is on and the Landing gear binding is down, else None.
+        Never while manual landing is off for release (manual_landing.ENABLED, user 2026-10-25)."""
+        if not (manual_landing.ENABLED and v.get('landing-manual') and getattr(getattr(self,'buttons',None),'gear',False)):return None
         return planetary_flight.Gear.from_values(v)
 
     def _eject_hold(self,now,tick,flying):
@@ -1066,6 +1074,9 @@ class AbsoluteHOTAS(Mod):
 
     def _handle_crash_hit(self,hit,tick):
         if hit.get('submerged'):return  # a ditch is running: the hit did nothing
+        consumer=getattr(self,'flight_consumer',None);condition=getattr(consumer,'condition',None)
+        if condition is not None and condition.falling:
+            self.log(f"crash hit during the wreck fall: {hit['kind']} impact={hit['impact']:.1f} u/s (ignored)");return
         self.crash_last_hit=hit
         self.log(f"crash hit: {hit['kind']} impact={hit['impact']:.1f} u/s (into={hit['into_surface']:.1f}, slide={hit['sliding']:.1f}) "
                  f"mult={hit['multiplier']:.2f} hull={hit['hull_before']}->{hit['hull_after']} flags={hit['flags']:#x}")
@@ -1073,17 +1084,45 @@ class AbsoluteHOTAS(Mod):
             self.log('crash hit during a ditch: no crash sequence');return
         self._alarm_crash(hit,tick)  # T95
         if not crash_damage.is_disabling(hit):return
-        consumer=getattr(self,'flight_consumer',None)
-        condition=getattr(consumer,'condition',None)
+        geffects=getattr(self,'geffects',None)
         if condition is not None:
             if self.block.ship:condition.select_ship(self.block.ship)
             condition.knock_out('collision',impact=hit['impact'])
             condition.wreck('collision')
-        geffects=getattr(self,'geffects',None)
+            # User 2026-10-24: the wreck falls to a resting place before the eject (_step_wreck_fall). User
+            # 2026-10-25: the pilot stays conscious through it, dazed and red, and passes out at the clamp.
+            condition.start_fall(tick);self.wreck_fall_from=self._wreck_fall_sample()
+            if geffects is not None:geffects.strain.daze(ship_condition.FALL_MAX_MS/1000.)
+            self.log(f"disabling crash at {hit['impact']:.1f} u/s (hull {hit['hull_before']}->{hit['hull_after']}, capped={hit['capped']}): "
+                     f"daze and wreck; the wreck falls (speed {self.wreck_fall_from[0]}, altitude {self.wreck_fall_from[1]})")
+            return
         if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
         self.eject_request=tick
         self.log(f"disabling crash at {hit['impact']:.1f} u/s (hull {hit['hull_before']}->{hit['hull_after']}, capped={hit['capped']}): "
                  'blackout, eject and wreck')
+
+    def _wreck_fall_sample(self):
+        """(speed, altitude, clearance) of the wreck now, rounded for the log; None where unknown."""
+        latest=getattr(getattr(self,'flight_consumer',None),'latest',None) or {};planetary=latest.get('planetary') or {}
+        def r(x):return None if not isinstance(x,(int,float)) or not math.isfinite(x) else round(x,1)
+        return r(latest.get('speed')),r(planetary.get('altitude')),r(planetary.get('clearance'))
+
+    def _step_wreck_fall(self,tick):
+        """Worker: eject once the falling wreck has come to rest (or the fall timed out), then the landed respawn
+        puts it down where it lies. The dazed pilot passes out here (the jump is never seen) and wakes
+        CRASH_BLACKOUT_HOLD after."""
+        condition=getattr(getattr(self,'flight_consumer',None),'condition',None)
+        if condition is None or not condition.falling:return
+        speed,altitude,clearance=self._wreck_fall_sample()
+        since=condition.fall_since_ms;reason=condition.fall_done(tick,speed)
+        if reason is None:return
+        geffects=getattr(self,'geffects',None)
+        if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
+        self.eject_request=tick
+        start=getattr(self,'wreck_fall_from',(None,None,None))
+        fell=None if start[1] is None or altitude is None else round(start[1]-altitude,1)
+        self.log(f'wreck fall over ({reason}) after {(tick-since)/1000.:.1f} s: speed {speed}, altitude {altitude}, '
+                 f'clearance {clearance}, fell {fell} u; eject')
 
     def _crash_damage_status(self):
         patch=getattr(self,'crash_damage',None)
@@ -1106,7 +1145,7 @@ class AbsoluteHOTAS(Mod):
         condition.hull=purge.hull
         for event in events:
             if event=='begin':self.log(f'thruster purge begins (hull {100*purge.hull:.0f}%)')
-            elif event=='miss':self.log(f'thruster purge: missed the band in {purge.stage.name} (hull {100*purge.hull:.0f}%)')
+            elif event=='miss':self.log(f'thruster purge: miss in {purge.stage.name} (hull {100*purge.hull:.0f}%)')
             elif event=='relit':
                 condition.relight(tick);condition.blast_until_ms=tick+planetary_flight.BLAST_MS  # boost blasts the ship out
                 self.log(f'thruster purge done: thrusters relit, boost blast (hull {100*purge.hull:.0f}%, {purge.misses} misses)')
@@ -1131,7 +1170,7 @@ class AbsoluteHOTAS(Mod):
             if purge is not None and live:alarms.moment('wake',now)
             for event in events:  # begin/stage start a stage's countdown: its line is the new stage's (T99)
                 alarms.moment('boost' if event=='stage' and purge.stage.input=='boost' else event,now,
-                              stage=purge.stage.name if event in ('begin','stage') else None)
+                              stage=purge.stage.voice if event in ('begin','stage') else None)
             if purge is not None and not purge.result:alarms.hull(purge.hull,now)
             if not condition.engines_out and alarms.episode=='ditch':  # ejected (engine stays off), setting off, another ship
                 alarms.end(now,engine=not self.alarm_eject);self.alarm_eject=False
@@ -1207,10 +1246,12 @@ class AbsoluteHOTAS(Mod):
 
     def _alarm_crash(self,hit,tick):
         """T94 crash hits: a hull hit gets the computer's damage call and a burst of red; a disabling one the
-        critical sting and 'equipment damage critical' as the pilot blacks out."""
+        critical sting and our 'ship disabled, ejection sequence initiated' line as the wreck tumbles."""
         alarms=getattr(self,'alarms',None)
         if alarms is None:return
-        if crash_damage.is_disabling(hit):alarms.moment('crash_disabled',tick/1000.)
+        if crash_damage.is_disabling(hit):
+            self._purge_voice(alarms)  # the rendered 'ship disabled' line (user 2026-10-25); the game's line if unavailable
+            alarms.moment('crash_disabled',tick/1000.)
         elif hit.get('hull_first'):alarms.moment('crash_hit',tick/1000.)
 
     def _alarms_shutdown(self):
@@ -1756,17 +1797,20 @@ class AbsoluteHOTAS(Mod):
                         self._aiming_tick(tick,self._aim_deflection(),reason is None and armed)
                     elif getattr(self,'aim_slowdown',None) is not None:self.aim_slowdown.disable()
                     self._step_crash_damage(tick,piloting,recovering)
+                    self._step_wreck_fall(tick)
                     # T93: a ditch knocks the engines out. The pilot blacks out once per crash (user 2026-10-19:
                     # the dead stop is never seen) and the inputs stay centred until the restart ramps them back.
                     condition=getattr(getattr(self,'flight_consumer',None),'condition',None);control_share=1.
                     if condition is not None:
                         knockout=(id(condition),condition.knockouts)
                         if knockout!=getattr(self,'condition_knockout',(id(condition),0)) and knockout[1]:
-                            if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
+                            # A ditch blacks out here; a disabling crash dazes instead (_handle_crash_hit, user 2026-10-25:
+                            # this knock-out blacked out most of the crash tumble).
+                            if geffects is not None and condition.cause=='ditch':geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
                             if condition.cause=='ditch' and condition.restart_after is None:
                                 water=planetary_flight.Water.from_values(self.store.values)
                                 ratio=(condition.impact or water.ditch_speed)/max(1.,water.ditch_speed)
-                                condition.purge=ditch_purge.Purge(tick,ratio,water.purge_difficulty,condition.hull)
+                                condition.purge=ditch_purge.make(water.purge_style,tick,ratio,water.purge_difficulty,condition.hull,water.purge_length)
                                 self.log(f'ditched at sea at {condition.impact or 0:.0f} u/s: engines out, thruster purge'
                                          f' (hull {100*condition.hull:.0f}%)')
                                 self.alarm_eject=False
@@ -1790,6 +1834,8 @@ class AbsoluteHOTAS(Mod):
                                               (manager,self.block.ship,q(manager+0x72c858) if manager else 0))['control']
                         if g_scale<1.:values=tuple(v if c=='throttle' else v*g_scale for c,v in zip(MAILBOX_ORDER,values))
                     if control_share<1.:values=tuple(v*control_share for v in values)
+                    if condition is not None and condition.falling:  # the wreck tumbles as it falls (user 2026-10-25)
+                        values=condition.tumble(self.flight_consumer.latest.get('speed'))+tuple(values[3:])
                     if getattr(self,'agent_test',None) is None:
                         self.box.publish(values,tick,enabled=armed and self.patches is not None,ttl_ms=100)
                     # Keys and mouse also serve the quick menu, dialogs and pause menu, so they need
@@ -2324,6 +2370,7 @@ class AbsoluteHOTAS(Mod):
             g=getattr(geffects,'last',None)
             # G-load vision: our dark periphery and fade to black over everything the mod draws.
             blackout=bool(g and g.get('blackout'));tunnel=g.get('tunnel',0.) if g else 0.;fade=g.get('fade',0.) if g else 0.
+            red=g.get('red',0.) if g else 0.  # crash daze
             size=getattr(self.ui,'hud_size',None)
             if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
             layers=flight_hud.tunnel_layers(tunnel,size[0],size[1],fade)
@@ -2358,7 +2405,7 @@ class AbsoluteHOTAS(Mod):
                     camera=self.hud_reader.camera() if marker or tsample else None
                     plan=flight_hud.layout(sample[1],camera if marker else None,size[0],size[1],readout,marker)
                     target=flight_hud.target_readout(tsample,camera,size[0],size[1])
-            if plan is None and not layers:return
+            if plan is None and not layers and not red>0.:return
             n=C.c_int32.from_address(ctx+0x42a8).value
             if not 1<=n<64:return
             state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108);font=C.c_int32.from_address(state+0x104).value
@@ -2369,7 +2416,7 @@ class AbsoluteHOTAS(Mod):
                 fonts=self._hud_fonts(ctx);choice=v['hud-font']
                 self.hud_painter.draw(ctx,plan,size[0],size[1],v['hud-scale'],fonts.get(choice,font),
                                       fonts if choice=='compare' else None,gauge,gmeter,target,planet,mode,purge,landing)
-                if layers:self.hud_painter.tunnel(ctx,layers,size[0],size[1])
+                if layers or red>0.:self.hud_painter.tunnel(ctx,layers,size[0],size[1],red=red)
             finally:
                 api['nvgRestore'](ctx)
                 if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')

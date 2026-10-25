@@ -17,6 +17,8 @@ import ctypes as C
 import math
 import struct
 
+import ditch_purge
+
 # Bridge allocation layout (tools/native_newtonian.py: RING, SLOT, CAPACITY; latest sequence +136).
 RING, SLOT, CAPACITY, LATEST = 0x1000, 0x800, 1024, 136
 WORK = 16  # work snapshot offset inside a ring slot
@@ -231,22 +233,34 @@ PURGE_AHEAD = 3.  # s of band shown ahead of now
 PURGE_BEHIND = 2.  # s of input trail shown behind now
 
 
+GATES_AHEAD = 230.  # course units shown ahead of the ship in the gates view
+GATES_BEHIND = 40.
+
+
 def purge_plan(condition):
-    """T93: the warning block, the stage's band graph and the purge / hull bars while ditched, or None.
-    Graph times are seconds from now (negative behind); values are the stage input, 0..1."""
+    """T93: the warning block, the purge view and the purge / hull bars while ditched, or None. Telemetry: the
+    requirement trace and the lever trail, times in seconds from now (negative behind), values the stage input
+    0..1. Gates (kind 'gates'): the course around the ship, distances from it, heights 0..1."""
     if condition is None or not condition.engines_out:return None
     if condition.wrecked:return {'lines': WRECK_LINES, 'wrecked': True, 'hull': 0.}
     purge = condition.purge
     if purge is None:return None
-    stage = purge.stage; now = purge.elapsed
-    ahead = [(t, low, high) for t, low, high in purge.preview(PURGE_AHEAD, .1)
-             if t <= max(.1, purge.countdown+stage.required-purge.done+.05)]  # this stage only: the next one uses another control
+    out = {'lines': PURGE_LINES, 'wrecked': False, 'stage': purge.stage.name, 'prompt': purge.prompt(),
+           'progress': purge.progress(), 'hull': purge.hull, 'warning': purge.warning, 'countdown': purge.countdown,
+           'count': purge.count(), 'fail_in': None if purge.warning > 0. else purge.fail_in()}
+    if purge.style == 'gates':
+        gates, trail = purge.view(GATES_AHEAD, GATES_BEHIND)
+        out.update(kind='gates', gates=gates, trail=trail, ship=purge.y/ditch_purge.H, gap=purge.gap/ditch_purge.H,
+                   passed=purge.passed, total=len(purge.gates), mains=purge.mains, lift=purge.lift, speed=purge.speed,
+                   ahead=GATES_AHEAD, behind=GATES_BEHIND)
+        return out
+    now = purge.elapsed
     trail = [(e-now, v, inside) for e, v, inside in purge.history if e >= now-PURGE_BEHIND]
-    return {'lines': PURGE_LINES, 'wrecked': False, 'stage': stage.name, 'prompt': purge.prompt(),
-            'step': (purge.index+1, len(purge.stages)), 'band': purge.band(), 'ahead': ahead, 'trail': trail,
-            'value': trail[-1][1] if trail else None, 'inside': bool(trail and trail[-1][2]),
-            'progress': purge.progress(), 'hull': purge.hull, 'warning': purge.warning, 'countdown': purge.countdown, 'count': purge.count(),
-            'arrow': purge.arrow()}
+    out.update(kind='telemetry', step=(purge.index+1, len(purge.stages)), band=purge.band(), phase=purge.phase,
+               early=purge.early, trace=purge.trace(PURGE_BEHIND, PURGE_AHEAD), trail=trail,
+               value=trail[-1][1] if trail else None, inside=bool(trail and trail[-1][2]),
+               arrow=purge.arrow(), flow=purge.flow)
+    return out
 
 
 def format_altitude(h):

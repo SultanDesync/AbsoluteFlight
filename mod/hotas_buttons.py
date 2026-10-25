@@ -86,24 +86,31 @@ KEY_NAMES={**{0x41+i:chr(0x41+i) for i in range(26)},**{0x30+i:str(i) for i in r
     0xDD:']',0xDE:"'"}
 MOUSE_BUTTONS={'left':'Left click','right':'Right click','middle':'Middle click','x1':'Mouse 4','x2':'Mouse 5',
                'wheel-up':'Wheel up','wheel-down':'Wheel down'}
-KEY_ACTION=re.compile(r'key\.0x([0-9A-F]{2})',re.I)
-# Ready-made keyboard/mouse rows (T61). Keys are the game's own PC defaults for build 180836, read from
+# A key or mouse action may name a function after a colon (key.0x45:land): it sends the same key as the bare id but
+# has its own binding, so several buttons can send one key, each for what it means to the pilot (user 2026-10-25:
+# "it's more about the pilot's mental map of function than the actual output"). The bare id is the key's first row.
+FUNCTION=r'(?::([a-z0-9][a-z0-9-]*))?'
+KEY_ACTION=re.compile(r'key\.0x([0-9A-F]{2})'+FUNCTION,re.I)
+MOUSE_ACTION=re.compile(r'mouse\.([a-z0-9-]+)'+FUNCTION)
+# Ready-made keyboard/mouse rows (T61), one per function: rows may share a key (FUNCTION ids). Keys are the game's own PC defaults for build 180836, read from
 # metadata/input/bindings/gcinputbindings_win_{keyboard,mouse}.mbin (research/20-nms-default-bindings.md).
-# Left out on purpose: W/S/A/D (Ship_Thrust/Brake/RollLeft/RollRight), because the HOTAS flight model owns
-# thrust and roll; a synthetic W would thrust natively. Boost (Left Shift) is native boost until the mod's own
+# Left out on purpose: S/A/D (Ship_Brake/RollLeft/RollRight), because the HOTAS flight model owns thrust and roll.
+# W (Ship_Thrust) is in only as Launch (user 2026-10-25, with manual landing off): held, it takes off when landed.
+# Key bindings act whenever NMS has focus, so it works while the flight controls are not armed (landed is native);
+# in flight a synthetic W thrusts natively, so bind it apart from flight buttons. Boost (Left Shift) is native boost until the mod's own
 # boost exists (docs/FLIGHT-ENERGY-MODEL.md); Sultan flight falls back to native while it is held.
 KEY_PRESETS=(
     ('COMBAT',(('mouse.left','Fire weapon (left click)'),('key.0x47','Change weapon (G)'),('key.0x54','Closest target (T)'),
                ('key.0xBE','Next target (.)'),('key.0xBC','Previous target (,)'))),
-    ('SHIP',(('key.0xA0','Boost (Left Shift)'),('key.0x43','Scan (C)'),('key.0x20','Pulse drive (Space)'),('key.0x45','Interact / hold prompts / land / exit (E)'),
-             ('key.0xA4','Free look (Left Alt)'),('key.0x4D','Galactic map (M)'),('key.0xBF','Cycle power (/)'),
+    ('SHIP',(('key.0x57','Launch: take off when landed (hold W)'),('key.0x45:land','Land (E)'),('key.0x45:exit','Exit ship (hold E)'),
+             ('key.0x45','Interact / hold prompts (E)'),('key.0xA0','Boost (Left Shift)'),('key.0x43','Scan (C)'),('key.0x20','Pulse drive (Space)'),
+             ('mouse.right:zoom','Zoom (right click)'),('key.0xA4','Free look (Left Alt)'),('key.0x4D','Galactic map (M)'),('key.0xBF','Cycle power (/)'),
              ('key.0x09','Inventory (Tab)'),('key.0x1B','Options / back (Esc)'))),
     ('QUICK MENU',(('key.0x58','Open quick menu (X)'),('key.0x25','Quick menu left (Left arrow)'),('key.0x27','Quick menu right (Right arrow)'),
                    ('key.0x26','Quick menu up (Up arrow)'),('key.0x28','Quick menu down (Down arrow)'),('key.0x46','Quick menu select (F)'))),
-    # Frontend pages (dialogs, menus): the stick moves the cursor (mod/stick_cursor.py), Fire's left click
-    # selects, right click is Fe_Back. One action has one binding, so the right-click row lives here only;
-    # in flight the same click is ShipZoom.
-    ('DIALOGS & MENUS',(('mouse.right','Back (right click)'),)),
+    # Frontend pages (dialogs, menus): the stick moves the cursor (mod/stick_cursor.py), left click selects, right
+    # click is Fe_Back. In flight the same clicks are Fire and ShipZoom: separate rows for separate buttons.
+    ('DIALOGS & MENUS',(('mouse.left:select','Select (left click)'),('mouse.right','Back (right click)'))),
 )
 PRESET_LABELS={a:label for _,group in KEY_PRESETS for a,label in group}
 
@@ -113,11 +120,18 @@ def action(action_id):
     if action_id in BY_ID:return BY_ID[action_id]
     m=KEY_ACTION.fullmatch(action_id) if isinstance(action_id,str) else None
     if m and int(m[1],16) in KEY_NAMES:
-        vk=int(m[1],16);return Action(f'key.0x{vk:02X}',f'Key {KEY_NAMES[vk]}','custom','key',('press','tap','toggle','long'))
-    if isinstance(action_id,str) and action_id.startswith('mouse.') and action_id[6:] in MOUSE_BUTTONS:
-        wheel=action_id[6:].startswith('wheel')
-        return Action(action_id,MOUSE_BUTTONS[action_id[6:]],'custom','mouse',('tap','long') if wheel else ('press','tap','toggle','long'))
+        vk=int(m[1],16);id_=f'key.0x{vk:02X}'+(':'+m[2].lower() if m[2] else '')
+        return Action(id_,PRESET_LABELS[id_] if m[2] and id_ in PRESET_LABELS else f'Key {KEY_NAMES[vk]}','custom','key',('press','tap','toggle','long'))
+    m=MOUSE_ACTION.fullmatch(action_id) if isinstance(action_id,str) else None
+    if m and m[1] in MOUSE_BUTTONS:
+        wheel=m[1].startswith('wheel')
+        return Action(action_id,PRESET_LABELS[action_id] if m[2] and action_id in PRESET_LABELS else MOUSE_BUTTONS[m[1]],'custom','mouse',('tap','long') if wheel else ('press','tap','toggle','long'))
     return None
+
+
+def output(action_id):
+    """The key or mouse button an action sends, without its function name: 'key.0x45:land' -> 'key.0x45'."""
+    return action_id.split(':',1)[0] if isinstance(action_id,str) else action_id
 
 
 def parse_token(token):

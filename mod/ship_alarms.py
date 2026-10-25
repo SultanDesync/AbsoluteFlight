@@ -56,7 +56,8 @@ CUES = {
     'begin': ((0., 'sound', CHIRP), (0., 'voice', 'NOTIFY_WARNING'), (0., 'say', COUNT)),  # MAINS countdown
     'stage': ((0., 'ship', 'Pl_Ship_Engine_Ignition_Start'), (0., 'say', COUNT)),  # a group purged, next countdown
     'boost': ((0., 'ship', 'Pl_Ship_Engine_Ignition_Start'), (.5, 'ship', 'Pl_Ship_Boost_PowerUp'), (0., 'say', COUNT)),
-    'go': ((.45, 'sound', CHIRP),),                                          # countdown over, the band counts (after "one")
+    'go': ((.45, 'sound', CHIRP),),                                          # countdown over, the window opens (after "one")
+    'ignite': ((0., 'ship', 'Pl_Ship_Engine_Ignition_Start'),),              # thrust rose into the band in the window
     'miss': ((0., 'ship', 'Pl_Ship_Engine_Ignition_Fail'), (0., 'sound', 'Pl_Hazard_Critical_Hit'),
              (0., 'voice', 'NOTIFY_DamageSustained'), (0., 'say', 'miss')),
     'hull_half': ((0., 'voice', 'Notify_TechnologyCriticallyDamaged'), (0., 'say', 'hull_half')),
@@ -67,8 +68,9 @@ CUES = {
                 (.4, 'voice', 'EQUIP_DAMAGED'), (.4, 'say', 'wrecked')),
     # T94 crashes (wired when T94 lands): the game already plays the impact itself.
     'crash_hit': ((0., 'voice', 'NOTIFY_DamageSustained'),),
-    'crash_disabled': ((0., 'sound', 'Pl_Hazard_Critical_Hit'), (0., 'voice', 'EQUIP_DAMAGED')),
+    'crash_disabled': ((0., 'sound', 'Pl_Hazard_Critical_Hit'), (0., 'voice', 'EQUIP_DAMAGED'), (0., 'say', 'crash_disabled')),
 }
+RENDERED_CRASH = frozenset(['crash_disabled'])  # crash moments with a rendered line of their own
 VOICE_GAP = 2.6       # s between ship computer lines (the longest native lines run about 2 s)
 VOICE_BACKLOG = 2     # lines waiting beyond this are dropped: late lines describe a moment already gone
 REPEAT_GAP = {'NOTIFY_DamageSustained': 5., 'miss': 5.}  # s before the same line may play again (user proposal: at most every 5 s)
@@ -141,7 +143,8 @@ class ShipAlarms:
         elif self.episode is None:return
         if name == 'wrecked':self.wrecked = True
         if name in OUTCOMES:self.voices.clear()
-        rendered = self.episode == 'ditch' and bool(self.lengths)  # our lines replace the game's in a ditch
+        # Our lines replace the game's in a ditch, and for a disabling crash (user 2026-10-25); other crash hits keep the game's.
+        rendered = bool(self.lengths) and (self.episode == 'ditch' or name in RENDERED_CRASH)
         for delay, kind, what in CUES.get(name, ()):
             if kind == 'voice' and rendered or kind == 'say' and not rendered:continue
             if what == COUNT:

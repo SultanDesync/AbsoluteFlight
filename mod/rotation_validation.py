@@ -92,12 +92,18 @@ def settings_fingerprint(runtime):
     return _hash(dict(runtime.store.values))
 
 
-def offline_environment():
-    """Read current executable and saved network setting; never open another process."""
+def current_executable():
+    """The running NMS.exe, checked against the exact build; never opens another process."""
     import psutil
     exe = Path(psutil.Process(os.getpid()).exe())
     if exe.name.lower() != 'nms.exe' or hashlib.sha256(exe.read_bytes()).hexdigest() != EXE_SHA256:
         raise ValueError('T66 requires the exact current NMS executable')
+    return exe
+
+
+def offline_environment():
+    """The T66 validation trial: exact executable and saved Multiplayer=false (trials stay offline, D24)."""
+    exe = current_executable()
     settings = exe.parent / 'SETTINGS/GCUSERSETTINGSDATA.MXML'
     values = [p.attrib.get('value') for p in ET.parse(settings).iter('Property')
               if p.attrib.get('name') == 'Multiplayer']

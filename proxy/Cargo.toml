@@ -1,0 +1,14 @@
+[package]
+name = "absolute-flight-proxy"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "winmm.dll proxy for No Man's Sky (D22): forwards winmm, then starts Absolute Flight's embedded Python."
+publish = false
+
+[lib]
+name = "winmm"
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"

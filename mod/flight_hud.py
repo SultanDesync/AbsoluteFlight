@@ -58,11 +58,22 @@ EDGE_MARGIN=.07  # of frame height, keeps markers clear of the frame edge
 # Close to the native cockpit HUD: soft white text, NMS amber accent, faint dark halo.
 COLORS={'text':(.94,.95,.93,.92),'dim':(.85,.88,.86,.62),'prograde':(.62,.96,.78,.9),
         'retrograde':(.98,.72,.24,.92),'shadow':(0,0,0,.35),
-        'target':(.78,.64,1.,.92),'track':(.85,.88,.86,.16),'hotzone':(.98,.72,.24,.26),'heat':(.98,.72,.24,.92),'overheat':(1.,.3,.22,.95)}
+        'target':(.78,.64,1.,.92),'track':(.85,.88,.86,.16),'hotzone':(.98,.72,.24,.26),'heat':(.98,.72,.24,.92),'overheat':(1.,.3,.22,.95),
+        'band':(.62,.96,.78,.22),'window':(.98,.72,.24,.55),'go':(.22,.85,.54,.95)}  # T93 purge: burn band, ignition window, forward arrow
 
 
+DAZE_RED=(.55,.02,.02)  # crash daze periphery colour (user 2026-10-25: a redout rather than a blackout)
+DAZE_WASH=.16  # alpha of the red wash over the whole frame at full daze
 PURGE_SPAN=5.  # s across the purge graph: 2 s of trail behind now, 3 s of band ahead
 PURGE_NOW=.4   # share of the graph width left of now
+PURGE_STEP=.05  # s per requirement trace sample (planetary_hud.purge_plan)
+PURGE_HEAD_Z=4.2  # depth of the forward arrow's head; its bands run from 1 to just short of it
+PURGE_BACK_Z=1.45  # depth of the back arrow's head base; its bands run from the far end to it
+# Strafe cues: direction out from the reticle and reach (share of HUD height). Above stays under the purge block;
+# sideways reaches further, clear of the speed and altitude readouts.
+PURGE_STRAFE={'up':((0.,-1.),.115),'down':((0.,1.),.15),'right':((1.,0.),.15),'left':((-1.,0.),.15)}
+PURGE_GATES_SHIP=.2  # share of the gates view left of the ship
+GATE_T,SHIP_W=6.,10.  # gates course units (ditch_purge.GATE_T, SHIP_W)
 TUNNEL_LAYERS=32
 TUNNEL_SEGMENTS=48
 PERIPHERY_DARK=.94  # peak darkness at the frame edge with the periphery full
@@ -412,33 +423,17 @@ class HudPainter:
             self.label(ctx,cx,cy+R+.024*h,f"STRAIN {m['strain']*100:.0f}%",.014*h,'overheat' if m['strain']>.5 else 'heat',font)
 
     def purge(self,ctx,p,width,height,font=None):
-        """T93 ditch: warning lines, the current thruster stage's band graph with the input trail, and the
-        purge and hull bars, centred above the reticle."""
+        """T93 ditch: warning lines, the purge view (the telemetry requirement trace with the lever trail, or the
+        gates course), the purge and hull bars with the failure clock, centred above the reticle."""
         h=height*self.scale;cx=width/2;top=height/2-.33*h
         a=self.api;a['nvgTextAlign'](ctx,2|64)  # NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE
         for i,line in enumerate(p['lines']):self.label(ctx,cx,top+i*.024*h,line,.018*h,'overheat',font)
         if p['wrecked']:return
-        if p.get('arrow'):self.purge_arrow(ctx,p['arrow'],cx,height/2,h)
-        gw=.34*h;gh=.09*h;gx=cx-gw/2;gy=top+.06*h
-        span=PURGE_SPAN;now_x=gx+gw*PURGE_NOW
-        def X(t):return now_x+t/span*gw
-        def Y(v):return gy+gh*(1.-v)
-        self._rect(ctx,gx,gy,gw,gh,'track')
-        for t,low,high in p['ahead']:  # the band to fly, a column per sample
-            self._rect(ctx,X(t),Y(high),gw*.1/span+.5,Y(low)-Y(high),'hotzone')
-        trail=p['trail']
-        if len(trail)>1:
-            pts=[(X(t),Y(v)) for t,v,_ in trail]
-            self._shape(ctx,'prograde' if p['inside'] else 'overheat',self._line(height),lambda:self._poly(ctx,pts))
-        if p['value'] is not None:
-            self._disc(ctx,now_x,Y(p['value']),.006*h,'shadow');self._disc(ctx,now_x,Y(p['value']),.0045*h,'prograde' if p['inside'] else 'overheat')
-        self._shape(ctx,'dim',self._line(height)*.7,lambda:self._poly(ctx,[(now_x,gy),(now_x,gy+gh)]))
-        step,steps=p['step']
-        warning=p.get('warning',0.);count=p.get('count')
-        title=(f"PURGE SEQUENCE IN {math.ceil(warning)}s - FIRST {p['stage']}: {p['prompt']}" if warning>0.
-               else f"{step}/{steps} {p['stage']}: {p['prompt']} - {count or 'STANDBY'}" if p.get('countdown',0.)>0.  # T99
-               else f"{step}/{steps} {p['stage']}: {p['prompt']}")
-        self.label(ctx,cx,gy-.008*h,title,.016*h,'heat',font)
+        gw=.34*h;gx=cx-gw/2;gy=top+.06*h
+        if p.get('kind')=='gates':gh=self._purge_gates(ctx,p,gx,gy,gw,h,font)
+        else:
+            gh=self._purge_telemetry(ctx,p,gx,gy,gw,h,font)
+            if p.get('arrow') and p['warning']<=0.:self.purge_arrow(ctx,p['arrow'],p['flow'],cx,height/2,h)
         bw=gw;by=gy+gh+.018*h;bh=.008*h
         for i,(name,value,color) in enumerate((('PURGE',p['progress'],'prograde'),
                                               ('HULL',p['hull'],'overheat' if p['hull']<.35 else 'heat'))):
@@ -449,25 +444,120 @@ class HudPainter:
             self.label(ctx,gx-.008*h,y+bh,name,.014*h,'dim',font)
             a['nvgTextAlign'](ctx,1|64)  # NVG_ALIGN_LEFT
             self.label(ctx,gx+bw+.008*h,y+bh,f"{100*value:.0f}%",.014*h,'dim',font)
+        fail=p.get('fail_in')  # user 2026-10-24: the hull clock is the pressure to go faster
+        if fail is not None and fail<99.:
+            self.label(ctx,gx+bw+.045*h,by+.03*h+bh,f"FAILURE {fail:.0f}s",.014*h,'overheat' if fail<10. else 'heat',font)
+
+    def _purge_telemetry(self,ctx,p,gx,gy,gw,h,font):
+        """The requirement trace (idle band, the steep rise with its ignition window, the burn band) a column per
+        sample, the lever trail and the title. Returns the graph height."""
+        gh=.09*h;span=PURGE_SPAN;now_x=gx+gw*PURGE_NOW;line=max(1.,.0016*h)
+        def X(t):return now_x+t/span*gw
+        def Y(v):return gy+gh*(1.-v)
+        self._rect(ctx,gx,gy,gw,gh,'track')
+        for t,low,high,kind in p['trace']:
+            self._rect(ctx,X(t),Y(high),gw*PURGE_STEP/span+.5,max(1.,Y(low)-Y(high)),'window' if kind=='window' else 'band')
+        trail=p['trail']
+        if len(trail)>1:
+            pts=[(X(t),Y(v)) for t,v,_ in trail]
+            self._shape(ctx,'prograde' if p['inside'] else 'overheat',line,lambda:self._poly(ctx,pts))
+        if p['value'] is not None:
+            self._disc(ctx,now_x,Y(p['value']),.006*h,'shadow');self._disc(ctx,now_x,Y(p['value']),.0045*h,'prograde' if p['inside'] else 'overheat')
+        self._shape(ctx,'dim',line*.7,lambda:self._poly(ctx,[(now_x,gy),(now_x,gy+gh)]))
+        step,steps=p['step'];phase=p['phase'];head=f"{step}/{steps} {p['stage']}: {p['prompt']}"
+        title=(f"PURGE SEQUENCE IN {math.ceil(p['warning'])}s - FIRST {p['stage']}: {p['prompt']}" if p['warning']>0.
+               else head+' - BACK TO IDLE' if phase=='countdown' and p['early']
+               else f"{head} - {p['count'] or 'STANDBY'}" if phase=='countdown'  # T99
+               else head+' - IGNITION FAILED' if phase=='retry'
+               else head+' - IGNITE' if phase=='window' else head+' - HOLD')
+        self.api['nvgTextAlign'](ctx,2|64)
+        self.label(ctx,gx+gw/2,gy-.008*h,title,.016*h,'heat',font)
+        return gh
+
+    def _purge_gates(self,ctx,p,gx,gy,gw,h,font):
+        """The gates course: walls with their openings, the sea floor, the ship's trail and the ship, the title.
+        Returns the view height."""
+        gh=.14*h;k=gw*(1.-PURGE_GATES_SHIP)/p['ahead'];ship_x=gx+gw*PURGE_GATES_SHIP
+        def X(d):return ship_x+d*k
+        def Y(v):return gy+gh*(1.-v)
+        self._rect(ctx,gx,gy,gw,gh,'track')
+        self._rect(ctx,gx,Y(0.)-1.,gw,2.,'heat')  # the sea floor
+        wall=GATE_T*k
+        for d,low,high,state in p['gates']:
+            x0,x1=max(gx,X(d)),min(gx+gw,X(d)+wall)
+            if x1<=x0:continue
+            color='overheat' if state=='ahead' else 'dim' if state=='hit' else 'track'
+            self._rect(ctx,x0,gy,x1-x0,Y(high)-gy,color);self._rect(ctx,x0,Y(low),x1-x0,Y(0.)-Y(low),color)
+        trail=[(X(d),Y(y)) for d,y in p['trail'] if X(d)>=gx]
+        if len(trail)>1:self._shape(ctx,'prograde',max(1.,.0011*h),lambda:self._poly(ctx,trail))
+        sw,sh=SHIP_W*k/2,max(2.,gh*.025);sy=Y(p['ship'])
+        self._fill(ctx,[(ship_x-sw,sy-sh),(ship_x+sw,sy),(ship_x-sw,sy+sh)],'go')
+        if p['warning']>0.:title=f"PURGE SEQUENCE IN {math.ceil(p['warning'])}s - {p['prompt']}"
+        elif p['countdown']>0.:title=f"GATES: {p['prompt']} - {p['count'] or 'STANDBY'}"
+        else:title=f"GATE {min(p['passed']+1,p['total'])}/{p['total']}  {p['prompt']}"
+        self.api['nvgTextAlign'](ctx,2|64)
+        self.label(ctx,gx+gw/2,gy-.008*h,title,.016*h,'heat',font)
+        return gh
 
     def _fill(self,ctx,points,color):
         a=self.api;a['nvgBeginPath'](ctx);self._poly(ctx,points);a['nvgFillColor'](ctx,self._paint(color));a['nvgFill'](ctx)
 
-    def purge_arrow(self,ctx,arrow,cx,cy,h):
-        """Big red arrow at the reticle for the purge stage's control: a lever slot for the throttle, a plain
-        arrow for strafe, stacked chevrons for boost."""
-        kind,direction=arrow;L=.09*h;W=.045*h;S=.016*h
-        rot={'up':(0.,-1.),'down':(0.,1.),'right':(1.,0.),'left':(-1.,0.)}[direction]
-        def P(u,v):return (cx+u*rot[0]-v*rot[1],cy+u*rot[1]+v*rot[0])  # u along the arrow, v across it
-        if kind=='throttle':  # the lever slot behind it
-            self._rect(ctx,cx-.008*h,cy-L,.016*h,2*L,'track')
-        if kind=='boost':
-            for k in range(3):
-                u0=-L*.6+k*L*.55
-                self._fill(ctx,[P(u0+W*.8,0.),P(u0,-W),P(u0+S,-W),P(u0+W*.8+S,0.),P(u0+S,W),P(u0,W)],'overheat')
-            return
-        shaft=[P(-L,-S),P(L-W,-S),P(L-W,-W),P(L,0.),P(L-W,W),P(L-W,S),P(-L,S)]
-        self._fill(ctx,[(x+1.5,y+1.5) for x,y in shaft],'shadow');self._fill(ctx,shaft,'overheat')
+    def _shadowed(self,ctx,points,color):
+        self._fill(ctx,[(x+1.5,y+1.5) for x,y in points],'shadow');self._fill(ctx,points,color)
+
+    def purge_arrow(self,ctx,kind,flow,cx,cy,h):
+        """The purge stage's cue at the reticle (user 2026-10-24: from the seat, screen-up means both forward and
+        up). forward / back: a green arrow lying flat below the reticle on a ground plane that converges onto it,
+        its bands flowing away into the distance (forward) or toward the pilot with the head near (back). up, down,
+        left, right: a red arrow standing on a deck line on that side of the reticle, chevrons moving out at a
+        constant size. flow: the phase, faster with more thrust (prototype: tools/prototypes/purge_gates.html)."""
+        alpha=self.alpha
+        try:
+            if kind in ('forward','back'):self._ground_arrow(ctx,kind=='forward',flow,cx,cy,h,alpha)
+            elif kind in PURGE_STRAFE:self._strafe_arrow(ctx,PURGE_STRAFE[kind],flow,cx,cy,h,alpha)
+        finally:self.alpha=alpha
+
+    def _ground_arrow(self,ctx,away,flow,cx,cy,h,alpha):
+        # A ground plane below the eye: screen y = vp + span/z at depth z, widths shrink by 1/z.
+        vp=cy+.03*h;span=.2*h;W0=.055*h;D=.55
+        def at(z):return vp+span/z
+        def band(z0,z1):return [(cx-W0/z0,at(z0)),(cx+W0/z0,at(z0)),(cx+W0/z1,at(z1)),(cx-W0/z1,at(z1))]
+        if away:  # bands from the near edge to just short of the far head, flowing out
+            near,far=1.,PURGE_HEAD_Z-.15
+            for i in range(8):
+                z0=near+(i*D+flow*D)%(8*D)
+                if z0>far:continue
+                self.alpha=alpha*(.1+.9*min(1.,(z0-near)/.35))  # fade in at the near edge
+                self._shadowed(ctx,band(z0,min(z0+.5*D,far)),'go')
+            self.alpha=alpha;zh=PURGE_HEAD_Z
+            self._shadowed(ctx,[(cx-2.3*W0/zh,at(zh)),(cx+2.3*W0/zh,at(zh)),(cx,at(10.))],'go')
+        else:  # back: bands come out of the distance toward the pilot, the head near pointing down the screen
+            near,far,zb=PURGE_BACK_Z,PURGE_HEAD_Z,PURGE_BACK_Z-.1
+            for i in range(8):
+                z1=far-(i*D+flow*D)%(8*D)
+                if z1<near:continue
+                self.alpha=alpha*(.1+.9*min(1.,(far-z1)/.6))  # fade in out of the distance
+                self._shadowed(ctx,band(max(near,z1-.5*D),z1),'go')
+            self.alpha=alpha
+            self._shadowed(ctx,[(cx-1.6*W0/zb,at(zb)),(cx+1.6*W0/zb,at(zb)),(cx,at(1.))],'go')
+
+    def _strafe_arrow(self,ctx,d,flow,cx,cy,h,alpha):
+        """Red arrow out from the reticle along d: a deck line with feet toward the reticle, chevrons moving out
+        from it, a fixed head at the end. u runs out along d, v across it."""
+        (dx,dy),reach=d;reach*=h
+        def P(u,v):return (cx+u*dx-v*dy,cy+u*dy+v*dx)
+        base=.03*h;dw=.04*h;cw=.028*h;ct=.009*h;gap=.025*h;foot=.004*h;head=.022*h
+        for u0,u1,v0,v1 in ((base-foot,base,-dw,dw),(base-.01*h,base,-dw,-dw+foot),(base-.01*h,base,dw-foot,dw)):
+            self._fill(ctx,[P(u0,v0),P(u1,v0),P(u1,v1),P(u0,v1)],'overheat')
+        start=base+.01*h;travel=reach-head-start
+        for i in range(4):
+            off=(i*gap+flow*gap)%(4*gap)
+            if off>travel:continue
+            self.alpha=alpha*max(0.,min(1.,off/(.012*h),(travel-off)/(.016*h)))
+            u=start+off
+            self._shadowed(ctx,[P(u,-cw),P(u+.7*cw,0.),P(u,cw),P(u-ct,cw),P(u+.7*cw-ct,0.),P(u-ct,-cw)],'overheat')
+        self.alpha=alpha
+        self._shadowed(ctx,[P(reach-head,-1.2*cw),P(reach,0.),P(reach-head,1.2*cw)],'overheat')
 
     def readout(self,ctx,r,width,height,font=None):
         """Right-aligned block left of the reticle, fighter-HUD style."""
@@ -550,12 +640,16 @@ class HudPainter:
             if name in fonts:
                 self.label(ctx,x,y+i*.04*h,f"{label}: {r['speed']:.0f} u/s  FWD {r['forward']:+.0f}",.026*h,'text',fonts[name])
 
-    def tunnel(self,ctx,layers,width,height,blackout=False):
+    def tunnel(self,ctx,layers,width,height,blackout=False,red=0.):
         """tunnel_layers() plan, or the whole frame black. Each ring layer is one simple polygon: the
         frame (overdrawn so its edges stay off screen) with a slit below the ellipse into the ellipse
-        traced the other way, so the hole needs no path winding call. The slit sits in the dark."""
+        traced the other way, so the hole needs no path winding call. The slit sits in the dark. red 0..1
+        (crash daze, g_strain.daze): the periphery turns dark red and a faint red wash covers the frame."""
         a=self.api;color=self.tunnel_color
         if blackout:layers=[(0.,1.)]
+        red=0. if blackout else min(1.,max(0.,float(red)))
+        color[0]=DAZE_RED[0]*red;color[1]=DAZE_RED[1]*red;color[2]=DAZE_RED[2]*red
+        if red>0.:layers=[(0.,DAZE_WASH*red)]+list(layers)
         pad=4.;cx,cy=width/2,height/2;n=TUNNEL_SEGMENTS;k=tunnel_stretch(width,height)
         for r,alpha in layers:
             color[3]=alpha;a['nvgBeginPath'](ctx);a['nvgFillColor'](ctx,C.addressof(color))
@@ -579,7 +673,7 @@ class HudPainter:
         if landing is not None:self.landing(ctx,landing,width,height,font)
         if mode is not None and fonts is None:self.mode(ctx,mode,width,height,font)
         if gauge is not None:self.gauge(ctx,gauge,width,height,font)
-        if gmeter is not None:self.g_meter(ctx,gmeter,width,height,font)
+        if gmeter is not None and purge is None:self.g_meter(ctx,gmeter,width,height,font)  # the purge arrows sit there
         if target is not None:
             m=target['marker']
             if m is not None:

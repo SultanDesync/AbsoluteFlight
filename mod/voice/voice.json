@@ -20,6 +20,11 @@
    "seconds": 4.774,
    "one_at": 4.3
   },
+  "count_launch": {
+   "text": "Mains cleared. Launch thrusters in",
+   "seconds": 4.752,
+   "one_at": 4.3
+  },
   "count_retro": {
    "text": "Mains cleared. Purge retros in",
    "seconds": 4.753,
@@ -45,9 +50,9 @@
    "seconds": 4.738,
    "one_at": 4.3
   },
-  "count_boost": {
-   "text": "Port cleared. Boost in",
-   "seconds": 4.706,
+  "count_all": {
+   "text": "Purge all thrusters in",
+   "seconds": 4.768,
    "one_at": 4.3
   },
   "miss": {
@@ -73,6 +78,11 @@
   "wrecked": {
    "text": "Hull failure. Abandon ship.",
    "seconds": 2.023,
+   "one_at": null
+  },
+  "crash_disabled": {
+   "text": "Warning! Critical damage. Ship disabled. Ejection sequence initiated.",
+   "seconds": 5.298,
    "one_at": null
   }
  }

@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 import struct
 import threading
-import xml.etree.ElementTree as ET
 
 from flight_shaping import shape_axis
 import runtime_config
@@ -265,7 +264,7 @@ class AdditiveRotation:
         self.data = Path(data)
         self.bridge_factory, self.identity_reader, self.profile_reader = bridge_factory, identity_reader, profile_reader
         self.environment = environment
-        self.network_settings = self.network_stamp = None
+        self.executable_checked = False
         self.bridge = None
         self.lock = threading.RLock()
         self.publication_lock = threading.RLock()  # never spans a code-write wait
@@ -313,12 +312,10 @@ class AdditiveRotation:
                       getattr(trial, 'state', None) not in ('disabled', 'stopped', 'complete'))))
 
     def _initialize(self, runtime, source_pin, request=DEFAULT_REQUEST):
-        from rotation_validation import offline_environment
-        if self.network_settings is None:
-            _, settings, stamp = (self.environment or offline_environment)()
-            self.network_settings, self.network_stamp = Path(settings), stamp
-        if not self._check_environment():
-            return False
+        from rotation_validation import current_executable
+        if not self.executable_checked:  # multiplayer may be on (D24)
+            (self.environment or current_executable)()
+            self.executable_checked = True
         settings_pin = settings_fingerprint(runtime)
         try:
             identity = self.identity_reader(runtime)
@@ -352,23 +349,6 @@ class AdditiveRotation:
         self.bridge = self.identity = self.profile = self.request = self.fixture_owner = None
         self.last_record, self.last_pin_check = 0, None
 
-    def _check_environment(self):
-        """Recheck saved multiplayer after ordinary game settings saves."""
-        try:
-            stamp = self.network_settings.stat().st_mtime_ns
-            if stamp == self.network_stamp:
-                return True
-            values = [p.attrib.get('value') for p in ET.parse(self.network_settings).iter('Property')
-                      if p.attrib.get('name') == 'Multiplayer']
-            if values != ['false']:
-                raise ValueError('saved Multiplayer must be false')
-        except (OSError, ValueError, ET.ParseError, AttributeError) as error:
-            self.disarm('offline network settings unavailable or Multiplayer is not false: ' + str(error))
-            return False
-        self.network_stamp = stamp
-        self.disarm('offline network settings rechecked; waiting for fresh input')
-        return True
-
     def _read_native(self, now):
         rows, sequence, dropped = self.bridge.read_records(self.last_record)
         self.last_record = sequence
@@ -390,8 +370,6 @@ class AdditiveRotation:
                 return
             revision = self.revision
             try:
-                if self.bridge is not None and not self._check_environment():
-                    return
                 fixture = getattr(runtime, 'newtonian', None)
                 ship_class = fixture.fixture['ship_class'] if fixture is not None else runtime.store.current_class
                 class_profile = runtime.store.profile(ship_class)
@@ -467,8 +445,6 @@ class AdditiveRotation:
                         self._disable('waiting for fresh pitch/yaw bus frame after install')
                     return
                 if revision != self.revision or self.stopped.is_set():
-                    return
-                if not self._check_environment():
                     return
                 settings_pin = settings_fingerprint(runtime)
                 if source_pin != self.source_pin or settings_pin != self.settings_pin:
