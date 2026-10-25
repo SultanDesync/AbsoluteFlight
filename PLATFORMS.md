@@ -2,7 +2,7 @@
 
 Absolute Flight is built and tested on **No Man's Sky for Steam on Windows, build 180836**
 (Steam build id 25732212). Everything below is outside that: it may work, but there's no guarantee.
-Reports in **#feedback** on the Discord (https://discord.gg/KtrhfPBpr), with a support bundle, are how
+Reports in **#feedback** on the Discord (https://discord.gg/jjk8nEMzFK), with a support bundle, are how
 these get supported.
 
 ## Other game builds and stores (GOG, Microsoft Store, Game Pass)

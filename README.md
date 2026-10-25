@@ -11,7 +11,7 @@ with every report. Your feedback is what shapes the next builds.
 the research and flew every feature. See [HOW-IT-WAS-MADE.md](HOW-IT-WAS-MADE.md) for who did what, and
 what that means for you.
 
-**Discord:** https://discord.gg/KtrhfPBpr is where testing happens: bug reports, feedback, shared tunings,
+**Discord:** https://discord.gg/jjk8nEMzFK is where testing happens: bug reports, feedback, shared tunings,
 new builds and tester chat. See "Reporting a problem" below.
 
 ## What you need
@@ -41,11 +41,12 @@ changed.
 ## Play
 
 1. Start No Man's Sky from Steam as usual. The mod loads with the game.
-2. Open **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page) and bind your
-   stick axes and throttle under **Flight Axes**: select a binding, then move the axis.
+2. Open the Absolute Flight menu. In game: pause, then **Options > Absolute Flight**. From the main menu,
+   before loading a save: **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page).
+3. Bind your stick axes and throttle under **Flight Axes**: select a binding, then move the axis.
 
-If **Absolute Flight Setup** isn't at the bottom of the Controls page, the mod didn't load: see
-"Reporting a problem".
+If **Absolute Flight** isn't in the pause menu's Options list, or **Absolute Flight Setup** isn't at the
+bottom of the main menu's Controls page, the mod didn't load: see "Reporting a problem".
 
 The game's own mod list shows ABSOLUTEFLIGHT. Turning mods off there doesn't turn Absolute Flight off; to
 play without it, rename `Binaries\winmm.dll` (for example to `winmm.dll.off`) and rename it back later.
@@ -104,15 +105,15 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 
 ## Reporting a problem and giving feedback
 
-Join the Discord at https://discord.gg/KtrhfPBpr. Once you have the Tester role:
+Join the Discord at https://discord.gg/jjk8nEMzFK. Once you have the Tester role:
 
 - **Bugs** go in **#bug-reports**, one post per problem:
-  1. In game: **Options > Controls > Absolute Flight Setup > Save support bundle**.
+  1. In game: pause, **Options > Absolute Flight > Save support bundle**.
   2. Attach the newest zip from `%LOCALAPPDATA%\AbsoluteHOTAS\support` (paste that into Explorer's
      address bar) with a few lines on what you were doing.
 - **Flight feel, ideas and menu thoughts** go in **#feedback**. Say which ship class and where (space,
   atmosphere, landing).
-- **The mod didn't load** (no Absolute Flight Setup on the Controls page): post in **#bug-reports** with
+- **The mod didn't load** (no Absolute Flight in Options, or no Absolute Flight Setup on Controls): post in **#bug-reports** with
   `proxy.log`, `python-boot.log` and the newest `pymhf-*.log` from `%LOCALAPPDATA%\AbsoluteHOTAS\logs`.
   If that folder has no `proxy.log`, the game never loaded `Binaries\winmm.dll`: check it's in the right folder.
 - **Questions and general chat** go in **#af-chat**. New builds are posted in **#builds**.
