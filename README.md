@@ -93,6 +93,10 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 
 ## Known issues and coming soon
 
+- **After a warp, your HOTAS can take up to a minute to take over again.** When you arrive in a new system the
+  game hands your ship to a new thread, and Absolute Flight waits too long for it before it re-arms. Your stick,
+  throttle and buttons come back on their own; until then the ship flies on the game's own controls. Fixed in the
+  next build.
 - **Take-off from your throttle is coming soon.** For now, take off with the game's own take-off control:
   bind a stick or throttle button to that key on the **Buttons** page (add a custom key) and hold it while
   landed. Check **Options > Controls** in game for which key that is.
