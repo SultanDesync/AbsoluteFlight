@@ -1,101 +1,75 @@
 {
   "build": {
     "exe": "Binaries\\NMS.exe",
-    "file_version": "180836",
-    "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
-    "steam_buildid": "25732212",
+    "file_version": "183791",
+    "sha256": "d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87",
+    "steam_buildid": "26271400",
     "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin"
   },
   "sites": {
     "latch": {
-      "rva": 24472957,
-      "size": 7,
-      "original": "0f298500010000",
-      "signature": "0f298500010000488b88f00200004885c975260f29ad9006",
+      "rva": 24682142,
+      "size": 5,
+      "original": "440f294d50",
+      "signature": "440f294d50488b88e00200004885c975260f29add0060000",
       "instructions": [
-        "0x1756d7d: movaps xmmword ptr [rbp + 0x100], xmm0"
+        "0x1789e9e: movaps xmmword ptr [rbp + 0x50], xmm9"
       ],
       "context": [
-        "0x1756d7d: movaps xmmword ptr [rbp + 0x100], xmm0",
-        "0x1756d84: mov rcx, qword ptr [rax + 0x2f0]",
-        "0x1756d8b: test rcx, rcx",
-        "0x1756d8e: jne 0x1756db6",
-        "0x1756d90: movaps xmmword ptr [rbp + 0x690], xmm5",
-        "0x1756d97: movaps xmmword ptr [rbp + 0x6a0], xmm6",
-        "0x1756d9e: movaps xmmword ptr [rbp + 0x6b0], xmm7"
+        "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
+        "0x1789e9e: movaps xmmword ptr [rbp + 0x50], xmm9"
       ]
     },
     "gravity": {
-      "rva": 24495570,
+      "rva": 24705473,
       "size": 7,
-      "original": "0f58cf0f294d60",
-      "signature": "0f58cf0f294d60f30f100d1b0ba005f30f5c8eb86000000f",
+      "original": "0f298550220000",
+      "signature": "0f298550220000f30f10058c79b603440f58c9f30f100d98",
       "instructions": [
-        "0x175c5d2: addps xmm1, xmm7",
-        "0x175c5d5: movaps xmmword ptr [rbp + 0x60], xmm1"
+        "0x178f9c1: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ],
       "context": [
-        "0x175c5d2: addps xmm1, xmm7",
-        "0x175c5d5: movaps xmmword ptr [rbp + 0x60], xmm1",
-        "0x175c5d9: movss xmm1, dword ptr [rip + 0x5a00b1b]",
-        "0x175c5e1: subss xmm1, dword ptr [rsi + 0x60b8]",
-        "0x175c5e9: comiss xmm0, xmm1",
-        "0x175c5ec: jbe 0x175c5f6",
-        "0x175c5ee: movss xmm6, dword ptr [rip + 0x3ac9ae2]"
+        "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
+        "0x178f9c1: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ]
     },
     "height": {
-      "rva": 24496152,
+      "rva": 24706072,
       "size": 7,
-      "original": "0f588580050000",
-      "signature": "0f5885800500004c0f45f00f2945604c39b6a0700000743c",
+      "original": "0f588520050000",
+      "signature": "0f588520050000480f45f80f2945504839beb07000007435",
       "instructions": [
-        "0x175c818: addps xmm0, xmmword ptr [rbp + 0x580]"
+        "0x178fc18: addps xmm0, xmmword ptr [rbp + 0x520]"
       ],
       "context": [
-        "0x175c818: addps xmm0, xmmword ptr [rbp + 0x580]",
-        "0x175c81f: cmovne r14, rax",
-        "0x175c823: movaps xmmword ptr [rbp + 0x60], xmm0",
-        "0x175c827: cmp qword ptr [rsi + 0x70a0], r14",
-        "0x175c82e: je 0x175c86c",
-        "0x175c830: lea rcx, [rsi + 0x70a0]",
-        "0x175c837: call 0x1789690"
+        "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
+        "0x178fc18: addps xmm0, xmmword ptr [rbp + 0x520]"
       ]
     },
     "final": {
-      "rva": 24511533,
+      "rva": 24721455,
       "size": 9,
       "original": "f3410f108560020000",
-      "signature": "f3410f108560020000488d95d0140000f30f109640660000",
+      "signature": "f3410f108560020000488d9530150000f30f109650660000",
       "instructions": [
-        "0x176042d: movss xmm0, dword ptr [r13 + 0x260]"
+        "0x179382f: movss xmm0, dword ptr [r13 + 0x260]"
       ],
       "context": [
-        "0x176042d: movss xmm0, dword ptr [r13 + 0x260]",
-        "0x1760436: lea rdx, [rbp + 0x14d0]",
-        "0x176043d: movss xmm2, dword ptr [rsi + 0x6640]",
-        "0x1760445: xor r9d, r9d",
-        "0x1760448: movaps xmm7, xmmword ptr [rbp + 0x60]",
-        "0x176044c: addss xmm2, xmm2",
-        "0x1760450: shufps xmm0, xmm0, 0"
+        "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
+        "0x179382f: movss xmm0, dword ptr [r13 + 0x260]"
       ]
     },
     "after_integrator": {
-      "rva": 24511591,
+      "rva": 24721515,
       "size": 7,
-      "original": "488b0d9ad27205",
-      "signature": "488b0d9ad27205ba070000004881c108499300e80161b6fe",
+      "original": "488b0db6cf7c05",
+      "signature": "488b0db6cf7c05ba070000004881c148bd9500e80d6fb3fe",
       "instructions": [
-        "0x1760467: mov rcx, qword ptr [rip + 0x572d29a]"
+        "0x179386b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ],
       "context": [
-        "0x1760467: mov rcx, qword ptr [rip + 0x572d29a]",
-        "0x176046e: mov edx, 7",
-        "0x1760473: add rcx, 0x934908",
-        "0x176047a: call 0x2c6580",
-        "0x176047f: test al, al",
-        "0x1760481: je 0x1757e46",
-        "0x1760487: mov rcx, qword ptr [r13 + 0x290]"
+        "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
+        "0x179386b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ]
     }
   },

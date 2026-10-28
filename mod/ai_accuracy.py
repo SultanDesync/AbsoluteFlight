@@ -1,4 +1,4 @@
-"""Player-targeted NPC gun dispersion, NMS180836 / Steam25732212 (T83).
+"""Player-targeted NPC gun dispersion, NMS 183791 / Steam 26271400 (T83).
 
 The gun's native behavior lookup return is replaced with a private D0-byte copy,
 held until that gun call returns. Only GunDispersionAngle+B4 changes. No shared
@@ -14,23 +14,23 @@ from ai_evasion_model import EvasionObserver, tuning_values
 from ai_pilots import wanted_mode
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6E8D708
-MANAGER_FROM_APP = 0x6CD8B0
-GUN_LOOKUP_CALLER = 0x17145E9
+APP_GLOBAL = 0x6F60828
+MANAGER_FROM_APP = 0x6CDF10
+GUN_LOOKUP_CALLER = 0x1747089
 ROW_SIZE = 0xD0
 DISPERSION = 0xB4
 MAX_SPREAD = 60.0  # Native scale <=1/3, well below its [0,1] saturation.
-# Below detour entries, including the exact native call that resolves lookup171E340.
+# Below detour entries, including the exact native call that resolves lookup 1751120.
 PINS = {
-    0x1714532: bytes.fromhex('448bb1740a0000bf010000000f2970b8498bd90f2978a84d8be8488bf1'),
-    0x17145E4: bytes.fromhex('e8579d0000448ba6007d00004889442460'),
-    0x17146CC: bytes.fromhex('488b442460f30f102d1f5541034885c07408f30f10a8b4000000f30f5e2d16574103'),
-    0x171478C: bytes.fromhex('0f57c9f30f5fcd0f28ef660f5ad0f30f5de9'),
-    0x17147B9: bytes.fromhex('0f59eb0f285d800f585d900f586c2450'),
-    0x1714931: bytes.fromhex('488d44245048894424200f11442460e8ab92e6ff'),
-    0x171E3D8: bytes.fromhex('488d5368488b5c2430488b7424384883c4205fe9d0010000'),
-    0x171E3F0: bytes.fromhex('488d5318488b5c2430488b7424384883c4205fe9b8010000'),
-    0x4B29E04: struct.pack('<f', 180.),
+    0x1746FD2: bytes.fromhex('448bb1740a0000bf010000000f2970b8498bd90f2978a84d8be8488bf1'),
+    0x1747084: bytes.fromhex('e897a00000448ba6007d00004889442460'),
+    0x174716C: bytes.fromhex('488b442460f30f102d075d4a034885c07408f30f10a8b4000000f30f5e2d025f4a03'),
+    0x174722C: bytes.fromhex('0f57c9f30f5fcd0f28ef660f5ad0f30f5de9'),
+    0x1747259: bytes.fromhex('0f59eb0f285d800f585d900f586c2450'),
+    0x17473D1: bytes.fromhex('488d44245048894424200f11442460e88b22e6ff'),
+    0x17511B8: bytes.fromhex('488d5368488b5c2430488b7424384883c4205fe9d0010000'),
+    0x17511D0: bytes.fromhex('488d5318488b5c2430488b7424384883c4205fe9b8010000'),
+    0x4BED090: struct.pack('<f', 180.),
 }
 
 
@@ -119,14 +119,14 @@ class EvasiveAccuracy:
                 return frame
             app = self._q(self.base + APP_GLOBAL)
             physics = self._q(actor + 0x40)
-            if (not app or not physics or physics + 0x60 == target
-                    or self._q(ship + 0x6248) + 0x60 != target
-                    or not self._primary(target) or not self._primary(physics + 0x60)):
+            if (not app or not physics or physics + 0x50 == target
+                    or self._q(ship + 0x6258) + 0x50 != target
+                    or not self._primary(target) or not self._primary(physics + 0x50)):
                 return frame
             role = bytes(self.read(actor + 0x2C0, 16))
             if len(role) != 16 or not role.split(b'\0', 1)[0]:
                 return frame
-            frame.update(allowed=True, app=app, ship=ship, target=target, own=physics + 0x60,
+            frame.update(allowed=True, app=app, ship=ship, target=target, own=physics + 0x50,
                          role=role, values={**tuning_values(values),
                                             'ai-readability': values.get('ai-readability', 1.)}, sample=sample)
         except Exception as error:
@@ -147,8 +147,8 @@ class EvasiveAccuracy:
             if (current_sample is None
                     or local_player_ship(self.read, self.base) != frame['ship']
                     or self._q(self.base + APP_GLOBAL) != frame['app']
-                    or self._q(frame['ship'] + 0x6248) + 0x60 != frame['target']
-                    or self._q(frame['actor'] + 0x40) + 0x60 != frame['own']
+                    or self._q(frame['ship'] + 0x6258) + 0x50 != frame['target']
+                    or self._q(frame['actor'] + 0x40) + 0x50 != frame['own']
                     or not self._primary(frame['target']) or not self._primary(frame['own'])
                     or bytes(self.read(role, 16)) != frame['role']):
                 return None

@@ -1,15 +1,18 @@
-"""Native tunnel vignette and greyout lanes for the G-load mechanic (T77 seam), build 180836 / Steam 25732212.
+"""Native tunnel vignette and greyout lanes for the G-load mechanic (T77 seam), build 183791 / Steam 26271400.
 
 Ported from codex's T77 probe (research/re-log/2026-10-16_codex_native-vignette.md; scratch job
 research-jobs/t77/native_probe.py, 36/36 local x64 harness checks and a user-accepted live proof).
-Each lane replaces one direct CALL to the native uniform setter 0x1841310 inside the HUD
-screen-effect publisher 0x990EB0 with a CALL to a cave. The cave checks every gate in native code
+Each lane replaces one direct CALL to the native uniform setter 0x1878300 inside the HUD
+screen-effect publisher 0x9A0C90 with a CALL to a cave. The cave checks every gate in native code
 and then tail-jumps to the original setter with the original return address and stack arguments.
 It substitutes the outgoing float argument(s) only while a fresh command is present:
 
-- vignette (site 0x99287C, gVignetteVec4.xy): smoothstep start/end radii; native is about (.45, .85),
+- vignette (site 0x9A270D, gVignetteVec4.xy): smoothstep start/end radii; native is about (.45, .85),
   and (-.02, -.01) masks the whole scene black (later HUD layers still draw on top);
-- greyout (site 0x991F74, gCriticalHitPointsVec4.y): whole-screen desaturation 0..1.
+- greyout (site 0x9A1E38, gCriticalHitPointsVec4.y): whole-screen desaturation 0..1.
+183791 remap (static): each site found by its uniform name; every game offset the cave embeds is a
+named constant below, checked against aligned 183791 code (publisher fields +0x26000, app members
+and ship-component fields moved).
 
 Gates in the cave (any failure passes the native arguments through unchanged): enabled; app
 pointer, publisher identity (RDI), attachment handle and ship unchanged; frontend == 0; not the
@@ -26,12 +29,17 @@ import struct
 
 from native_roll_patch import Code
 
-SETTER = 0x1841310
-APP_GLOBAL = 0x6E8D708
-OWNER_OFFSET = 0x7329C0  # application + this == publisher identity (RDI)
-ATTACHMENT_OFFSET = 0x72C858
-VR_MODE_GLOBAL = 0x6E11660  # nonzero: VR display; the seam is qualified for flat play only
-SITES = {'vignette': 0x99287C, 'greyout': 0x991F74}
+SETTER = 0x1878300
+APP_GLOBAL = 0x6F60828
+OWNER_OFFSET = 0x733180  # application + this == publisher identity (RDI): HUD manager app+0x7330E0, +0xA0
+ATTACHMENT_OFFSET = 0x72CF48  # application: attachment handle (qword)
+FRONTEND_OFFSET = 0x89BD98  # application: frontend state (dword), 0 in game
+COMBAT_OFFSET = 0x57AA6D  # application: combat flag (byte)
+ALTERNATE_OFFSET = 0xFEC9C  # publisher: alternate upload destination (byte)
+SHIP_ACTIVE_OFFSET = 0x60C8  # ship component: active (byte, 1)
+SHIP_ZERO_OFFSETS = (0x6730, 0x675C, 0x6430, 0x7318)  # ship component: planetary (byte), power, follow, landing
+VR_MODE_GLOBAL = 0x6EE4720  # nonzero: VR display; the seam is qualified for flat play only
+SITES = {'vignette': 0x9A270D, 'greyout': 0x9A1E38}
 BLOCK = 0x400
 DATA_SIZE = 128
 COMMAND_MS = 100
@@ -61,22 +69,22 @@ def code_bytes(cave, base, data, tick, lane, allow_combat=True):
     reject(bytes.fromhex('83 3d'), data, b'\x01')
     c.emit(b'\x48\xb8' + struct.pack('<Q', base+APP_GLOBAL) + b'\x48\x8b\x00')
     reject(bytes.fromhex('48 3b 05'), data+24)
-    c.emit(bytes.fromhex('83 b8 98 54 87 00 00'))  # frontend == 0
+    c.emit(bytes.fromhex('83 b8') + struct.pack('<I', FRONTEND_OFFSET) + b'\x00')  # frontend == 0
     c.relative(bytes.fromhex('0f 85'), 'out')
     if not allow_combat:
-        c.emit(bytes.fromhex('80 b8 0d a4 57 00 00'))  # combat == 0
+        c.emit(bytes.fromhex('80 b8') + struct.pack('<I', COMBAT_OFFSET) + b'\x00')  # combat == 0
         c.relative(bytes.fromhex('0f 85'), 'out')
     reject(bytes.fromhex('48 3b 3d'), data+32)  # RDI publisher identity
-    c.emit(bytes.fromhex('80 bf 9c 8c 0d 00 00'))  # exclude alternate destination
+    c.emit(bytes.fromhex('80 bf') + struct.pack('<I', ALTERNATE_OFFSET) + b'\x00')  # exclude alternate destination
     c.relative(bytes.fromhex('0f 85'), 'out')
-    c.emit(bytes.fromhex('4c 8b 90 58 c8 72 00'))
+    c.emit(bytes.fromhex('4c 8b 90') + struct.pack('<I', ATTACHMENT_OFFSET))
     reject(bytes.fromhex('4c 3b 15'), data+48)  # same attachment handle
     c.relative(bytes.fromhex('4c 8b 15'), data+40)
-    c.emit(bytes.fromhex('41 80 ba c8 60 00 00 01'))  # ship active
+    c.emit(bytes.fromhex('41 80 ba') + struct.pack('<I', SHIP_ACTIVE_OFFSET) + b'\x01')  # ship active
     c.relative(bytes.fromhex('0f 85'), 'out')
-    for offset in (0x6720, 0x674c, 0x6420, 0x7308):
+    for offset in SHIP_ZERO_OFFSETS:
         # planetary, power, follow and landing all require native zero.
-        if offset == 0x6720: c.emit(b'\x41\x80\xba' + struct.pack('<I', offset) + b'\x00')
+        if offset == SHIP_ZERO_OFFSETS[0]: c.emit(b'\x41\x80\xba' + struct.pack('<I', offset) + b'\x00')
         else: c.emit(b'\x41\x83\xba' + struct.pack('<I', offset) + b'\x00')
         c.relative(bytes.fromhex('0f 85'), 'out')
     c.emit(b'\x48\xb8' + struct.pack('<Q', tick) + b'\xff\xd0')

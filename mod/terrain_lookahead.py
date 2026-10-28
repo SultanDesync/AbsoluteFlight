@@ -1,9 +1,9 @@
-"""Terrain look-ahead (Visuals page, default Off), NMS 180836 / Steam 25732212. T107.
+"""Terrain look-ahead (Visuals page, default Off), NMS 183791 / Steam 26271400. T107.
 
 The hazards a low pilot meets are rocks and trees (user, 2026-10-25), and they are real, collidable objects
 only within 3 regions of the terrain focus (MaxRegionRadius 3 for every collidable rock, tree and cactus
 sampled; research/re-log/2026-10-24_claude_terrain-lookahead.md). Three parts, all live:
-- look-ahead: the region map update 0x12801B0 gets the planet update's stack copy of the observer matrix.
+- look-ahead: the region map update 0x12A4720 gets the planet update's stack copy of the observer matrix.
   Moving its position forward along the ship's velocity moves only the terrain focus (and with it the
   object window), never the camera. Capped at 2 regions, so the ship's own region keeps its objects;
 - build speed: more terrain generator and polygonise calls per frame (GcTerrainGlobals);
@@ -17,16 +17,16 @@ import math
 import struct
 import threading
 
-TERRAIN_GLOBALS = 0x4F38910   # cGcTerrainGlobals
+TERRAIN_GLOBALS = 0x5006C80   # cGcTerrainGlobals
 BUDGETS = 0x264               # NumGeneratorCalls, NumPolygoniseCalls, NumPostPolygoniseCalls (int each)
 VANILLA_BUDGETS = (8, 8, 8)
-ENVIRONMENT_GLOBALS = 0x52613A0
+ENVIRONMENT_GLOBALS = 0x53327E0
 FADE = 0x5C4                  # FloraFadeTimeMax, FloraFadeTimeMin (float each)
 VANILLA_FADE = (2.25, 0.6)
 MAP_CELL = 0x10               # region map: focus grid cell, int[3]
 MAP_FOCUS = 0x20              # region map: focus on the planet surface, planet space, float[3]
 OBSERVER_POSITION = 0x30      # observer matrix translation, float[3]
-CELL = 32.                    # focus grid step: floor(p/32+0.5)<<5 at 0x1280424 (taken as the region size)
+CELL = 32.                    # focus grid step: floor(p/32+0.5)<<5 at 0x12A4994 (taken as the region size)
 OBJECT_REGIONS = 3            # MaxRegionRadius of collidable rocks and trees
 CAP = (OBJECT_REGIONS - 1)*CELL  # the ship's own region stays inside the object window
 MIN_SPEED = 30.               # u/s: no look-ahead below this (landing, hovering)
@@ -35,13 +35,13 @@ PLANET_SLOTS = 6
 
 PINS = {
     # SetupRegionMap stores pointers to the three terrain budgets (read live).
-    0x1676CDB: bytes.fromhex('837b5000488d058e1e8c03488983b03c0000488d05841e8c03488983b83c0000488d057a1e8c03488983c03c0000'),
+    0x16A95CB: bytes.fromhex('837b5000488d050ed99503488983b03c0000488d0504d99503488983b83c0000488d05fad89503488983c03c0000'),
     # Region map update: its observer position read and its 32-unit grid snap. Not its prologue: our own
     # hook patches a jump there (0.2.1-dev.2 live check read that as a mismatch); BUILD_HASH covers it.
-    0x128027B: bytes.fromhex('410f105f300f5c9bc0340d00'),
-    0x1280424: bytes.fromhex('f30f103594748a030f28c1f30f59c60f28f90f11'),
+    0x12A47EB: bytes.fromhex('410f105f300f5c9bc0340d00'),
+    0x12A4994: bytes.fromhex('f30f1035a46194030f28c1f30f59c60f28f90f11'),
     # Planet update: map update called with the stack observer copy (rdx = rsp+0x80), result unused.
-    0x166FA0F: bytes.fromhex('4d8bc6488d942480000000488d8f703c0000e88a07c1ff'),
+    0x16A23EF: bytes.fromhex('4d8bc6488d942480000000488d8f703c0000e81a23c0ff'),
 }
 
 

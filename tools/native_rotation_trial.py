@@ -1,4 +1,4 @@
-"""T66 rotation addons, exact build180836/Steam25732212.
+"""T66 rotation addons, exact build 183791/Steam 26271400 (remapped from 180836).
 
 Owns only the previously unused late-target and torque-clamp detours. It reads
 the existing Newtonian invocation/fixture and D12 frame without modifying them.
@@ -26,7 +26,7 @@ from rotation_sustained_envelope import (freeze_windows, manifest as sustained_m
 
 MAX_LEASE_MS = 50
 STRICT_ROTATION = 0x80000000
-TORQUE_RVA = 0x175E698
+TORQUE_RVA = 0x1791A9E
 TORQUE_ORIGINAL = bytes.fromhex('0f5dd8410f14d3440f16c2440f5fc3')
 WORK = 0x200
 WORK_SIZE = 0x300
@@ -37,8 +37,8 @@ ALLOCATION = RING + SLOT * CAPACITY + 0xc000
 STACK = 0x110
 SAVED_TOTAL = STACK + 80
 AXES = ('pitch', 'yaw', 'roll')
-ORDINARY_RVA = 0x175e0b4
-ORDINARY_ORIGINAL = bytes.fromhex('488b0d7d1b6c05')
+ORDINARY_RVA = 0x17914a0
+ORDINARY_ORIGINAL = bytes.fromhex('488b0de1187605')
 SITES = {'ordinary': (ORDINARY_RVA, ORDINARY_ORIGINAL), 'target': (SITE_RVA, ORIGINAL), 'torque': (TORQUE_RVA, TORQUE_ORIGINAL)}
 PREWORK = 0x500
 MODE_FIELDS = {'q9ab670': (344, 4), 'route_flag': (348, 4), 'device_root': (352, 8),
@@ -67,8 +67,8 @@ NATIVE_STAGES = {0: 'not_captured', 1: 'captured', 2: 'fixture_gates_passed', 3:
 
 def read_engine_pins(pm, ship):
     """Read fixed effective engine bytes and selected-control clamp identity."""
-    engine = pm.read_bytes(ship + 0x6630, 0x78)
-    selected = struct.unpack('<Q', pm.read_bytes(ship + 0x66a8, 8))[0]
+    engine = pm.read_bytes(ship + 0x6640, 0x78)
+    selected = struct.unpack('<Q', pm.read_bytes(ship + 0x66b8, 8))[0]
     if not selected: raise ValueError('No selected controls')
     torque = pm.read_bytes(selected + 0x1f0, 4)
     value = struct.unpack('<f', torque)[0]
@@ -100,24 +100,24 @@ def _pin_engine(c, pins, newtonian=None):
     if newtonian is not None: planetary_skip(c, newtonian, 'engine_blend_tolerated')
     for offset in range(0, 0x78, 4):
         value = bytes.fromhex(pins['engine_snapshot_hex'])[offset:offset + 4]
-        c.emit(bytes.fromhex('81 be') + struct.pack('<I', 0x6630 + offset) + value); c.relative(b'\x0f\x85', 'out')
+        c.emit(bytes.fromhex('81 be') + struct.pack('<I', 0x6640 + offset) + value); c.relative(b'\x0f\x85', 'out')
     if newtonian is not None: c.label('engine_blend_tolerated')
-    c.emit(b'\x48\xb8' + struct.pack('<Q', pins['selected_control']) + bytes.fromhex('48 39 86 a8 66 00 00')); c.relative(b'\x0f\x85', 'out')
+    c.emit(b'\x48\xb8' + struct.pack('<Q', pins['selected_control']) + bytes.fromhex('48 39 86 b8 66 00 00')); c.relative(b'\x0f\x85', 'out')
     c.emit(bytes.fromhex('81 b8 f0 01 00 00') + struct.pack('<I', pins['max_torque_bits'])); c.relative(b'\x0f\x85', 'out')
 
 
 def read_mode_pins(pm, base):
     """Read-only bounded native route identities; caller fingerprints calibration."""
     def read(address, fmt): return struct.unpack(fmt, pm.read_bytes(address, struct.calcsize(fmt)))[0]
-    app = read(base + 0x6e8d708, '<Q')
+    app = read(base + 0x6f60828, '<Q')
     if not app: raise ValueError('Native application unavailable')
-    out = {'q9ab670': read(app + 0x30e8c3, '<B'), 'route_flag': read(app + 0x30e870, '<I')}
-    for name, root_address in (('device', app + 0x933b78), ('pad', base + 0x52920d8)):
+    out = {'q9ab670': read(app + 0x30e986, '<B'), 'route_flag': read(app + 0x30e930, '<I')}
+    for name, root_address in (('device', app + 0x95aeb8), ('pad', base + 0x5364c40)):
         root = read(root_address, '<Q')
         if not root: raise ValueError('Missing native route root: ' + name)
         index = read(root + 0x18, '<i')
         if not 0 <= index <= 15: raise ValueError('Native device index outside trial bound')
-        descriptor = read(root + 0x508 + 0x410*index, '<Q')
+        descriptor = read(root + 0x5f8 + 0x470*index, '<Q')
         if not descriptor: raise ValueError('Missing native descriptor: ' + name)
         out.update({name + '_root': root, name + '_index': index, name + '_descriptor': descriptor,
                     name + '_type0': read(descriptor, '<I'), name + '_type4': read(descriptor + 4, '<I')})
@@ -125,18 +125,18 @@ def read_mode_pins(pm, base):
 
 
 def _capture_modes(c, base, work):
-    c.relative(b'\x48\x8b\x05', base + 0x6e8d708)
-    c.emit(bytes.fromhex('0f b6 88 c3 e8 30 00')); c.relative(b'\x89\x0d', work + 344)
-    c.emit(bytes.fromhex('8b 88 70 e8 30 00')); c.relative(b'\x89\x0d', work + 348)
+    c.relative(b'\x48\x8b\x05', base + 0x6f60828)
+    c.emit(bytes.fromhex('0f b6 88 86 e9 30 00')); c.relative(b'\x89\x0d', work + 344)
+    c.emit(bytes.fromhex('8b 88 30 e9 30 00')); c.relative(b'\x89\x0d', work + 348)
     for name, offset in (('device', 352), ('pad', 384)):
         if name == 'device':
-            c.relative(b'\x48\x8b\x05', base + 0x6e8d708); c.emit(bytes.fromhex('48 8b 90 78 3b 93 00'))
-        else: c.relative(b'\x48\x8b\x15', base + 0x52920d8)
+            c.relative(b'\x48\x8b\x05', base + 0x6f60828); c.emit(bytes.fromhex('48 8b 90 b8 ae 95 00'))
+        else: c.relative(b'\x48\x8b\x15', base + 0x5364c40)
         c.relative(b'\x48\x89\x15', work + offset)
         c.emit(bytes.fromhex('48 85 d2')); c.relative(b'\x0f\x84', 'mode_capture_done')
         c.emit(bytes.fromhex('8b 42 18')); c.relative(b'\x89\x05', work + offset + 8)
         c.emit(bytes.fromhex('83 f8 0f')); c.relative(b'\x0f\x87', 'mode_capture_done')
-        c.emit(bytes.fromhex('48 69 c0 10 04 00 00 48 8b 94 02 08 05 00 00'))
+        c.emit(bytes.fromhex('48 69 c0 70 04 00 00 48 8b 94 02 f8 05 00 00'))
         c.relative(b'\x48\x89\x15', work + offset + 16)
         c.emit(bytes.fromhex('48 85 d2')); c.relative(b'\x0f\x84', 'mode_capture_done')
         for source, target in ((0, offset + 24), (4, offset + 28)):
@@ -146,16 +146,16 @@ def _capture_modes(c, base, work):
 
 
 def _pin_modes(c, base, pins):
-    c.relative(b'\x48\x8b\x05', base + 0x6e8d708)
-    for raw, expected in (('0f b6 88 c3 e8 30 00', pins['q9ab670']), ('8b 88 70 e8 30 00', pins['route_flag'])):
+    c.relative(b'\x48\x8b\x05', base + 0x6f60828)
+    for raw, expected in (('0f b6 88 86 e9 30 00', pins['q9ab670']), ('8b 88 30 e9 30 00', pins['route_flag'])):
         c.emit(bytes.fromhex(raw) + b'\x81\xf9' + struct.pack('<I', expected)); c.relative(b'\x0f\x85', 'out')
     for name in ('device', 'pad'):
         if name == 'device':
-            c.relative(b'\x48\x8b\x05', base + 0x6e8d708); c.emit(bytes.fromhex('48 8b 90 78 3b 93 00'))
-        else: c.relative(b'\x48\x8b\x15', base + 0x52920d8)
+            c.relative(b'\x48\x8b\x05', base + 0x6f60828); c.emit(bytes.fromhex('48 8b 90 b8 ae 95 00'))
+        else: c.relative(b'\x48\x8b\x15', base + 0x5364c40)
         c.emit(b'\x48\xb8' + struct.pack('<Q', pins[name + '_root']) + bytes.fromhex('48 39 c2')); c.relative(b'\x0f\x85', 'out')
         c.emit(bytes.fromhex('81 7a 18') + struct.pack('<I', pins[name + '_index'])); c.relative(b'\x0f\x85', 'out')
-        c.emit(bytes.fromhex('48 8b 92') + struct.pack('<I', 0x508 + 0x410*pins[name + '_index']))
+        c.emit(bytes.fromhex('48 8b 92') + struct.pack('<I', 0x5f8 + 0x470*pins[name + '_index']))
         c.emit(b'\x48\xb8' + struct.pack('<Q', pins[name + '_descriptor']) + bytes.fromhex('48 39 c2')); c.relative(b'\x0f\x85', 'out')
         for offset, key in ((0, 'type0'), (4, 'type4')):
             c.emit(bytes([0x81, 0x7a, offset]) + struct.pack('<I', pins[name + '_' + key])); c.relative(b'\x0f\x85', 'out')
@@ -265,9 +265,9 @@ def _provenance(c, frame, reject='out', *, production=False):
             c.relative(b'\x8b\x05', frame + offset + 4 * index)
             c.emit(bytes.fromhex('25 ff ff ff 7f 85 c0')); c.relative(b'\x0f\x85', reject)
         c.label(done)
-    for offset, address in ((0x7680, frame + 128), (0x7684, frame + 132)):
+    for offset, address in ((0x7690, frame + 128), (0x7694, frame + 132)):
         c.emit(b'\x8b\x86' + struct.pack('<I', offset)); _ne(c, b'\x3b\x05', address, reject=reject)
-    c.emit(bytes.fromhex('8b 85 70 41 00 00')); _ne(c, b'\x3b\x05', frame + 148, reject=reject)
+    c.emit(bytes.fromhex('8b 85 80 41 00 00')); _ne(c, b'\x3b\x05', frame + 148, reject=reject)
     for address in (frame + 80, frame + 84):
         c.relative(b'\x8b\x05', address); c.emit(bytes.fromhex('25 ff ff ff 7f 3d 00 00 80 3f')); c.relative(b'\x0f\x87', reject)
     # Trials retain their historical zero-roll restriction. Production accepts
@@ -355,7 +355,7 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
     _copy(c, newtonian + 48, w); _copy(c, frame + 24, w + 8)
     _copy(c, newtonian + 8, w + 32); _copy(c, newtonian + 40, w + 40)
     for source, target in ((16, 48), (24, 56), (32, 64)): _copy(c, newtonian + source, w + target)
-    c.emit(bytes.fromhex('48 8b 86 a8 66 00 00')); c.relative(b'\x48\x89\x05', w + 72)
+    c.emit(bytes.fromhex('48 8b 86 b8 66 00 00')); c.relative(b'\x48\x89\x05', w + 72)
     for index, source in enumerate((frame + 84, frame + 80, frame + 88)): _copy(c, source, w + 96 + index*4, width=4)
     for source, offset in ((frame + 180, 432), (frame + 176, 436), (frame + 144, 444),
                            (frame + 188, 448), (frame + 184, 452), (frame + 128, 456),
@@ -363,17 +363,19 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
         _copy(c, source, w + offset, width=4)
     c.emit(bytes.fromhex('8b 85 a0 00 00 00')); c.relative(b'\x89\x05', w + 440)
     _copy(c, frame + 104, w + 464)
-    for register, offset in ((6, 108), (7, 112), (13, 116), (6, 120), (7, 124), (13, 128), (8, 144)):
+    # 183791 seam: pitch gain XMM14, yaw gain XMM8 (XMM8 and XMM1 on 180836); observed pitch [RSP+0x60],
+    # yaw [RSP+0x64], roll [RBP-0x6C] (pitch [RBP-0x6C], roll [RBP+0x4160] on 180836); roll gain ship+0x66A0.
+    for register, offset in ((6, 108), (7, 112), (13, 116), (6, 120), (7, 124), (13, 128), (14, 144), (8, 148)):
         _scalar(c, register, w + offset)
-    for raw, target in (('8b 85 94 ff ff ff', 132), ('8b 85 60 41 00 00', 140), ('8b 86 90 66 00 00', 152)):
-        c.emit(bytes.fromhex(raw)); c.relative(b'\x89\x05', w + target)
-    c.emit(bytes.fromhex('8b 84 24') + struct.pack('<I', SAVED_TOTAL + 0x64)); c.relative(b'\x89\x05', w + 136)
-    c.emit(bytes.fromhex('8b 44 24 30')); c.relative(b'\x89\x05', w + 148)  # ORIGINAL native XMM1
+    for raw, target in ((bytes.fromhex('8b 84 24') + struct.pack('<I', SAVED_TOTAL + 0x60), 132),
+                        (bytes.fromhex('8b 84 24') + struct.pack('<I', SAVED_TOTAL + 0x64), 136),
+                        (bytes.fromhex('8b 85 94 ff ff ff'), 140), (bytes.fromhex('8b 86 a0 66 00 00'), 152)):
+        c.emit(raw); c.relative(b'\x89\x05', w + target)
     for offset in range(0, 0x78, 4):
-        c.emit(b'\x8b\x86' + struct.pack('<I', 0x6630 + offset)); c.relative(b'\x89\x05', w + 192 + offset)
-    c.relative(b'\x48\x8b\x05', base + 0x6e8d708)
-    c.emit(bytes.fromhex('48 8b 80 40 c8 72 00 48 85 c0')); c.relative(b'\x0f\x84', 'captured_look')
-    c.emit(bytes.fromhex('0f b6 80 b9 01 00 00')); c.relative(b'\x89\x05', w + 312)
+        c.emit(b'\x8b\x86' + struct.pack('<I', 0x6640 + offset)); c.relative(b'\x89\x05', w + 192 + offset)
+    c.relative(b'\x48\x8b\x05', base + 0x6f60828)
+    c.emit(bytes.fromhex('48 8b 80 30 cf 72 00 48 85 c0')); c.relative(b'\x0f\x84', 'captured_look')
+    c.emit(bytes.fromhex('0f b6 80 c9 01 00 00')); c.relative(b'\x89\x05', w + 312)
     c.label('captured_look')
     _capture_modes(c, base, w)
     c.emit(b'\x48\xb8' + struct.pack('<Q', tick) + b'\xff\xd0'); c.relative(b'\x48\x89\x05', w + 16)
@@ -549,7 +551,7 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
             c.emit(bytes.fromhex('48 8b 84 24 a0 00 00 00')); c.relative(b'\x48\x89\x05', w + 24)
     c.label('out'); _restore(c)
     c.relative(bytes.fromhex('f3 44 0f 10 0d'), base + GLOBAL_RVA)
-    c.emit(bytes.fromhex('48 8d 9e c0 6c 00 00')); c.relative(b'\xe9', site + len(ORIGINAL))
+    c.emit(bytes.fromhex('48 8d 9e d0 6c 00 00')); c.relative(b'\xe9', site + len(ORIGINAL))
     raw = c.finish()
     if len(raw) > 0x4000: raise ValueError('T66 target cave exceeds reserved pages')
     return raw
@@ -561,12 +563,12 @@ def ordinary_code(cave, site, own, newtonian, frame, base, *, fixture=None):
     if fixture is not None: _pin_fixture(c, newtonian, fixture)
     _ne(c, b'\x83\x3d', own, b'\x01')
     _ne(c, b'\x48\x83\x3d', own + 8, b'\x00')
-    c.relative(b'\x48\x8b\x05', base + 0x6e8d708); _ne(c, b'\x48\x3b\x05', newtonian + 80)
+    c.relative(b'\x48\x8b\x05', base + 0x6f60828); _ne(c, b'\x48\x3b\x05', newtonian + 80)
     c.relative(b'\xc7\x05', own + PREWORK + 420, bytes(4))
     _capture_modes(c, base, own + PREWORK)
     _copy(c, newtonian + 48, own + 104)
     c.label('out'); _restore(c)
-    c.relative(bytes.fromhex('48 8b 0d'), base + 0x6e1fc38)
+    c.relative(bytes.fromhex('48 8b 0d'), base + 0x6ef2d88)
     c.relative(b'\xe9', site + len(ORDINARY_ORIGINAL))
     return c.finish()
 
@@ -680,10 +682,12 @@ def decode_record(raw):
 ROTATION_RANGE = (.5, 2.)
 ROTATION_KEYS = ('pitch', 'yaw', 'roll', 'response')
 NATIVE_ROTATION = {key: 1. for key in ROTATION_KEYS}
-# Native observed rates at the seam (build 180836): pitch [RBP-0x6C], yaw [RSP+0x64] (+ the cave's
-# saved frame), roll [RBP+0x4160]. ModRM bytes below encode XMM0 as the register operand.
-OBSERVED_RATE = {'pitch': bytes.fromhex('45 94'), 'yaw': bytes.fromhex('84 24') + struct.pack('<I', SAVED_TOTAL + 0x64),
-                 'roll': bytes.fromhex('85') + struct.pack('<I', 0x4160)}
+# Native observed rates at the seam (build 183791): pitch [RSP+0x60], yaw [RSP+0x64] (both + the cave's
+# saved frame), roll [RBP-0x6C]; written at 0x17911E4/0x1791184/0x1791222 as the body angular velocity on
+# matrix rows 0/1/2 (180836: pitch [RBP-0x6C], roll [RBP+0x4160]). ModRM bytes encode XMM0 as the register.
+OBSERVED_RATE = {'pitch': bytes.fromhex('84 24') + struct.pack('<I', SAVED_TOTAL + 0x60),
+                 'yaw': bytes.fromhex('84 24') + struct.pack('<I', SAVED_TOTAL + 0x64),
+                 'roll': bytes.fromhex('45 94')}
 TARGET_REGISTER = {'pitch': 6, 'yaw': 7, 'roll': 13}
 
 
@@ -706,7 +710,7 @@ def _rotation(value):
 def _shape_rotation(c, axis, rate, response, air=None):
     """target' = response*(rate*air*target + observed) - observed, low lane only.
 
-    Native forms error = -target - observed at 0x175E508..0x175E522 and multiplies it by the
+    Native forms error = -target - observed at 0x1791915..0x179192B (183791) and multiplies it by the
     axis gain (pitch/yaw: TurnStrength x maneuverability; roll: RollForce). Native steady
     rate equals the target (T66 live: 0.05%), so `rate` scales the top turn rate and
     `response` scales the gain, i.e. how quickly that rate is reached. The MaxTorque box

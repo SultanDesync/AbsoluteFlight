@@ -1,6 +1,6 @@
 """T94 crash damage: settings, pure impact/damage math and disabling-hit test.
 
-Works with tools/native_crash_damage.py (the four native caves in 0x1761DD0 -> 0x1764560 -> TakeDamage).
+Works with tools/native_crash_damage.py (the four native caves in 0x17951D0 -> 0x1797960 -> TakeDamage, build 183791).
 Settings live on the Ship Damage menu page, default Off.
 """
 from dataclasses import dataclass

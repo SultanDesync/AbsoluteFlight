@@ -1,4 +1,4 @@
-"""NPC beam switching and shield timing, NMS 180836 / Steam 25732212.
+"""NPC beam switching and shield timing, NMS 183791 / Steam 26271400.
 
 This changes eleven loaded table floats through AIPilotTuning's guarded ownership
 engine; no code patches or hooks. SPACE.LaserHealthPoint controls the firing NPC's
@@ -40,22 +40,22 @@ del _profile, _delay, _refill
 PINS = {
     **PILOT_PINS,
     # Fire lookup, own shootable and health-percent calculation, then +BC threshold.
-    0x1714457: bytes.fromhex('e8e49e0000488bf84885c0'),
-    0x1714468: bytes.fromhex('0fbf0d41b29903488b5608e8980c61014885c0'),
-    0x171447D: bytes.fromhex('488bc8e88b7c29fff30f109fbc0000000f2fd87231'),
+    0x1746EF7: bytes.fromhex('e824a20000488bf84885c0'),
+    0x1746F08: bytes.fromhex('0fbf0d0d86a303488b5608e8a8f064014885c0'),
+    0x1746F1D: bytes.fromhex('488bc8e80b8b27fff30f109fbc0000000f2fd87231'),
     # The selected branch requests beam mode1; native gun cadence follows otherwise.
-    0x17144A7: bytes.fromhex('ba01000000488bce0f1040300f5840400f29442420e8fffaffff'),
-    0x17144C3: bytes.fromhex('f30f1005318ca405f30f5c86fc7c00000f2f87b800000076114c8bcb4c8bc5498bd6488bcee823000000'),
+    0x1746F47: bytes.fromhex('ba01000000488bce0f1040300f5840400f29442420e8fffaffff'),
+    0x1746F63: bytes.fromhex('f30f100509cfae05f30f5c86fc7c00000f2f87b800000076114c8bcb4c8bc5498bd6488bcee823000000'),
     # Health percent is clamped 0..100, including fallback100 for nonpositive max HP.
-    0x9AC110: bytes.fromhex('448b81700300004585c07e40418bd066410f6ec02b9110040000b8000000000f5bc00f49c2660f6ec80f57d20f5bc9f30f5ec8f30f10050dd71704f30f5fd1f30f5dc2f30f590559dc1704c3f30f100550dc1704c3'),
+    0x9BFA30: bytes.fromhex('448b81700300004585c07e40418bd066410f6ec02b9110040000b8000000000f5bc00f49c2660f6ec80f57d20f5bc9f30f5ec8f30f10056dd02204f30f5fd1f30f5dc2f30f5905c1d52204c3f30f1005b8d52204c3'),
     # Shield lookup uses the same attack-table pointer, dynamic array+70/count+78.
-    0x1797A26: bytes.fromhex('488b8810d96c004863417885c00f8e060100004c8b52084c8bd848895c2450418bd0488b5970'),
+    0x17CB776: bytes.fromhex('488b8870df6c004863417885c00f8e060100004c8b52084c8bd848895c2450418bd0488b5970'),
     # Stride38 and retained row pointer at shield-component+70.
-    0x1797A78: bytes.fromhex('4963c0486bc8384803cb0f84b200000048837e480048894e70'),
+    0x17CB7C8: bytes.fromhex('4963c0486bc8384803cb0f84b200000048837e480048894e70'),
     # Reads RechargeTime+2C, skips <=0, compares time since damage to delay+28.
-    0x1797EDF: bytes.fromhex('488b4770f30f10502c410f2fd376674c8b5f48f3410f108bdc040000410f2fcb7612f30f1005f3519c05f30f5cc10f2f40287242'),
+    0x17CBC2F: bytes.fromhex('488b4770f30f10502c410f2fd376674c8b5f48f3410f108bdc040000410f2fcb7612f30f10051b82a605f30f5cc10f2f40287242'),
     # Amount restored is trunc_i32(min(maxHealth*dt/RechargeTime, missingHealth)).
-    0x1797F13: bytes.fromhex('66410f6ec8498bcb0f5bc9452bc266410f6ec0f3410f59ca0f5bc0f30f5ecaf30f5dc8f30f2cd1e8b157dfff'),
+    0x17CBC63: bytes.fromhex('66410f6ec8498bcb0f5bc9452bc266410f6ec0f3410f59ca0f5bc0f30f5ecaf30f5dc8f30f2cd1e891d7deff'),
 }
 
 

@@ -1,14 +1,18 @@
 """T93 eject: the native quick-menu ship eject, callable whenever Sultan flies the ship.
 
-Build NMS.exe 180836 / Steam 25732212 (research/re-log/2026-10-19_claude_ditching.md, "Addendum: why the
-quick-menu Eject refuses"). The quick menu greys ShipEject (0x41) out in "critical flight phases" at
-0x152AFCC..0x152B01C. When it is allowed, its handler runs a straight-line block, 0x1536B3D..0x1536CD7:
-find the player's ship, work out an exit position from the ship's axes, call 0x17567C0 with it, then
-Eject(ship, player, animate 0, force 1) at 0x1754180. This module copies that exact block into a stub
-next to the game, with its RIP-relative operands and outside calls relocated, its one outside branch
-(no player ship) sent to a 'return 0' exit, and its stack-frame locals moved to a scratch frame of our
-own. The only register the block reads that it does not set itself is RSI (the menu entry, for its
-`cmp [rsi+4], 0x41`), which the stub points at a fake entry with 0x41 there.
+Build NMS.exe 183791 / Steam 26271400 (research/re-log/2026-10-19_claude_ditching.md, "Addendum: why the
+quick-menu Eject refuses", build 180836; re-checked on 183791 against the aligned code, 2026-10-28). The quick
+menu greys ShipEject (0x41) out in "critical flight phases"; on 183791 that test is 0x15520D0(ship), which returns
+the refusal text (UI_SHIP_EJECT_ERROR, UI_SHIP_EJECT_PULSE_ERROR, UI_BIGGS_EJECT_ERROR) or null, called by the menu
+build (0x1556EAD) and again by the handler. The handler runs a straight-line block, 0x1562A73..0x1562C7D: find the
+player's ship, ask 0x15520D0 (refused: show the text, leave), work out an exit position from the ship's axes, call
+0x1789910 with it, then Eject(ship, player, animate 0, force 1) at 0x17872D0. This module copies that exact block
+into a stub next to the game, with its RIP-relative operands and outside calls relocated, its outside branches
+(no player ship, refused) sent to a 'return 0' exit, and its stack-frame locals moved to a scratch frame of our own.
+The refusal call is replaced by `xor eax, eax` (allowed), as on 180836, where the block came after the menu's test
+and never asked; so the refusal path, the only code in the block that reads a register it does not set (R15, the
+menu), is never taken. RSI (the menu entry, read by the 180836 block's `cmp [rsi+4], 0x41`) still points at a fake
+entry with 0x41 there; the 183791 block no longer reads it.
 
 The stub is a plain Win64 function, int stub(void): 1 after the eject call, 0 without a player ship.
 The caller runs it on the flight thread outside UpdateControlled (the outer ship Update after-hook).
@@ -20,13 +24,16 @@ import struct
 
 import capstone as cs
 
-BLOCK_RVA = 0x1536B3D
-BLOCK_END = 0x1536CD7  # just after `call 0x1754180` (Eject)
-BLOCK_SHA256 = '9480f3bc7cc6f19dd4df71f0ce2896307cb3581f0c37be50934349e336834046'
-FAIL_RVA = 0x153B44C   # the handler's common exit: the block's `je` when the player has no ship
-EJECT_RVA = 0x1754180
+BLOCK_RVA = 0x1562A73
+BLOCK_END = 0x1562C7D  # just after `call 0x17872D0` (Eject)
+BLOCK_SHA256 = 'ee5e766c6d57e408effac5ce0f196f87c9b93ea5e880ed3b78743353cfaaf641'
+FAIL_RVA = 0x15673F4   # the handler's common exit: the block's `je` (no player ship) and `jmp` (refused)
+EJECT_RVA = 0x17872D0
+EJECT_CALL = 0x1562C78  # the block's `call EJECT_RVA`
+REFUSAL_RVA = 0x15520D0  # eject refusal text, or null when allowed (the quick menu's own test)
+ALLOWED = bytes.fromhex('31 c0 0f 1f 00')  # xor eax, eax; nop: in place of the block's `call REFUSAL_RVA`
 ACTION = 0x41          # cGcQuickMenuActions.ShipEject
-FRAME_SIZE = 0x5000    # the block's RBP locals reach rbp+0x3F80
+FRAME_SIZE = 0x5000    # the block's RBP locals reach rbp+0x4000
 ENTRY_SIZE = 0x80
 STUB_SIZE = 0x400
 
@@ -55,9 +62,10 @@ def allocate_after_image(handle, base, read=C.string_at, tries=4096):
 def _relocate(block, old_base, new_base, base, fail):
     """Copy block from old_base to new_base. RIP-relative displacements and rel32 branches that leave the
     block are rewritten to the same absolute targets (base = module base); a branch to FAIL_RVA goes to
-    `fail` instead. Branches inside the block keep their offsets (the copy is contiguous)."""
+    `fail` instead, and the one call to REFUSAL_RVA becomes ALLOWED. Branches inside the block keep their
+    offsets (the copy is contiguous)."""
     md = cs.Cs(cs.CS_ARCH_X86, cs.CS_MODE_64); md.detail = True
-    out = bytearray(block); end = old_base+len(block); seen = 0
+    out = bytearray(block); end = old_base+len(block); seen = 0; allowed = 0
     for i in md.disasm(block, old_base):
         seen += i.size
         offset = i.address-old_base; new_address = new_base+offset; next_new = new_address+i.size
@@ -71,10 +79,13 @@ def _relocate(block, old_base, new_base, base, fail):
             if target is None:raise ValueError(f'indirect branch at {i.address:#x}')
             if old_base <= target < end:continue
             if i.size not in (5, 6):raise ValueError(f'short branch leaves the block at {i.address:#x}')
+            if i.mnemonic == 'call' and target == base+REFUSAL_RVA and i.size == len(ALLOWED):
+                out[offset:offset+i.size] = ALLOWED; allowed += 1;continue  # rax = 0: not refused
             if target == base+FAIL_RVA:target = fail
             elif i.mnemonic != 'call':raise ValueError(f'unexpected outside jump at {i.address:#x}')
             _rel32(out, offset+i.size-4, target-next_new, i.address)
     if seen != len(block):raise ValueError('block does not decode cleanly')
+    if allowed != 1:raise ValueError('eject refusal call not found exactly once')
     return bytes(out)
 
 
@@ -114,7 +125,7 @@ class Ejector:
     def install(self, process_handle):
         block = self.read(self.base+BLOCK_RVA, BLOCK_END-BLOCK_RVA)
         if hashlib.sha256(block).hexdigest() != BLOCK_SHA256:raise RuntimeError('Eject block signature mismatch')
-        if self.read(self.base+0x1536CD2, 5)[:1] != b'\xe8':raise RuntimeError('Eject call missing')
+        if self.read(self.base+EJECT_CALL, 5)[:1] != b'\xe8':raise RuntimeError('Eject call missing')
         self.frame = C.create_string_buffer(FRAME_SIZE)
         self.entry = C.create_string_buffer(entry_bytes(), ENTRY_SIZE)
         stub = (self.allocate_near(process_handle, self.base) if self.allocate_near

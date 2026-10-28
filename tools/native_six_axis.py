@@ -1,4 +1,4 @@
-"""D12 native frame latch/provenance, exact build 180836/25732212.
+"""D12 native frame latch/provenance, exact build 183791/26271400 (remapped from 180836).
 
 The external publisher never writes legacy channel blocks. One native pinned
 mailbox copy at the start of each invocation supplies every consumer. Native
@@ -13,9 +13,9 @@ from command_mailbox import reader_code, STRICT_ROTATION
 SIZE = 512
 PAYLOAD = 64
 DEADLINE, MASK, VALUES, GENERATION = 64, 72, 80, 104
-SITES = {0x1758007:bytes.fromhex('0f118680760000'),
-         0x17591a1:bytes.fromhex('488d8ec0600000'),
-         0x175a6f4:THROTTLE_ORIGINAL, 0x175dce9:ROLL_ORIGINAL}
+SITES = {0x178b12d:bytes.fromhex('0f118690760000'),
+         0x178c41a:bytes.fromhex('488d8ec0600000'),
+         0x178d96b:THROTTLE_ORIGINAL, 0x17910c8:ROLL_ORIGINAL}
 
 
 def save(c):
@@ -57,15 +57,15 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         c.emit(b'\x49\xbb'+struct.pack('<Q',address)+bytes.fromhex('49 3b 03'))
         c.relative(b'\x0f\x83',reject)
     modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),
-           ('83 be 4c 67 00 00 '+('03' if allow_power_input else '00'),
+           ('83 be 5c 67 00 00 '+('03' if allow_power_input else '00'),
             b'\x0f\x87' if allow_power_input else b'\x0f\x85'))
-    if not allow_planetary_input:modes+=(('80 be 20 67 00 00 00',b'\x0f\x85'),)
+    if not allow_planetary_input:modes+=(('80 be 30 67 00 00 00',b'\x0f\x85'),)
     for instruction,condition in modes:
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot)+bytes.fromhex('48 85 c0'))
     c.relative(b'\x0f\x84',reject)
-    for instruction,condition in (('83 b8 98 54 87 00 00',b'\x0f\x85'),
-            ('80 b8 0d a4 57 00 '+('01' if allow_combat_input else '00'),
+    for instruction,condition in (('83 b8 98 bd 89 00 00',b'\x0f\x85'),
+            ('80 b8 6d aa 57 00 '+('01' if allow_combat_input else '00'),
              b'\x0f\x87' if allow_combat_input else b'\x0f\x85')):
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     if allow_planetary_input or allow_combat_input or allow_power_input:
@@ -80,8 +80,8 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         # payload and cannot be undone by an in-flight/stale publication.
         c.emit(b'\x49\xbb'+struct.pack('<Q',mailbox))
         c.emit(bytes.fromhex('49 83 7b 10 00'));c.relative(b'\x0f\x85',reject)
-        for instruction in ('83 be 4c 67 00 00 00', '80 be 20 67 00 00 00',
-                            '80 b8 0d a4 57 00 00'):
+        for instruction in ('83 be 5c 67 00 00 00', '80 be 30 67 00 00 00',
+                            '80 b8 6d aa 57 00 00'):
             c.emit(bytes.fromhex(instruction));c.relative(b'\x0f\x85',reject)
         check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',0x7ffffff8),reject=reject)
         for index in range(6):
@@ -104,10 +104,10 @@ def provenance(c, frame, reject='out'):
     for marker in (136,152):
         c.relative(b'\x48\x8b\x05',frame+24)
         check(c,b'\x48\x3b\x05',frame+marker,reject=reject)
-    for offset,address in ((0x7680,frame+128),(0x7684,frame+132)):
+    for offset,address in ((0x7690,frame+128),(0x7694,frame+132)):
         c.emit(b'\x8b\x86'+struct.pack('<I',offset))
         check(c,b'\x3b\x05',address,reject=reject)
-    c.emit(bytes.fromhex('8b 85 70 41 00 00'))
+    c.emit(bytes.fromhex('8b 85 80 41 00 00'))
     check(c,b'\x3b\x05',frame+148,reject=reject)
     idle(c,bytes.fromhex('8b 85 a0 00 00 00'),reject,.0001)
 
@@ -117,7 +117,7 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
-    rva={'latch':0x1758007,'processed':0x17591a1,'throttle':0x175a6f4,'roll':0x175dce9}[kind]
+    rva={'latch':0x178b12d,'processed':0x178c41a,'throttle':0x178d96b,'roll':0x17910c8}[kind]
     original=SITES[rva]
     if kind=='latch':c.emit(original)
     save(c)
@@ -145,28 +145,28 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
                 for index in (0,1):
                     label='turn_scale_done_'+str(index)
                     check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',1<<index),reject=label,condition=b'\x0f\x84')
-                    c.emit(bytes.fromhex('f3 0f 10 86')+struct.pack('<I',0x7680+index*4))
+                    c.emit(bytes.fromhex('f3 0f 10 86')+struct.pack('<I',0x7690+index*4))
                     c.emit(b'\xb8'+struct.pack('<f',turn_scale)+bytes.fromhex('66 0f 6e c8 f3 0f 59 c1'))
-                    c.emit(bytes.fromhex('f3 0f 11 86')+struct.pack('<I',0x7680+index*4))
+                    c.emit(bytes.fromhex('f3 0f 11 86')+struct.pack('<I',0x7690+index*4))
                     c.label(label)
-            c.emit(bytes.fromhex('f3 0f 7e 86 80 76 00 00'))
+            c.emit(bytes.fromhex('f3 0f 7e 86 90 76 00 00'))
             c.relative(b'\x66\x0f\xd6\x05',frame+128)
             c.relative(b'\x48\x8b\x05',frame+24);c.relative(b'\x48\x89\x05',frame+136)
         elif kind=='throttle':
             # Exact normal target branch and endpoint ownership from D10.
-            c.emit(bytes.fromhex('48 8d 86 74 66 00 00 48 39 c3'));c.relative(b'\x0f\x85','out')
-            c.emit(bytes.fromhex('83 bc 24 24 01 00 00 ff'));c.relative(b'\x0f\x85','out')
-            c.emit(bytes.fromhex('8b 85 70 41 00 00'));c.relative(b'\x89\x05',frame+144)
+            c.emit(bytes.fromhex('48 8d 86 84 66 00 00 48 39 c3'));c.relative(b'\x0f\x85','out')
+            c.emit(bytes.fromhex('83 bc 24 20 01 00 00 ff'));c.relative(b'\x0f\x85','out')
+            c.emit(bytes.fromhex('8b 85 80 41 00 00'));c.relative(b'\x89\x05',frame+144)
             # Native u is a conflict only on a frame that substitutes throttle. The game's own
-            # u writers (launch/station auto-boost latch 0x1759500 holds u=1) otherwise pass
+            # u writers (launch/station auto-boost latch, 0x1759500 on 180836, holds u=1) otherwise pass
             # through, so roll, MAV and rotation keep their frame (live 2026-10-19).
             check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',8),reject='throttle_native',condition=b'\x0f\x84')
-            idle(c,bytes.fromhex('8b 85 70 41 00 00'),limit=.0001)
+            idle(c,bytes.fromhex('8b 85 80 41 00 00'),limit=.0001)
             c.relative(b'\x8b\x05',frame+VALUES+12)
             c.emit(b'\x3d'+struct.pack('<f',throttle_limit));c.relative(b'\x0f\x87','conflict')
-            c.emit(bytes.fromhex('89 85 70 41 00 00'))
+            c.emit(bytes.fromhex('89 85 80 41 00 00'))
             c.relative(b'\x83\x0d',frame+200,b'\x08')
-            c.label('throttle_native');c.emit(bytes.fromhex('8b 85 70 41 00 00'))
+            c.label('throttle_native');c.emit(bytes.fromhex('8b 85 80 41 00 00'))
             c.relative(b'\x89\x05',frame+148)
             c.relative(b'\x48\x8b\x05',frame+24);c.relative(b'\x48\x89\x05',frame+152)
         else:
@@ -219,7 +219,7 @@ class SixAxisPatches:
             site=base+rva;original=SITES[rva]
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
-            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6e8d708,steering_limit,throttle_limit,turn_scale,
+            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f60828,steering_limit,throttle_limit,turn_scale,
                             allow_planetary_input,allow_combat_input,allow_power_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')

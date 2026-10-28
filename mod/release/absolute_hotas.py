@@ -1,4 +1,4 @@
-"""Absolute Flight for No Man's Sky (code name AbsoluteHOTAS): release runtime (pyMHF mod), build 180836 / Steam 25732212.
+"""Absolute Flight for No Man's Sky (code name AbsoluteHOTAS): release runtime (pyMHF mod), build 183791 / Steam 26271400 (7.10).
 
 Loads automatically. A separately enabled D21 developer pipe is disabled by default.
 Devices come from the input bus (D11) loaded
@@ -66,6 +66,8 @@ from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES
 CRASH_BLACKOUT_HOLD=2.  # T93: seconds a ditched pilot stays out beyond the normal G recovery
 WRECK_CAUSES=('ditch','collision')  # ejecting from these has the game put the wreck down landed (user 2026-10-21)
 EJECT_REQUEST_MS=500    # T93: a held-eject request the flight thread has not taken by then is dropped
+EJECT_RETRY_MS=2000     # an automatic eject still aboard this long after its last request asks again (2026-10-28)...
+EJECT_TRIES=5           # ...up to this many requests; then the engines come back so the ship can be landed and left
 from hotas_draw import NVG,MeterPainter,layout_from_tls,panel_geometry,row_geometry
 import flight_hud
 import planetary_hud
@@ -85,11 +87,11 @@ import flight_tunings
 import rotation_validation
 import additive_rotation
 
-BUILD_HASH='d7e4c0b20e2fa555af2b7e1b358e05cebf8fabc8'
+BUILD_HASH='837146ef49fc806ff96852e37656e874f25c56bc'  # SHA1 of NMS.exe 183791 (pyMHF BINARY_HASH)
 DATA=runtime_config.data_dir(ROOT)  # dev checkout: config/; release: %LOCALAPPDATA%\AbsoluteHOTAS (T100)
 SETTINGS=DATA/'hotas-settings.json'
 TUNINGS=DATA/'flight-tunings'  # named per-class flight tunings, <Class>_<Name>.json
-GAME_BUILD='180836'  # NMS.exe FileVersion of BUILD_HASH, written into saved tunings
+GAME_BUILD='183791'  # NMS.exe FileVersion of BUILD_HASH, written into saved tunings
 LOGS=DATA/'logs'
 LEASE_MS=1000
 TICK_SECONDS=.004
@@ -116,12 +118,12 @@ class Mem:
 
 # E-pause natives (research/re-log/2026-10-16_claude_pause-root-buttons.md): rva, entry32, ABI.
 PAUSE_ROOT_NATIVE={
-    'FindLayer':(0x1DFC30,'40555741574883ec204c8b8950010000458bf8488bea488bf94d85c90f844302',
+    'FindLayer':(0x1E36D0,'40555741574883ec204c8b8950010000458bf8488bea488bf94d85c90f844302',
                  C.c_uint64,[C.c_void_p,C.c_void_p,C.c_uint32]),
-    'PollButton':(0x8F29D0,'48896c24204154415641574883ec4080b9444c010000450fb6f1450fb6f84c8b',
+    'PollButton':(0x901CF0,'48896c24204154415641574883ec4080b9844c010000450fb6f1450fb6f84c8b',
                   C.c_bool,[C.c_void_p,C.c_void_p,C.c_uint8,C.c_uint8,C.c_void_p,C.c_uint8,C.c_uint8]),
 }
-APP_GLOBAL=0x6E8D708
+APP_GLOBAL=0x6F60828
 
 
 class Block(C.Structure):
@@ -277,7 +279,7 @@ class AbsoluteHOTAS(Mod):
                     self.crash_damage_failed=False
 
     # NPC guns receive a private behavior row only for their positively matched player target.
-    @manual_hook('AbsoluteHOTASAIGun',offset=0x1714510,
+    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746FB0,
                  func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def ai_gun_before(self,this,point,target,opaque):
         aim=getattr(self,'ai_aim',None)
@@ -291,7 +293,7 @@ class AbsoluteHOTAS(Mod):
         aim.begin(this,target,values,self.block.ship,eligible)
         return None
 
-    @manual_hook('AbsoluteHOTASAIGun',offset=0x1714510,
+    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746FB0,
                  func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def ai_gun_after(self,this,point,target,opaque):
         aim=getattr(self,'ai_aim',None)
@@ -299,7 +301,7 @@ class AbsoluteHOTAS(Mod):
         return None
 
     @get_caller
-    @manual_hook('AbsoluteHOTASAIBehavior',offset=0x171E340,
+    @manual_hook('AbsoluteHOTASAIBehavior',offset=0x1751120,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def ai_gun_behavior(self,manager,position,role,_result_):
         aim=getattr(self,'ai_aim',None)
@@ -335,7 +337,7 @@ class AbsoluteHOTAS(Mod):
             frame['allowed']=False
             lead.latest={'state':'scope rejected: '+repr(error),'inheritance_multiplier':None}
 
-    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x984340,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='before')
+    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F30,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='before')
     def lead_hud_before(self,this,dt):
         self._lead_begin('pip',this)
         aiming=getattr(self,'aiming',None)
@@ -347,7 +349,7 @@ class AbsoluteHOTAS(Mod):
                 if presenter is not None:presenter.clear()
             except BaseException:aiming.reset('HUD admission failed')
 
-    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x984340,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F30,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
     def lead_hud_after(self,this,dt):
         try:
             aiming=getattr(self,'aiming',None)
@@ -359,15 +361,15 @@ class AbsoluteHOTAS(Mod):
             if getattr(self,'aiming',None) is not None:self.aiming.reset('HUD solution rejected: '+repr(error))
         finally:self.weapon_lead.end('pip',this)
 
-    @manual_hook('AbsoluteHOTASLeadAim',offset=0x13F3330,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
+    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419AF0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
     def lead_aim_before(self,this,target,speed):
         self._lead_begin('aim_assist',this)
 
-    @manual_hook('AbsoluteHOTASLeadAim',offset=0x13F3330,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419AF0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def lead_aim_after(self,this,target,speed):
         self.weapon_lead.end('aim_assist',this)
 
-    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x158D930,
+    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9660,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
     def weapon_prediction(self,target,out,position,velocity,speed):
         eligible=False;result=None
@@ -385,7 +387,7 @@ class AbsoluteHOTAS(Mod):
             except BaseException:aiming.reset('prediction observation failed')
         return result
 
-    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x158D930,
+    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9660,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def weapon_prediction_after(self,target,out,position,velocity,speed,_result_):
         aiming=getattr(self,'aiming',None)
@@ -394,7 +396,7 @@ class AbsoluteHOTAS(Mod):
             except BaseException:aiming.reset('prediction completion failed')
 
     @get_caller
-    @manual_hook('AbsoluteHOTASAimSolver',offset=0x158DC80,
+    @manual_hook('AbsoluteHOTASAimSolver',offset=0x15B99B0,
                  func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def aim_solver_after(self,r,u,speed,_result_):
         aiming=getattr(self,'aiming',None)
@@ -402,7 +404,7 @@ class AbsoluteHOTAS(Mod):
             try:aiming.solver_after(r,u,speed,_result_,caller=self.aim_solver_after.caller_address())
             except BaseException:aiming.reset('solver observation failed')
 
-    @manual_hook('AbsoluteHOTASManualAim',offset=0x13F4D20,
+    @manual_hook('AbsoluteHOTASManualAim',offset=0x141B500,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def manual_aim_after(self,this,out,distance,_result_):
         aiming=getattr(self,'aiming',None)
@@ -417,15 +419,15 @@ class AbsoluteHOTAS(Mod):
         eligible=self._aiming_eligible()
         solution=self.aiming.sample(ship=self.block.ship,eligible=eligible,mode=self.store.values.get('pip-mode','lead'))
         self.aim_pip_visible=None
-        app=q(int(_internal.BASE_ADDRESS)+0x6E8D708)
-        if (eligible and app and hud==app+0x7329C0 and solution
-                and C.c_ubyte.from_address(hud+0xD8C15).value):
+        app=q(int(_internal.BASE_ADDRESS)+0x6F60828)
+        if (eligible and app and hud==app+0x733180 and solution
+                and C.c_ubyte.from_address(hud+0xFEC15).value):
             self.aim_pip_visible=(solution['ship'],solution['target'],solution['tick'])
         if presenter is not None:
             shown=presenter.update(hud,self.block.ship,self.store.values,solution,eligible,epoch=epoch)
             if self.store.values.get('pip-mode','lead')=='lag' and not shown:self.aim_pip_visible=None
 
-    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x996700,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65B0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def pip_draw_before(self,this):
         local=getattr(self,'aim_draw',None)
         if local is None:return
@@ -433,7 +435,7 @@ class AbsoluteHOTAS(Mod):
         if stack is None:stack=local.stack=[]
         stack.append(int(this or 0))
 
-    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x996700,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65B0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def pip_draw_after(self,this):
         local=getattr(self,'aim_draw',None)
         stack=getattr(local,'stack',None)
@@ -441,12 +443,12 @@ class AbsoluteHOTAS(Mod):
         elif stack:stack.clear()
 
     @NOOP
-    @manual_hook('AbsoluteHOTASPipWidget',offset=0x2DC9A20,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASPipWidget',offset=0x2E3C6D0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def pip_widget(self,this):
         try:
             stack=getattr(getattr(self,'aim_draw',None),'stack',None)
             presenter=getattr(self,'pip_presentation',None)
-            if (self.active and stack and this==stack[-1]+0xD87E0 and presenter is not None
+            if (self.active and stack and this==stack[-1]+0xFE7E0 and presenter is not None
                     and presenter.owns(this)):
                 if presenter.suppress(this,self.store.values,self.block.ship):return None
                 if self.store.values.get('pip-mode','lead')=='lag':
@@ -455,13 +457,13 @@ class AbsoluteHOTAS(Mod):
                               and self.store.values.get('flight-controls-enabled',False))
                     if aiming is None or aiming.sample(ship=self.block.ship,eligible=eligible,mode='lag') is None:return None
         except BaseException:pass
-        try:return self._original(0x2DC9A20)(this)
+        try:return self._original(0x2E3C6D0)(this)
         except BaseException as error:
             self.hook_errors+=1;self.log('native pip draw failed: '+repr(error));return None
 
     # Keep UpdateControlled's native return address intact for its exact caller gate.
     # pyMHF calls a hooked original through ctypes, so hook the outer Update instead.
-    @manual_hook('AbsoluteHOTASPilot',offset=0x174A600,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASPilot',offset=0x177D700,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
     def pilot(self,this,dt):
         try:
             ship=C.cast(this,C.c_void_p).value
@@ -501,8 +503,8 @@ class AbsoluteHOTAS(Mod):
             if not self.active:return None
             if C.c_ubyte.from_address(ship+0x60C8).value!=1:return None
             if self.block.ship!=ship:self.block.pilot_until=0;self.block.ship=ship
-            self.rigid=q(ship+0x6248)+0x60
-            class_owner=q(ship+0x28)
+            self.rigid=q(ship+0x6258)+0x50
+            class_owner=q(ship+0x30)
             self.ship_class=C.c_int32.from_address(class_owner+0xD0).value if class_owner else None
             # Controlled has returned: the pinned flight thread can now replace
             # qualified metadata without racing any of its native consumers.
@@ -512,14 +514,15 @@ class AbsoluteHOTAS(Mod):
             # T93: a held Eject runs the native eject here, on the flight thread outside UpdateControlled.
             request=getattr(self,'eject_request',None)
             if request is not None:
-                self.eject_request=None
-                if K.GetTickCount64()-request<=EJECT_REQUEST_MS:self._eject()
+                self.eject_request=None;late=K.GetTickCount64()-request
+                if late<=EJECT_REQUEST_MS:self._eject()
+                else:self.log(f'eject request dropped: taken {late} ms after it was made')
         except BaseException:self.hook_errors+=1;self.block.pilot_until=0
         return None
 
-    # ---------- head tracking: H3 camera composition (build 180836; caller 0x656C43 only) ----------
+    # ---------- head tracking: H3 camera composition (build 183791; caller head_tracking.CALLER only) ----------
     @get_caller
-    @manual_hook('AbsoluteHOTASHeadPose',offset=0x1422A50,
+    @manual_hook('AbsoluteHOTASHeadPose',offset=0x1449670,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_float,C.c_void_p,C.c_float]),detour_time='after')
     def head_pose(self,this,output,base,parameter4,limits,dt,_result_):
         """All gates, the lease and the write live in HeadTracker.camera; this only supplies the flight clock."""
@@ -537,11 +540,11 @@ class AbsoluteHOTAS(Mod):
         base=int(_internal.BASE_ADDRESS)
         if not ship or local_player_ship(C.string_at,base)!=ship:return None
         if C.c_ubyte.from_address(ship+0x60c8).value!=1:return None
-        physics=q(ship+0x6248);wrapper=q(ship+0x60c0)
+        physics=q(ship+0x6258);wrapper=q(ship+0x60c0)
         if not physics or not wrapper:return None
         controller=q(wrapper)
         if not controller or local_player_ship(C.string_at,base)!=ship:return None
-        return physics+0x60,controller
+        return physics+0x50,controller
 
     def _request_pilot_recovery(self,ship,thread):
         self.block.pilot_until=0
@@ -581,11 +584,11 @@ class AbsoluteHOTAS(Mod):
         return True
 
     @get_caller
-    @manual_hook('AbsoluteHOTASFlightClock',offset=0x2CC09A0,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASFlightClock',offset=0x2D315A0,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p]),detour_time='after')
     def flight_clock(self,this,out,_result_):
         try:
             if getattr(self,'pilot_recovery',None) is not None:return None
-            if not self.active or this!=self.rigid or self.flight_clock.caller_address()!=0x175BFC3:return None
+            if not self.active or this!=self.rigid or self.flight_clock.caller_address()!=0x178F342:return None
             if K.GetCurrentThreadId()!=self.pilot_boundary.thread:return None
             if C.c_ubyte.from_address(self.block.ship+0x60C8).value!=1:return None
             self.block.pilot_until=K.GetTickCount64()+400
@@ -593,13 +596,13 @@ class AbsoluteHOTAS(Mod):
         return None
 
     @get_caller
-    @manual_hook('AbsoluteHOTASScalar',offset=0x141EBC0,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint32]),detour_time='after')
+    @manual_hook('AbsoluteHOTASScalar',offset=0x1445790,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint32]),detour_time='after')
     def scalar(self,this,action,_result_):
         """Pitch/yaw substitution from the frame's pinned mailbox copy (six_axis_trial, D12)."""
         try:
             f=self.frame
             if not self.active or not f or this!=self.controller or action not in (0x97,0x98):return None
-            if self.scalar.caller_address()!={0x97:0x141FFB4,0x98:0x141FFA5}[action]:return None
+            if self.scalar.caller_address()!={0x97:0x1446B94,0x98:0x1446B85}[action]:return None
             now=K.GetTickCount64()
             if C.c_uint32.from_address(f+72).value&STRICT_ROTATION:
                 if self.box.agent_stopped() or not self._eligible_native(now):return None
@@ -632,19 +635,19 @@ class AbsoluteHOTAS(Mod):
     def _eligible_input(self,now):
         """Physical axes remain available under native planet/combat/power handling."""
         if getattr(self,'pilot_recovery',None) is not None:return False
-        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6e8d708)
+        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f60828)
         return bool(self.block.pilot_until>now and manager and ship
-            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x674c).value<=3
-            and C.c_uint32.from_address(manager+0x875498).value==0
-            and C.c_ubyte.from_address(manager+0x57a40d).value<=1)
+            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value<=3
+            and C.c_uint32.from_address(manager+0x89bd98).value==0
+            and C.c_ubyte.from_address(manager+0x57aa6d).value<=1)
 
     def _stall_context(self):
         """What the game is doing when receipts stop in flight (read-only; same fields as telemetry)."""
         manager=q(_internal.BASE_ADDRESS+APP_GLOBAL);ship=self.block.ship;out={}
-        if manager:out['combat']=C.c_ubyte.from_address(manager+0x57a40d).value
+        if manager:out['combat']=C.c_ubyte.from_address(manager+0x57aa6d).value
         if ship:
-            out['gate_6720']=C.c_ubyte.from_address(ship+0x6720).value
-            out['power_674c']=C.c_uint32.from_address(ship+0x674c).value
+            out['gate_6720']=C.c_ubyte.from_address(ship+0x6730).value
+            out['power_674c']=C.c_uint32.from_address(ship+0x675c).value
         ns=self._translation_status() if hasattr(self,'_translation_status') else {}
         for k in ('reason','native_reason','speed'):
             if ns.get(k) not in (None,''):out['newtonian_'+k]=round(ns[k],1) if isinstance(ns[k],float) else ns[k]
@@ -654,7 +657,7 @@ class AbsoluteHOTAS(Mod):
     def _frontend(self):
         """The frontend flag _eligible_input reads (nonzero while a menu/dialog page is up), or None without a manager."""
         manager=q(_internal.BASE_ADDRESS+APP_GLOBAL)
-        return C.c_uint32.from_address(manager+0x875498).value if manager else None
+        return C.c_uint32.from_address(manager+0x89bd98).value if manager else None
 
     def _eligible_native(self,now,*,allow_combat_flight=False,allow_low_height=False):
         """Clear-space preflight; research callers remain combat-strict by default.
@@ -663,11 +666,11 @@ class AbsoluteHOTAS(Mod):
         opt-in plus their complete ownership, physics and protected-mode gates.
         """
         if getattr(self,'pilot_recovery',None) is not None:return False
-        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6e8d708)
+        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f60828)
         return bool(self.block.pilot_until>now and manager and ship
-            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x674c).value==0
-            and (allow_low_height or C.c_ubyte.from_address(ship+0x6720).value==0) and C.c_uint32.from_address(manager+0x875498).value==0
-            and C.c_ubyte.from_address(manager+0x57a40d).value<=(1 if allow_combat_flight else 0))
+            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value==0
+            and (allow_low_height or C.c_ubyte.from_address(ship+0x6730).value==0) and C.c_uint32.from_address(manager+0x89bd98).value==0
+            and C.c_ubyte.from_address(manager+0x57aa6d).value<=(1 if allow_combat_flight else 0))
 
     # ---------- native patches ----------
     def _install(self,ship):
@@ -681,7 +684,7 @@ class AbsoluteHOTAS(Mod):
         pm=self.pm;base=pm.process_base.lpBaseOfDll
         tick=C.cast(K.GetTickCount64,C.c_void_p).value;pilot=C.addressof(self.block)+24
         lease=K.GetTickCount64()+LEASE_MS
-        if not self.frame:self.frame=allocate_near(pm.process_handle,base+0x1758007)
+        if not self.frame:self.frame=allocate_near(pm.process_handle,base+0x178B12D)
         state=bytearray(FRAME_SIZE);struct.pack_into('<Q',state,8,ship);struct.pack_into('<Q',state,40,lease)
         C.memmove(self.frame,bytes(state),FRAME_SIZE)
         self.controller=q(q(ship+0x60c0))
@@ -814,8 +817,8 @@ class AbsoluteHOTAS(Mod):
                 if planet is not None:
                     native.update(planet=planet,air=env[0],space_thrust_force=self._space_thrust(current),water=env[2],
                                   gear=env[3],clearance=current['clearance'],
-                                  # T93: native over-water flag, set earlier in this UpdateControlled (0x1756FB8)
-                                  over_water=bool(env[2].ditch and C.c_ubyte.from_address(current['ship']+0x62e0).value))
+                                  # T93: native over-water flag, set earlier in this UpdateControlled (0x178A0D7)
+                                  over_water=bool(env[2].ditch and C.c_ubyte.from_address(current['ship']+0x62f0).value))
                 elif current['height_mode']:
                     # The cave admitted low height, but there is no planet frame to fly it with.
                     self._observe_ai_aim(None)
@@ -838,10 +841,10 @@ class AbsoluteHOTAS(Mod):
             return 0
 
     def _space_thrust(self,current):
-        """ThrustForce without the native Planet-block blend (ship+0x62C0); Sultan's engine loss replaces it."""
+        """ThrustForce without the native Planet-block blend (ship+0x62D0); Sultan's engine loss replaces it."""
         blocks=self.engine_blocks
         if blocks is None or blocks[0]!=current['ship']:return current['thrust_force']
-        blend=C.c_float.from_address(current['ship']+0x62c0).value
+        blend=C.c_float.from_address(current['ship']+0x62d0).value
         return planetary_flight.space_thrust(current['thrust_force'],blocks[1],blocks[2],blend)
 
     def _update_planetary(self,now):
@@ -857,8 +860,8 @@ class AbsoluteHOTAS(Mod):
             ship=bridge.fixture['ship']
             if self.engine_blocks is None or self.engine_blocks[0]!=ship:
                 try:
-                    control=int.from_bytes(planetary_hud.process_read(ship+0x66a8,8),'little')
-                    # Engine blocks are 0x74 bytes, ThrustForce at +0x64 (effective copy ship+0x6630, +0x6694).
+                    control=int.from_bytes(planetary_hud.process_read(ship+0x66b8,8),'little')
+                    # Engine blocks are 0x74 bytes, ThrustForce at +0x64 (effective copy ship+0x6640, +0x66A4).
                     planet_tf,=struct.unpack('<f',planetary_hud.process_read(control+0xe8+0x64,4))
                     space_tf,=struct.unpack('<f',planetary_hud.process_read(control+0x15c+0x64,4))
                 except OSError:planet_tf=space_tf=float('nan')
@@ -969,6 +972,30 @@ class AbsoluteHOTAS(Mod):
                 self.alarm_eject=True;condition.repair()
         except BaseException as error:
             self.hook_errors+=1;self.log('eject failed: '+repr(error))
+
+    def _auto_eject(self,tick,why):
+        """An eject the pilot didn't ask for (a wreck): request it now and keep asking while the pilot is still
+        aboard (_step_eject_retry)."""
+        self.eject_request=tick;self.eject_owed={'why':why,'since':tick,'last':tick,'tries':1}
+
+    def _step_eject_retry(self,tick,piloting,recovering):
+        """Worker (2026-10-28): an automatic eject is one request, which the flight thread drops after
+        EJECT_REQUEST_MS (a stall, a game menu), and the stub can find no ship. While the pilot is still aboard the
+        dead ship, ask again every EJECT_RETRY_MS. After EJECT_TRIES requests the engines come back instead, so nobody
+        is held in a ship they can't leave: land it and get out the game's way."""
+        owed=getattr(self,'eject_owed',None)
+        if owed is None:return
+        condition=getattr(getattr(self,'flight_consumer',None),'condition',None)
+        if condition is None or not condition.engines_out:self.eject_owed=None;return  # ejected (repaired), or another ship
+        if not piloting or recovering or getattr(self,'eject_request',None) is not None or tick-owed['last']<EJECT_RETRY_MS:return
+        aboard=(tick-owed['since'])/1000.
+        if owed['tries']>=EJECT_TRIES:
+            self.eject_owed=None;condition.repair()
+            self.log(f"eject ({owed['why']}) did not take: still aboard after {owed['tries']} requests over {aboard:.1f} s; "
+                     'engines restored so the ship can be landed and left')
+            return
+        owed['tries']+=1;owed['last']=tick;self.eject_request=tick
+        self.log(f"eject ({owed['why']}): still aboard {aboard:.1f} s after the first request; asking again ({owed['tries']}/{EJECT_TRIES})")
 
     def _land_wreck(self,rows):
         """Ditch or crash eject (user 2026-10-21): an ejected ship stays in flight mode, so boarding it again needs no
@@ -1102,7 +1129,7 @@ class AbsoluteHOTAS(Mod):
                      f"daze and wreck; the wreck falls (speed {self.wreck_fall_from[0]}, altitude {self.wreck_fall_from[1]})")
             return
         if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
-        self.eject_request=tick
+        self._auto_eject(tick,'disabling crash')
         self.log(f"disabling crash at {hit['impact']:.1f} u/s (hull {hit['hull_before']}->{hit['hull_after']}, capped={hit['capped']}): "
                  'blackout, eject and wreck')
 
@@ -1112,18 +1139,23 @@ class AbsoluteHOTAS(Mod):
         def r(x):return None if not isinstance(x,(int,float)) or not math.isfinite(x) else round(x,1)
         return r(latest.get('speed')),r(planetary.get('altitude')),r(planetary.get('clearance'))
 
-    def _step_wreck_fall(self,tick):
+    def _step_wreck_fall(self,tick,piloting=True):
         """Worker: eject once the falling wreck has come to rest (or the fall timed out), then the landed respawn
         puts it down where it lies. The dazed pilot passes out here (the jump is never seen) and wakes
-        CRASH_BLACKOUT_HOLD after."""
+        CRASH_BLACKOUT_HOLD after. The fall waits while the game is paused (SUPPLIMENTAL 2026-10-28: it timed out in
+        the pause menu, and the eject request went stale before the game ran again)."""
         condition=getattr(getattr(self,'flight_consumer',None),'condition',None)
-        if condition is None or not condition.falling:return
+        if condition is None or not condition.falling:self.wreck_fall_tick=None;return
+        last=getattr(self,'wreck_fall_tick',None);self.wreck_fall_tick=tick
+        if not piloting:
+            if last is not None:condition.hold_fall(tick-last)
+            return
         speed,altitude,clearance=self._wreck_fall_sample()
         since=condition.fall_since_ms;reason=condition.fall_done(tick,speed)
         if reason is None:return
         geffects=getattr(self,'geffects',None)
         if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
-        self.eject_request=tick
+        self._auto_eject(tick,'wreck')
         start=getattr(self,'wreck_fall_from',(None,None,None))
         fell=None if start[1] is None or altitude is None else round(start[1]-altitude,1)
         self.log(f'wreck fall over ({reason}) after {(tick-since)/1000.:.1f} s: speed {speed}, altitude {altitude}, '
@@ -1159,7 +1191,7 @@ class AbsoluteHOTAS(Mod):
                 condition.wreck('ditch')
                 geffects=getattr(self,'geffects',None)
                 if geffects is not None:geffects.strain.knock_out(CRASH_BLACKOUT_HOLD)
-                self.eject_request=tick
+                self._auto_eject(tick,'hull failed')
                 self.log('thruster purge lost: hull failed, ship wrecked: blackout and eject')
         return events
 
@@ -1599,8 +1631,8 @@ class AbsoluteHOTAS(Mod):
             try:
                 manager=struct.unpack('<Q',pm.read_bytes(_internal.BASE_ADDRESS+APP_GLOBAL,8))[0]
                 if manager:
-                    state['combat_active']=pm.read_bytes(manager+0x57a40d,1)[0]
-                    state['frontend_state']=struct.unpack('<I',pm.read_bytes(manager+0x875498,4))[0]
+                    state['combat_active']=pm.read_bytes(manager+0x57aa6d,1)[0]
+                    state['frontend_state']=struct.unpack('<I',pm.read_bytes(manager+0x89bd98,4))[0]
             except BaseException:pass # Missing diagnostic reads never affect controls.
         state['newtonian_requalifications']=getattr(self,'newtonian_refresh_count',0)
         state['parking_brake_requested']=int(bool(getattr(getattr(self,'buttons',None),'parking',False)))
@@ -1802,7 +1834,8 @@ class AbsoluteHOTAS(Mod):
                         self._aiming_tick(tick,self._aim_deflection(),reason is None and armed)
                     elif getattr(self,'aim_slowdown',None) is not None:self.aim_slowdown.disable()
                     self._step_crash_damage(tick,piloting,recovering)
-                    self._step_wreck_fall(tick)
+                    self._step_wreck_fall(tick,piloting)
+                    self._step_eject_retry(tick,piloting,recovering)
                     # T93: a ditch knocks the engines out. The pilot blacks out once per crash (user 2026-10-19:
                     # the dead stop is never seen) and the inputs stay centred until the restart ramps them back.
                     condition=getattr(getattr(self,'flight_consumer',None),'condition',None);control_share=1.
@@ -1836,7 +1869,7 @@ class AbsoluteHOTAS(Mod):
                         accel=latest.get('acceleration_body') if latest.get('admitted') and reason is None and applied else None
                         manager=q(_internal.BASE_ADDRESS+APP_GLOBAL)
                         g_scale=geffects.tick(self.store.values,dt,tick,accel,
-                                              (manager,self.block.ship,q(manager+0x72c858) if manager else 0))['control']
+                                              (manager,self.block.ship,q(manager+0x72cf48) if manager else 0))['control']
                         if g_scale<1.:values=tuple(v if c=='throttle' else v*g_scale for c,v in zip(MAILBOX_ORDER,values))
                     if control_share<1.:values=tuple(v*control_share for v in values)
                     if condition is not None and condition.falling:  # the wreck tumbles as it falls (user 2026-10-25)
@@ -2042,14 +2075,14 @@ class AbsoluteHOTAS(Mod):
 
     # T107: the planet update passes the region map its stack copy of the observer matrix (rdx); moving that copy
     # moves only the terrain focus. The after hook puts it back.
-    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12801B0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4720,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def terrain_focus_before(self,this,observer,extra):
         terrain=getattr(self,'terrain',None)
         if terrain is None or not terrain.enabled:return
         try:terrain.focus_before(C.cast(observer,C.c_void_p).value,self._terrain_velocity())
         except BaseException as error:terrain.fail(error);self.hook_errors+=1
 
-    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12801B0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4720,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def terrain_focus_after(self,this,observer,extra):
         terrain=getattr(self,'terrain',None)
         if terrain is None or not (terrain.enabled or terrain.pending):return
@@ -2129,9 +2162,9 @@ class AbsoluteHOTAS(Mod):
 
     def _menu_depth(self):
         """(depth, menu type) of the native options stack; F0: menus[depth-1], depth 0 = closed."""
-        depth=C.c_uint32.from_address(_internal.BASE_ADDRESS+0x6EB64E4).value
+        depth=C.c_uint32.from_address(_internal.BASE_ADDRESS+0x6F89634).value
         if depth==0 or depth>32:return depth,None
-        state=q(q(_internal.BASE_ADDRESS+0x6EB64E8)+8*(depth-1))
+        state=q(q(_internal.BASE_ADDRESS+0x6F89638)+8*(depth-1))
         return depth,C.c_int32.from_address(state).value
 
     def _original(self,rva):
@@ -2165,7 +2198,7 @@ class AbsoluteHOTAS(Mod):
     def _ui_fail(self,error):
         self.hook_errors+=1;self.log('menu error: '+''.join(traceback.format_exception(error)))
 
-    @manual_hook('AbsoluteHOTASOptions',offset=0x6E08B0,func_def=FUNCDEF(None,[]),detour_time='before')
+    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBA0,func_def=FUNCDEF(None,[]),detour_time='before')
     def options_enter(self):
         u=self.ui;u.page=0;u.inserted=False;u.ours=None;u.entry=False
         try:
@@ -2187,12 +2220,12 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASOptions',offset=0x6E08B0,func_def=FUNCDEF(None,[]),detour_time='after')
+    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBA0,func_def=FUNCDEF(None,[]),detour_time='after')
     def options_leave(self):
         self.ui.ours=None;self.ui.entry=False
         return None
 
-    @manual_hook('AbsoluteHOTASSwitcher',offset=0x6E16A0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASSwitcher',offset=0x6EE990,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def switcher_leave(self,this):
         """Pause Options root (DoGameSwitcher): poll our BUTTON_HOTAS after the native buttons."""
         try:
@@ -2202,19 +2235,19 @@ class AbsoluteHOTAS(Mod):
             self.pause_root=None;self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASBeginPage',offset=0x1B99A0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASBeginPage',offset=0x1BD040,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def page_begin(self,page):
         if getattr(self.ui,'ours',None) is not None or getattr(self.ui,'entry',False):self.ui.page=page
         return None
 
     @get_caller
-    @manual_hook('AbsoluteHOTASFinalize',offset=0x1B9E90,func_def=FUNCDEF(C.c_uint64,[C.c_void_p,C.c_bool,C.c_bool]),detour_time='before')
+    @manual_hook('AbsoluteHOTASFinalize',offset=0x1BD530,func_def=FUNCDEF(C.c_uint64,[C.c_void_p,C.c_bool,C.c_bool]),detour_time='before')
     def page_finalize(self,page,a,b):
-        """Emit our rows before the Controls builder finalizes (caller 0x6E684D, F0/F1)."""
+        """Emit our rows before the Controls builder finalizes (caller 0x6F3BAD on 183791, F0/F1)."""
         u=self.ui
         if getattr(u,'inserted',True) or (getattr(u,'ours',None) is None and not getattr(u,'entry',False)):return None
         try:
-            if self.page_finalize.caller_address()!=0x6E684D or page!=u.page or C.c_int32.from_address(page+8).value!=0:return None
+            if self.page_finalize.caller_address()!=0x6F3BAD or page!=u.page or C.c_int32.from_address(page+8).value!=0:return None
         except BaseException as e:
             self._ui_fail(e);return None
         u.inserted=True;dirty=C.string_at(page+0x10,1);u.emitting=True
@@ -2244,76 +2277,76 @@ class AbsoluteHOTAS(Mod):
     # calls, the original runs. NOOP detours must never raise: pyMHF would drop the detour and then
     # skip the native function entirely, so every path falls through to the original.
     @NOOP
-    @manual_hook('AbsoluteHOTASHeader',offset=0x1B68A0,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_int32]),detour_time='before')
+    @manual_hook('AbsoluteHOTASHeader',offset=0x1B9F40,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_int32]),detour_time='before')
     def row_header(self,page,label,icon):
         try:
             if self._suppress():return None
         except BaseException:pass
-        try:return self._original(0x1B68A0)(page,label,icon)
+        try:return self._original(0x1B9F40)(page,label,icon)
         except BaseException as e:
             self._ui_fail(e);return None
 
     @NOOP
-    @manual_hook('AbsoluteHOTASBoolean',offset=0x1B6C30,func_def=FUNCDEF(C.c_bool,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_uint8,C.c_uint8,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASBoolean',offset=0x1BA2D0,func_def=FUNCDEF(C.c_bool,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_uint8,C.c_uint8,C.c_void_p]),detour_time='before')
     def row_boolean(self,page,label,desc,value,default,options):
         try:
             if self._suppress():return bool(value)
         except BaseException:pass
-        try:return self._original(0x1B6C30)(page,label,desc,value,default,options)
+        try:return self._original(0x1BA2D0)(page,label,desc,value,default,options)
         except BaseException as e:
             self._ui_fail(e);return bool(value)
 
     @NOOP
-    @manual_hook('AbsoluteHOTASInt',offset=0x1B6E20,func_def=FUNCDEF(C.c_int32,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_int32,C.c_int32,C.c_int32,C.c_int32,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASInt',offset=0x1BA4C0,func_def=FUNCDEF(C.c_int32,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_int32,C.c_int32,C.c_int32,C.c_int32,C.c_void_p]),detour_time='before')
     def row_int(self,page,label,desc,value,default,low,high,options):
         try:
             if self._suppress():return value
         except BaseException:pass
-        try:return self._original(0x1B6E20)(page,label,desc,value,default,low,high,options)
+        try:return self._original(0x1BA4C0)(page,label,desc,value,default,low,high,options)
         except BaseException as e:
             self._ui_fail(e);return value
 
     @NOOP
-    @manual_hook('AbsoluteHOTASFloat',offset=0x1B70A0,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_float,C.c_float,C.c_float,C.c_float,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASFloat',offset=0x1BA740,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_float,C.c_float,C.c_float,C.c_float,C.c_void_p]),detour_time='before')
     def row_float(self,page,label,desc,value,default,low,high,options):
         try:
             if self._suppress():return value
         except BaseException:pass
-        try:return self._original(0x1B70A0)(page,label,desc,value,default,low,high,options)
+        try:return self._original(0x1BA740)(page,label,desc,value,default,low,high,options)
         except BaseException as e:
             self._ui_fail(e);return value
 
     @NOOP
-    @manual_hook('AbsoluteHOTASButton',offset=0x1B6A80,func_def=FUNCDEF(C.c_bool,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASButton',offset=0x1BA120,func_def=FUNCDEF(C.c_bool,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_void_p]),detour_time='before')
     def row_button(self,page,label,desc,options):
         try:
             if self._suppress():return False
         except BaseException:pass
-        try:return self._original(0x1B6A80)(page,label,desc,options)
+        try:return self._original(0x1BA120)(page,label,desc,options)
         except BaseException as e:
             self._ui_fail(e);return False
 
     @NOOP
-    @manual_hook('AbsoluteHOTASBeginList',offset=0x1B7CD0,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_int32,C.c_int32,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASBeginList',offset=0x1BB370,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_int32,C.c_int32,C.c_void_p]),detour_time='before')
     def row_begin_list(self,page,label,desc,value,default,out):
         try:
             if self._suppress():return None
         except BaseException:pass
-        try:return self._original(0x1B7CD0)(page,label,desc,value,default,out)
+        try:return self._original(0x1BB370)(page,label,desc,value,default,out)
         except BaseException as e:
             self._ui_fail(e);return None
 
     @NOOP
-    @manual_hook('AbsoluteHOTASListOption',offset=0x1B7DF0,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_int32]),detour_time='before')
+    @manual_hook('AbsoluteHOTASListOption',offset=0x1BB490,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_int32]),detour_time='before')
     def row_list_option(self,page,label,value):
         try:
             if self._suppress():return None
         except BaseException:pass
-        try:return self._original(0x1B7DF0)(page,label,value)
+        try:return self._original(0x1BB490)(page,label,value)
         except BaseException as e:
             self._ui_fail(e);return None
 
-    @manual_hook('AbsoluteHOTASGetRow',offset=0x1B6440,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_int32]),detour_time='after')
+    @manual_hook('AbsoluteHOTASGetRow',offset=0x1B9AE0,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_int32]),detour_time='after')
     def row_root(self,page,out,label,kind,_result_):
         """Remember native row roots of meter spacers (U3 geometry source)."""
         try:
@@ -2325,7 +2358,7 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASAppUpdate',offset=0x2D7580,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASAppUpdate',offset=0x2DD2D0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def app_update(self,this):
         """Push a queued HOTAS screen on the application thread, as F0's navigator did."""
         try:
@@ -2343,21 +2376,21 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASRender',offset=0x905610,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASRender',offset=0x9152F0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def render_enter(self,manager,a,b):
         self.ui.manager=manager if (self.menu is not None and self.menu.depth_routes) else 0;self.ui.ctx=0
         return None
 
-    @manual_hook('AbsoluteHOTASRender',offset=0x905610,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASRender',offset=0x9152F0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def render_leave(self,manager,a,b):
         self.ui.manager=0;self.ui.ctx=0
         return None
 
     # ---------- T73 flight HUD: only inside RenderHeadsUp's own NGui frame (T64 seam) ----------
     @get_caller
-    @manual_hook('AbsoluteHOTASHudFrame',offset=0x1DA030,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASHudFrame',offset=0x1DD910,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def hud_frame_enter(self,this):
-        """NGui_RenderFrame(this) reads only rcx; RenderHeadsUp calls it at 0x9D7E97."""
+        """NGui_RenderFrame(this) reads only rcx; RenderHeadsUp calls it (0x9D7E97 on 180836)."""
         try:
             stack=getattr(self.ui,'hud_stack',None)
             if stack is None or len(stack)>8:stack=self.ui.hud_stack=[]
@@ -2370,7 +2403,7 @@ class AbsoluteHOTAS(Mod):
         except BaseException:self.hud_errors+=1
         return None
 
-    @manual_hook('AbsoluteHOTASHudFrame',offset=0x1DA030,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASHudFrame',offset=0x1DD910,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def hud_frame_leave(self,this):
         stack=getattr(self.ui,'hud_stack',None)
         if stack:stack.pop()
@@ -2474,7 +2507,7 @@ class AbsoluteHOTAS(Mod):
             self.hud_errors+=1;self.log('flight HUD error: '+''.join(traceback.format_exception(error)))
             if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
 
-    @manual_hook('AbsoluteHOTASNvgBegin',offset=0x1965EE0,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199BE40,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
     def nvg_begin(self,ctx,w,h,ratio):
         if getattr(self.ui,'manager',0):self.ui.ctx=ctx
         try:
@@ -2482,7 +2515,7 @@ class AbsoluteHOTAS(Mod):
         except BaseException:self.hud_errors+=1
         return None
 
-    @manual_hook('AbsoluteHOTASNvgEnd',offset=0x1965FA0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASNvgEnd',offset=0x199BF00,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def nvg_end(self,ctx):
         """Draw meters over their spacer rows; state must be byte-identical after nvgRestore (U3)."""
         try:
@@ -2493,7 +2526,7 @@ class AbsoluteHOTAS(Mod):
             if not manager or ctx!=getattr(self.ui,'ctx',0) or self.draw_errors>=3 or not self.meters_enabled:return None
             if self.ui_layout is None:
                 self.counters['draw_skips']+=1;return None
-            if C.c_int32.from_address(manager+0x17028).value!=12:return None
+            if C.c_int32.from_address(manager+0x17038).value!=12:return None
             depth,kind=self._menu_depth()
             if kind!=CONTROLS_PAGE or depth not in self.menu.depth_routes or not self.menu.meters:return None
             n=C.c_int32.from_address(ctx+0x42a8).value

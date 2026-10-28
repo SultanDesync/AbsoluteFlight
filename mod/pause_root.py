@@ -1,13 +1,15 @@
-"""HOTAS button on the pause Options root (E-pause), build 180836 / Steam 25732212.
+"""HOTAS button on the pause Options root (E-pause), build 183791 / Steam 26271400.
 
-The pause root is DoGameSwitcher (0x6E16A0) drawing UI/SWITCHERPAGENEW.MBIN. Its category buttons
+The pause root is DoGameSwitcher (0x6EE990) drawing UI/SWITCHERPAGENEW.MBIN. Its category buttons
 are named NGui layers; tools/build_pause_root_ui.py adds BUTTON_HOTAS after BUTTON_CTR. For each
 button DoGameSwitcher (research/re-log/2026-10-16_claude_pause-root-buttons.md):
-  1. finds the layer with FindLayer 0x1DFC30(root=[this+0x14478], &{id16, hash}, 0),
+  1. finds the layer with FindLayer 0x1E36D0(root=[this+0x14478], &{id16, hash}, 0),
   2. looks its WHITE child up in the layer's index map at +0x150 (no recursive find),
-  3. polls PollButton 0x8F29D0(this, white, 1, 0, &sound, 0, 1); true = activated, after which
+  3. polls PollButton 0x901CF0(this, white, 1, 0, &sound, 0, 1); true = activated, after which
      it calls RequestOptionsPage(category, true).
 We do the same from an after-hook on DoGameSwitcher, on the UI thread, in the same frame.
+183791 (static, 2026-10-28): the hash constants, root/map/node offsets and the sound key are unchanged in
+aligned DoGameSwitcher code; only the busy flag moved.
 
 mem is a small reader (u32/i32/u64 by address) so everything here is tested with a fake.
 """
@@ -19,7 +21,7 @@ CHILD_ID='WHITE'
 ANCHOR_ID='BUTTON_CTR'  # native button; finding it proves the hash and root before we trust a miss
 ROOT_LAYER=0x14478       # DoGameSwitcher this -> root NGui layer
 INDEX_MAP=0x150          # layer -> descendant index map
-BUSY_FLAG=0x8594C2       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
+BUSY_FLAG=0x87FD5A       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
 SOUND_HASH=0x18AECCF6    # native 5th arg {0, 0x18AECCF6, 1}: the click sound key
 
 
@@ -33,7 +35,7 @@ def _rotr(x,n):return ((x>>n)|(x<<(32-n)))&M32
 
 
 def id_hash(text):
-    """Transcribed from DoGameSwitcher 0x6E16BD..0x6E17BD (identical at every button site)."""
+    """Transcribed from DoGameSwitcher 0x6EE9AD..0x6EEAAD (identical at every button site)."""
     raw=id16(text);lo=int.from_bytes(raw[:8],'little');hi=int.from_bytes(raw[8:],'little')
     a=((hi^lo)*K)&M64
     b=(((a>>47)^lo^a)*K)&M64
@@ -61,7 +63,7 @@ def key_bytes(text):
 
 
 def map_lookup(mem,layer,text):
-    """Native index-map walk at 0x6E21B8; returns the stored element or 0."""
+    """Native index-map walk at 0x6EF4A8; returns the stored element or 0."""
     table=mem.u64(layer+INDEX_MAP)
     if not table or mem.i32(table+0x1C)<=0:return 0
     h=id_hash(text)

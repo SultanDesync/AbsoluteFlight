@@ -1,4 +1,4 @@
-"""T72 ship prediction input correction, NMS 180836 / Steam 25732212.
+"""T72 ship prediction input correction, NMS 183791 / Steam 26271400.
 
 Native prediction already solves with a full velocity vector. Ordinary projectiles
 inherit GameplayGlobals.ProjectileSpeedBoost times that velocity; prediction must
@@ -13,24 +13,24 @@ import threading
 import time
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6E8D708
-INHERITANCE = 0x5260FE8
-OWNERS = {'pip': 0x7329C0, 'aim_assist': 0x72F840}
+APP_GLOBAL = 0x6F60828
+INHERITANCE = 0x5332428
+OWNERS = {'pip': 0x733180, 'aim_assist': 0x72FF60}  # app+: frame owner objects
 # These sites are below the hooked entries and remain verifiable on hot reload.
 PINS = {
-    0x158DC22: bytes.fromhex('410f5c370f58c8'),
-    0x986BAF: bytes.fromhex('e87c6dc000'),
-    0x13F3527: bytes.fromhex('e804a41900'),
-    0x13F35BB: bytes.fromhex('e870a31900'),
-    0x157A0B6: bytes.fromhex('f30f10052a6fce03'),
+    0x15B9952: bytes.fromhex('410f5c370f58c8'),
+    0x99681C: bytes.fromhex('e83f2ec200'),
+    0x1419D3B: bytes.fromhex('e820f91900'),
+    0x1419D92: bytes.fromhex('e8c9f81900'),
+    0x15A5B36: bytes.fromhex('f30f1005eac8d803'),
 }
 # Independent qualification: a sampling mismatch must not disable the T72 fix.
 TARGET_PINS = {
-    0x158D951: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e8c736730184c00f84e0020000'),
-    0x296510: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e8e6fca402'),
-    0x2CE6216: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
-    0x2CC0A33: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
-    0x2CC1040: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
+    0x15B9681: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e88785770184c00f84e0020000'),
+    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e826c9ab02'),
+    0x2D56E66: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
+    0x2D31633: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
+    0x2D31C30: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
 }
 TARGET_MAX_AGE_MS = 150
 
@@ -104,10 +104,10 @@ class ShipLeadCorrection:
         if (not app or frame['owner'] != app + OWNERS[frame['lane']]
                 or local_player_ship(self.read, self.base) != ship):
             return False
-        body_owner = self._q(ship + 0x6248)
+        body_owner = self._q(ship + 0x6258)
         if not body_owner:
             return False
-        body = body_owner + 0x60
+        body = body_owner + 0x50
         if not self._primary(body):
             return False
         frame.update(allowed=True, app=app, ship=int(ship), body=body)
@@ -183,7 +183,7 @@ class ShipLeadCorrection:
                 or not self._get(target + 0xB18, '<B')[0]
                 or self._q(self.base + APP_GLOBAL) != frame['app']
                 or local_player_ship(self.read, self.base) != frame['ship']
-                or self._q(frame['ship'] + 0x6248) + 0x60 != frame['body']
+                or self._q(frame['ship'] + 0x6258) + 0x50 != frame['body']
                 or not self._primary(frame['body']) or epoch != self._target_epoch):
             self.target_state = 'target identity changed'
             return
@@ -205,20 +205,20 @@ class ShipLeadCorrection:
                 self.target_state = 'sampled'
 
     def _projectile(self, app, ship, speed):
-        # Exactly the ID source and descriptor map used by native 17B5C00.
+        # Exactly the ID source and descriptor map used by native 17EABD0.
         index = self._get(ship + 0x60 + 0xA4, '<i')[0]
         if not 0 <= index < 32:
             return None
         reality = self._q(app + 0x60)
         if not reality:
             return None
-        key = self.read(reality + 0x6AE0 + index * 0x40, 16)
-        begin, end = self._get(app + 0x6CD4E8, '<QQ')
+        key = self.read(reality + 0xB678 + index * 0x40, 16)
+        begin, end = self._get(app + 0x6CDB48, '<QQ')
         size = end - begin
         if not begin or size <= 0 or size % 24 or size > 24 * 4096:
             return None
         rows = self.read(begin, size)
-        if self._get(app + 0x6CD4E8, '<QQ') != (begin, end):
+        if self._get(app + 0x6CDB48, '<QQ') != (begin, end):
             return None
         for offset in range(0, size, 24):
             if rows[offset:offset + 16] != key:
@@ -235,7 +235,7 @@ class ShipLeadCorrection:
                 return None
             # A weapon/table change while taking the snapshot keeps native math.
             if (self._get(ship + 0x104, '<i')[0] != index
-                    or self.read(reality + 0x6AE0 + index * 0x40, 16) != key):
+                    or self.read(reality + 0xB678 + index * 0x40, 16) != key):
                 return None
             return key.split(b'\0', 1)[0].decode('ascii', errors='replace')
         return None
@@ -249,7 +249,7 @@ class ShipLeadCorrection:
             return None
         if (self._q(self.base + APP_GLOBAL) != frame['app']
                 or local_player_ship(self.read, self.base) != frame['ship']
-                or self._q(frame['ship'] + 0x6248) + 0x60 != frame['body']
+                or self._q(frame['ship'] + 0x6258) + 0x50 != frame['body']
                 or not self._primary(frame['body'])):
             return None
         target_body = self._q(target + 0x468)

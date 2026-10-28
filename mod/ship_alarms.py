@@ -20,7 +20,7 @@ from collections import deque
 
 import purge_voice
 
-SHIP, HUD = 'ship', 'hud'  # the ship's 3D audio object [ship+0x6258]; the HUD/UI object [M+0x732938]
+SHIP, HUD = 'ship', 'hud'  # the ship's 3D audio object [ship+0x6268]; the HUD/UI object [M+0x7330F8] (183791)
 VOICE, ALARMS, OFF = 'voice', 'alarms', 'off'
 SOUND_CHOICES = ((VOICE, 'Voice and alarms'), (ALARMS, 'Alarms only'), (OFF, 'Off'))
 
@@ -37,7 +37,7 @@ def wwise_id(name):
 LOOPS = {'siren': ('UI_Alert_Damage_Warning_Critical_Lp', 'UI_Alert_Damage_Warning_Critical_Lp_Stop'),
          'low': ('Pl_Damage_Warning_Low_Health_Lp', 'Pl_Damage_Warning_Low_Health_Lp_Stop')}
 CHIRP = 'UI_Next_Message'
-# Engines back on the way vanilla takeoff does it (0x176F24A..0x176F2EF): Pl_Ship_Takeoff on the ship plays the engine
+# Engines back on the way vanilla takeoff does it (0x17A275A..0x17A27FF, 183791): Pl_Ship_Takeoff on the ship plays the engine
 # loop again (and the launch sound), then the engine switch posts Pl_Ship_Engines_Start. Engines_Start alone only resets
 # the loop's pitch and plays the start-up: Engines_Stop had stopped the loop (bank NMS_Audio_Persistent, v154 HIRC;
 # 2026-10-20 flight: no engine sound after a relight).

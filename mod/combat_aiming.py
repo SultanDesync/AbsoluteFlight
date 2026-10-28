@@ -1,9 +1,9 @@
-"""Copied manual-aim solutions and input friction, NMS 180836 / Steam 25732212.
+"""Copied manual-aim solutions and input friction, NMS 183791 / Steam 26271400.
 
 Observers never change native prediction, target selection or game memory. The
 release hooks own admission and native calling conventions. Prediction observes
 the native solver's actual anchor displacement and T72-corrected relative
-velocity; the manual reference is the returned point of 0x13F4D20. This v1 cue
+velocity; the manual reference is the returned point of 0x141B500. This v1 cue
 describes manual centreline aim, including the native manual gun offset. It is
 not a per-barrel muzzle, weapon gimbal or random spread simulation.
 """
@@ -18,12 +18,12 @@ from weapon_lead import APP_GLOBAL, OWNERS
 
 
 MAX_AGE_MS = 50
-SOLVER_CALLER = 0x158DC36
+SOLVER_CALLER = 0x15B9966
 # Internal sites remain verifiable after the observed function entries detour.
 PINS = {
-    0x158DC29: bytes.fromhex('0f2975ff0f294defe84a000000'),
-    0x158DC36: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
-    0x13F4EB4: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
+    0x15B9959: bytes.fromhex('0f2975ff0f294defe84a000000'),
+    0x15B9966: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
+    0x141B694: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
 }
 
 
@@ -231,8 +231,8 @@ class CombatAiming:
             if (not app or frame['owner'] != app + OWNERS['pip']
                     or local_player_ship(self.read, self.base) != ship):
                 return frame
-            body_owner = self._q(int(ship) + 0x6248)
-            context = self._q(body_owner + 0x60 + 0x328) if body_owner else 0
+            body_owner = self._q(int(ship) + 0x6258)
+            context = self._q(body_owner + 0x50 + 0x328) if body_owner else 0
             if not context or self._q(context + 0xA38) != 1:
                 return frame
             frame.update(app=app, body_owner=body_owner, shooter_context=context, allowed=True)
@@ -243,8 +243,8 @@ class CombatAiming:
     def _identity(self, frame):
         return (self._q(self.base + APP_GLOBAL) == frame['app']
                 and local_player_ship(self.read, self.base) == frame['ship']
-                and self._q(frame['ship'] + 0x6248) == frame['body_owner']
-                and self._q(frame['body_owner'] + 0x60 + 0x328) == frame['shooter_context']
+                and self._q(frame['ship'] + 0x6258) == frame['body_owner']
+                and self._q(frame['body_owner'] + 0x50 + 0x328) == frame['shooter_context']
                 and self._q(frame['shooter_context'] + 0xA38) == 1)
 
     def _projectile(self, app, ship, speed):
@@ -255,13 +255,13 @@ class CombatAiming:
         reality = self._q(app + 0x60)
         if not reality:
             return None
-        key = self.read(reality + 0x6AE0 + index * 0x40, 16)
-        begin, end = self._get(app + 0x6CD4E8, '<QQ')
+        key = self.read(reality + 0xB678 + index * 0x40, 16)
+        begin, end = self._get(app + 0x6CDB48, '<QQ')
         size = end - begin
         if not begin or size <= 0 or size % 24 or size > 24 * 4096:
             return None
         rows = self.read(begin, size)
-        if self._get(app + 0x6CD4E8, '<QQ') != (begin, end):
+        if self._get(app + 0x6CDB48, '<QQ') != (begin, end):
             return None
         for offset in range(0, size, 24):
             if rows[offset:offset + 16] != key:
@@ -280,8 +280,8 @@ class CombatAiming:
                 return None
             if (self._get(ship + 0x104, '<i')[0] != index
                     or self._q(app + 0x60) != reality
-                    or self._get(app + 0x6CD4E8, '<QQ') != (begin, end)
-                    or self.read(reality + 0x6AE0 + index * 0x40, 16) != key
+                    or self._get(app + 0x6CDB48, '<QQ') != (begin, end)
+                    or self.read(reality + 0xB678 + index * 0x40, 16) != key
                     or self.read(begin + offset, 24) != rows[offset:offset + 24]):
                 return None
             return {'projectile': key.split(b'\0', 1)[0].decode('ascii', errors='replace'),

@@ -1,35 +1,35 @@
-"""Readable enemy pilots: Newtonian-compatible space combat AI tuning, NMS 180836 / Steam 25732212.
+"""Readable enemy pilots: Newtonian-compatible space combat AI tuning, NMS 183791 / Steam 26271400.
 
 NPC ships fly by force (research/23-combat-ai-newtonian.md). Each frame the shared AI follower
-0x178A650 reads one cGcSpaceshipTravelData engine row and applies, as mass * acceleration:
+0x17BE2F0 reads one cGcSpaceshipTravelData engine row and applies, as mass * acceleration:
 thrust Force along the desired heading, faded linearly from Falloff*MaxSpeed to MaxSpeed, plus
 -DirectionBrake * (sideways velocity). DirectionBrake is an uncapped "grip": 3-5 per second
 kills sideways drift in 0.2-0.33 s, so vanilla pirates fly on rails while a Newtonian player
 slides. This tuning only changes numbers in the loaded cGcShipAIAttackDataTable rows that
 space combat uses; no code is patched and nothing is hooked.
 
-Pointer chain, every link pinned below: cGcApplication::Data = [NMS+0x6E8D708];
-cGcSimulation = Data+0x4CCF90; cGcAISpaceshipManager = Sim+0x200920; its loaded attack table
-pointer is at manager+0x60, so table = [Data+0x6CD910]. The table is a heap buffer loaded once
+Pointer chain, every link pinned below: cGcApplication::Data = [NMS+0x6F60828];
+cGcSimulation = Data+0x4CD580; cGcAISpaceshipManager = Sim+0x200990; its loaded attack table
+pointer is at manager+0x60, so table = [Data+0x6CDF70]. The table is a heap buffer loaded once
 by the manager's Construct; a reconstruct loads a fresh vanilla buffer, which is re-tuned.
 """
 import math
 import struct
 import threading
 
-APP_GLOBAL = 0x6E8D708
-TABLE_FROM_DATA = 0x4CCF90 + 0x200920 + 0x60
+APP_GLOBAL = 0x6F60828
+TABLE_FROM_DATA = 0x4CD580 + 0x200990 + 0x60
 PINS = {
-    # mov rcx,[NMS+0x6E8D708]; add rcx,0x4CCF90; call cGcSimulation::Construct
-    0x1B0C17: bytes.fromhex('488b0deacacd064881c190cf4c00e8066e2001'),
-    # lea rcx,[rdi+0x200920]; call cGcAISpaceshipManager::Construct
-    0x13B7DCA: bytes.fromhex('488d8f20092000e8fa2b3600'),
+    # mov rcx,[NMS+0x6F60828]; add rcx,0x4CD580; call cGcSimulation::Construct
+    0x1B4067: bytes.fromhex('488b0dbac7da064881c180d54c00e816942201'),
+    # lea rcx,[rdi+0x200990]; call cGcAISpaceshipManager::Construct
+    0x13DD82A: bytes.fromhex('488d8f90092000e8dafd3600'),
     # call LoadAttackTable; xor r12d,r12d; mov [rbx+0x60],rax
-    0x171A9FA: bytes.fromhex('e8e1ab00004533e448894360'),
+    0x174D63A: bytes.fromhex('e8b1ad00004533e448894360'),
     # follower reads MaxSpeed +0x24, MaxSpeedBrake +0x28, DirectionBrake +0x18
-    0x178A6E4: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
-    0x178A735: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
-    0x178A7AE: bytes.fromhex('f3410f596620'),  # Force +0x20
+    0x17BE384: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
+    0x17BE3D5: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
+    0x17BE44E: bytes.fromhex('f3410f596620'),  # Force +0x20
 }
 # cGcShipAIAttackDataTable dynamic arrays: (pointer offset, element stride). Count is i32 at +8.
 ARRAYS = {'behaviour': (0x40, 0xD0), 'engine': (0x60, 0x48)}

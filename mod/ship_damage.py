@@ -1,11 +1,13 @@
 """T93: leave the essentials of an abandoned ditched ship damaged, repaired the vanilla way (user 2026-10-20:
 "only the essentials: launch thruster, pulse engine and shields, saved with the game").
 
-Build 180836 / Steam 25732212 (research/re-log/2026-10-19_claude_ditching.md, "damaged ship technology"):
-- player state = [module+0x6E8D708] + 0xB940 (game state +0xE70, player state +0xAAD0): CONFIRMED static, the
+Build 183791 / Steam 26271400 (research/re-log/2026-10-19_claude_ditching.md, "damaged ship technology", build
+180836; re-checked on 183791 against the aligned code, 2026-10-28: only SMOKE_REFRESH moved):
+- player state = [module+0x6F60828] + 0xB940 (game state +0xE70, player state +0xAAD0): CONFIRMED static, the
   quick menu and the launcher-damaged check both use it;
-- primary ship index at player state +0x182A0, ship tech-only inventories (12 x 0x248) at +0xAB28: CONFIRMED;
-- inventory store: element count +0x8C, element array +0x90, 0x30 per element (GetElement 0x4C5B40): CONFIRMED;
+- primary ship index at player state +0x182A0, ship tech-only inventories (12 x 0x248) at +0xAB28 (0x591DA0,
+  0x5A9556): CONFIRMED;
+- inventory store: element count +0x8C, element array +0x90, 0x30 per element (GetElement 0x4CE7F0): CONFIRMED;
 - element: Id TkID0x10 inline at +0x0, DamageFactor float at +0x1C (nmspy cGcInventoryElement): layout
   CONFIRMED; that DamageFactor is what the takeoff refusal reads is LIKELY, the first live check decides.
 The edit is in the live inventory, so the game saves it.
@@ -13,7 +15,7 @@ The edit is in the live inventory, so the game saves it.
 import ctypes as C
 import struct
 
-APP_GLOBAL = 0x6E8D708
+APP_GLOBAL = 0x6F60828
 PLAYER_STATE = 0xB940
 PRIMARY_SHIP = 0x182A0
 TECH_INVENTORIES = 0xAB28
@@ -27,7 +29,7 @@ MAX_ELEMENTS = 512
 # Launch thruster, pulse engine, deflector shield (product IDs, LIKELY; matched exactly).
 ESSENTIALS = ('LAUNCHER', 'SHIPJUMP1', 'SHIPSHIELD')
 DAMAGED = 1.
-SMOKE_REFRESH = 0x7428  # T97: byte on cGcSpaceshipComponent; 1 makes Update 0x174A600 re-evaluate crash smoke
+SMOKE_REFRESH = 0x7438  # T97: byte on cGcSpaceshipComponent; 1 makes Update 0x177D700 re-evaluate crash smoke
 
 
 def _q(read, address):return struct.unpack('<Q', read(address, 8))[0]

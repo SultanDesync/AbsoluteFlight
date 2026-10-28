@@ -1,24 +1,26 @@
-"""T94 crash damage: four small caves in the game's own collision damage, build 180836 / Steam 25732212.
+"""T94 crash damage: four small caves in the game's own collision damage, build 183791 / Steam 26271400.
 
-Static research: research/re-log/2026-10-19_claude_collision-damage.md. The native collision handler 0x1761DD0
-already damages the ship on terrain (IMPACTGROUND, table damage 10) and placed objects (IMPACTINSTANCE, 30) through
-the ship's damage callback 0x1764560, at a flat rate. These caves make it scale with the impact speed and let a hard
-crash reach the hull, all through the game's own damage path (shields, hull, difficulty, launch-thruster break, HUD):
+Static research: research/re-log/2026-10-19_claude_collision-damage.md (build 180836; every site, register, stack
+slot and field used here re-checked on 183791 against the aligned code, 2026-10-28). The native collision handler
+0x17951D0 already damages the ship on terrain (IMPACTGROUND, table damage 10) and placed objects (IMPACTINSTANCE, 30)
+through the ship's damage callback 0x1797960, at a flat rate. These caves make it scale with the impact speed and let
+a hard crash reach the hull, all through the game's own damage path (shields, hull, difficulty, launch-thruster
+break, HUD):
 
-- A, 0x176491F `call 0xB04450` (the collision hit entering the damage route) becomes `call A`. A acts only for the
-  player's ship, for the collision caller (0x1764560 returns to 0x1762FB5) and the two IDs; anything else tail-jumps
+- A, 0x1797D1F `call 0xB1ED80` (the collision hit entering the damage route) becomes `call A`. A acts only for the
+  player's ship, for the collision caller (0x1797960 returns to 0x17963B5) and the two IDs; anything else tail-jumps
   to the original with its native return address. It measures the approach speed into the surface from the collision
   frame (speed = caller xmm8, saved at [rsp+0xD0]; unit direction [callerRBP+0x60]; hit normal hit+0x40):
   v_eff = speed*|cos| + glancing*speed*sin. Above the safe speed it sets the multiplier (the 5th argument) to
   (table + per_us*(v_eff-safe))/table, marks the hit hull-first and sets the launch-thruster break chance; it marks
   every collision hit for the never-kill cap. It then calls the original, clears the marks and logs the hit in a
   ring the runtime reads.
-- B, 0x1468676 in TakeDamage (`test rbx,rbx; jne`, the shield block): for a marked hull-first hit, jump straight to
-  the hull block 0x14688EC with r13d = 0, the native "shields already down" path. Shields are left as they are.
-- C, 0x1468FFF in the tech-break roll (`movss xmm4,[rsi+0x108]`, TechDamageChance): for that hit's damage definition,
-  load the speed-scaled chance instead. RFLAGS are live here (comiss at 0x1468FE7, jbe at 0x1469018): saved.
-- D, 0x1468914 in the hull block (`cmp byte [r15+0x10E],0`, the game's own non-lethal clamp test): for a marked hit,
-  always clamp the hull damage to hull-1 (0x5881F0 reads the hull), so terrain never empties the hull, and flag it.
+- B, 0x14902D6 in TakeDamage (`test rbx,rbx; jne`, the shield block): for a marked hull-first hit, jump straight to
+  the hull block 0x149054C with r13d = 0, the native "shields already down" path. Shields are left as they are.
+- C, 0x1490C5F in the tech-break roll (`movss xmm4,[rsi+0x108]`, TechDamageChance): for that hit's damage definition,
+  load the speed-scaled chance instead. RFLAGS are live here (comiss at 0x1490C47, jbe at 0x1490C78): saved.
+- D, 0x1490574 in the hull block (`cmp byte [r15+0x10E],0`, the game's own non-lethal clamp test): for a marked hit,
+  always clamp the hull damage to hull-1 (0x591980 reads the hull), so terrain never empties the hull, and flag it.
 - Submerged (user 2026-10-20: crash damage inactive while the ditch at sea runs): A sets the multiplier and the break
   chance to 0 and marks only SUBMERGED_HIT; B hands C that hit's damage definition so the launch-thruster roll uses 0.
   The sea floor scraping a sinking ship does nothing; the purge's hull meter is the hazard.
@@ -34,20 +36,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6E8D708
-HULL = 0xB940+0x898  # PlayerState hull (int), application+0xC1D8; 0x5881F0 reads [PlayerState+0x898]
-ROUTE = 0xB04450      # player damage route (player, id, source, direction, multiplier)
-COLLISION_RETURN = 0x1762FB5
-HULL_GETTER = 0x5881F0
+APP_GLOBAL = 0x6F60828
+HULL = 0xB940+0x898  # PlayerState hull (int), application+0xC1D8; 0x591980 reads [PlayerState+0x898]
+ROUTE = 0xB1ED80      # player damage route (player, id, source, direction, multiplier)
+COLLISION_RETURN = 0x17963B5
+HULL_GETTER = 0x591980
 SITES = {  # name: (rva, original bytes)
-    'multiplier': (0x176491F, bytes.fromhex('e82cfb39ff')),
-    'hull_first': (0x1468676, bytes.fromhex('4885db7509')),
-    'break_chance': (0x1468FFF, bytes.fromhex('f30f10a608010000')),
-    'never_kill': (0x1468914, bytes.fromhex('4180bf0e01000000')),
+    'multiplier': (0x1797D1F, bytes.fromhex('e85c7038ff')),
+    'hull_first': (0x14902D6, bytes.fromhex('4885db7509')),
+    'break_chance': (0x1490C5F, bytes.fromhex('f30f10a608010000')),
+    'never_kill': (0x1490574, bytes.fromhex('4180bf0e01000000')),
 }
-PIN_RANGES = ((0x1761E14, 121), (0x1762F99, 33), (0x1764560, 19), (0x17645B9, 61), (0x176490D, 29),
-              (0x1468627, 174), (0x146887B, 229), (0x1468FA8, 120), (0x5881F0, 45))
-PIN_SHA256 = '2c217fb5646c76599fb0cd4c78ace495efee34b2a17ec59d915f2708f9ad1cd0'
+PIN_RANGES = ((0x1795214, 121), (0x1796399, 33), (0x1797960, 19), (0x17979B9, 61), (0x1797D0D, 29),
+              (0x1490287, 174), (0x14904DB, 229), (0x1490C08, 120), (0x591980, 45))
+PIN_SHA256 = 'a0368ba7c588196528ee494473c489586671f3818bfd83bd3f9b3b0aee2a21d5'
 IDS = {1: b'IMPACTGROUND', 2: b'IMPACTINSTANCE'}
 KINDS = {1: 'ground', 2: 'object'}
 
@@ -77,7 +79,7 @@ GS_THREAD = bytes.fromhex('65 8b 04 25 48 00 00 00')  # mov eax, gs:[0x48] (TEB 
 
 
 def verify(read, base):
-    """True only when every pinned range matches build 180836 and each site holds its original bytes."""
+    """True only when every pinned range matches build 183791 and each site holds its original bytes."""
     h = hashlib.sha256()
     for rva, size in PIN_RANGES: h.update(read(base+rva, size))
     if h.hexdigest() != PIN_SHA256: return False
@@ -89,7 +91,7 @@ def multiplier_code(cave, base, data):
     c = Code(cave)
     def d(offset): return data+offset
     c.relative(b'\x83\x3d', d(ENABLED), b'\x01'); c.relative(JNE, 'pass')
-    c.emit(bytes.fromhex('48 8b 84 24 20 01 00 00'))       # rax = return address of 0x1764560
+    c.emit(bytes.fromhex('48 8b 84 24 20 01 00 00'))       # rax = return address of 0x1797960
     c.relative(b'\x48\x3b\x05', d(RETURN)); c.relative(JNE, 'pass')
     c.relative(b'\x48\x3b\x3d', d(SHIP)); c.relative(JNE, 'pass')  # rdi = the damaged ship
     c.relative(b'\x48\x83\x3d', d(ACTIVE_ID), b'\x00'); c.relative(JNE, 'pass')  # never nested
@@ -237,9 +239,9 @@ def hull_first_code(cave, base, data):
     c.relative(b'\x4c\x89\x3d', data+ACTIVE_DEF)            # r15 = damage definition, for C
     c.relative(b'\x83\x0d', data+APPLIED, bytes([HULL_APPLIED]))
     c.emit(bytes.fromhex('45 31 ed'))                       # r13d = 0: shields already down
-    c.relative(b'\xe9', base+0x14688EC)
+    c.relative(b'\xe9', base+0x149054C)
     c.label('orig')
-    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x1468684)
+    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x14902E4)
     c.relative(b'\xe9', base+rva+5)
     return c.finish()
 
@@ -270,10 +272,10 @@ def never_kill_code(cave, base, data):
     c.label('capped')
     c.relative(b'\x83\x0d', data+APPLIED, bytes([CAPPED]))
     c.label('done')
-    c.relative(b'\xe9', base+0x1468940)
+    c.relative(b'\xe9', base+0x14905A0)
     c.label('orig')
-    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x1468940)
-    c.relative(b'\xe9', base+0x146891E)
+    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x14905A0)
+    c.relative(b'\xe9', base+0x149057E)
     return c.finish()
 
 

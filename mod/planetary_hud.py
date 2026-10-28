@@ -31,7 +31,7 @@ REASON_IDENTITY = 3  # identity gates failed: this frame's state was not capture
 REASON_APPLIED = 9  # the helper's acceleration was written this frame
 
 # T86 R3: M=[module+0x6E8D708], solar=[M+0x72AFB0], planets at solar+0x2E30, stride 0xD9170.
-APP_GLOBAL, SOLAR = 0x6E8D708, 0x72AFB0
+APP_GLOBAL, SOLAR = 0x6F60828, 0x72B610  # solar 0x72AFB0 on 180836; planet layout unchanged
 PLANET_ARRAY, PLANET_STRIDE, PLANET_COUNT = 0x2E30, 0xD9170, 0x2544
 P_CENTRE, P_RADIUS, P_SEA, P_ATMOSPHERE = 0xD74D0, 0x3CA0, 0x31D8, 0x1E90
 MAX_PLANETS = 6
@@ -104,11 +104,11 @@ def process_read(address, size, _buffer={}):
     return out.raw
 
 
-# The rigid body the final cave snapshots (its identity chain): B=[ship+0x6248]+0x60, S=[B+0x290],
+# The rigid body the final cave snapshots (its identity chain): B=[ship+0x6258]+0x50 (183791), S=[B+0x290],
 # C=[B+0x328]; context id C+0xA38 (1 = primary). S+0x10/20/30 axes, S+0x40/50 position halves, S+0x60 velocity.
-SHIP_PHYSICS, BODY, BODY_STATE, BODY_CONTEXT, CONTEXT_ID = 0x6248, 0x60, 0x290, 0x328, 0xA38
+SHIP_PHYSICS, BODY, BODY_STATE, BODY_CONTEXT, CONTEXT_ID = 0x6258, 0x50, 0x290, 0x328, 0xA38
 S_AXES, S_POSITION, S_VELOCITY = 0x10, 0x40, 0x60
-SHIP_LOW_HEIGHT, SHIP_LANDING = 0x6720, 0x7308
+SHIP_LOW_HEIGHT, SHIP_LANDING = 0x6730, 0x7318
 
 
 class BodyReader:

@@ -1,4 +1,4 @@
-"""D8 candidate, build180836/25732212; NOT authorized or installed by import.
+"""D8 candidate, build 183791/26271400 (remapped from 180836); NOT authorized or installed by import.
 
 Only adds a bounded perpendicular correction to the native blended force lane.
 Two native sites share same-invocation coefficient capture. No velocity write.
@@ -6,7 +6,7 @@ Two native sites share same-invocation coefficient capture. No velocity write.
 import json,struct
 from pathlib import Path
 from native_roll_patch import Code,K,allocate_near,replace_code
-from native_mav_observer import SITES,capture_bytes,decode_snapshot
+from native_mav_observer import ADDPS,CAPTURE_SITE,FORCE_SITE,SITES,STACK,capture_bytes,decode_snapshot
 
 SIZE=640;FORCE=256;CONSTANTS=512
 LIMIT=.0499999 # rounding margin below first-proof norm0.05
@@ -65,7 +65,7 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
         c.relative(b'\x48\x3b\x05',integration['frame']+64 if integration else f+16);jump(b'\x0f\x83')
         c.relative(b'\x48\x3b\x05',f+32);jump(b'\x0f\x83')
 
-    c.emit(SITES[0x175C435][:3]) # native ADDPS, exactly once before any guard
+    c.emit(SITES[FORCE_SITE][:ADDPS]) # native ADDPS, exactly once before any guard
     c.emit(bytes.fromhex('9c 50 51 52 41 50 41 51 41 52 41 53 48 81 ec 80 00 00 00'))
     for r in range(6):c.emit(bytes([0xf3,0x0f,0x7f,0x44+8*r,0x24,0x20+16*r]))
     for prefix,address,suffix in ((b'\x83\x3d',data,b'\x01'),(b'\x48\x3b\x35',data+8,b''),(b'\x48\x3b\x2d',data+16,b'')):
@@ -74,24 +74,25 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
     c.relative(b'\x48\xff\x05',data+40)
     c.relative(b'\x48\x89\x05',data+32);c.relative(b'\x48\x89\x05',data+80);c.relative(b'\x48\x89\x2d',data+88)
     c.relative(b'\xf3\x0f\x7e\x05',data+64);c.relative(b'\x66\x0f\xd6\x05',data+96)
-    c.emit(bytes.fromhex('f3 0f 10 84 24 24 01 00 00'));st(0,data+104)
-    for offset,target,vector in ((0x90,108,False),(0x170,112,True),(0x430,128,True),(0x4170,180,False),(0x1cb0,192,True),(0x1cc0,208,True),(0x1cd0,224,True)):
-        if vector:vp(0,offset);storeps(0,data+target)
+    c.emit(bytes.fromhex('f3 0f 10 84 24 20 01 00 00'));st(0,data+104)  # native RSP+0x60 (183791)
+    for offset,target in STACK:
+        if offset not in (0x7C,0x4180):vp(0,offset);storeps(0,data+target)
         else:c.emit(b'\xf3\x0f\x10\x85'+struct.pack('<i',offset));st(0,data+target)
-    storeps(6,data+144);storeps(7,data+160);c.relative(b'\xf3\x44\x0f\x11\x05',data+176)
-    storeps(7,f+112);storeps(7,f+128);ps(0x57,0,0);storeps(0,f+64);storeps(0,f+80)
+    # 183791: the force lane is XMM8 (REX 44), the signed forward speed XMM7.
+    storeps(6,data+144);c.relative(b'\x44\x0f\x11\x05',data+160);c.relative(b'\xf3\x0f\x11\x3d',data+176)
+    c.relative(b'\x44\x0f\x11\x05',f+112);c.relative(b'\x44\x0f\x11\x05',f+128);ps(0x57,0,0);storeps(0,f+64);storeps(0,f+80)
     reason(0);admission()
     reason(2);clock()
     reason(3)
     modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),
-           ('83 be 4c 67 00 00 '+('03' if allow_power_input else '00'),
+           ('83 be 5c 67 00 00 '+('03' if allow_power_input else '00'),
             b'\x0f\x87' if allow_power_input else b'\x0f\x85'))
-    if not allow_planetary_input:modes+=(('80 be 20 67 00 00 00',b'\x0f\x85'),)
+    if not allow_planetary_input:modes+=(('80 be 30 67 00 00 00',b'\x0f\x85'),)
     for instruction,condition in modes:
         c.emit(bytes.fromhex(instruction));jump(condition)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot));c.emit(bytes.fromhex('48 85 c0'));jump(b'\x0f\x84')
-    for instruction,condition in (('83 b8 98 54 87 00 00',b'\x0f\x85'),
-            ('80 b8 0d a4 57 00 '+('01' if allow_combat_input else '00'),
+    for instruction,condition in (('83 b8 98 bd 89 00 00',b'\x0f\x85'),
+            ('80 b8 6d aa 57 00 '+('01' if allow_combat_input else '00'),
              b'\x0f\x87' if allow_combat_input else b'\x0f\x85')):
         c.emit(bytes.fromhex(instruction));jump(condition)
     reason(4)
@@ -101,9 +102,9 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
                   allow_planetary_input=allow_planetary_input,
                   allow_combat_input=allow_combat_input,allow_power_input=allow_power_input)
     else:
-        for offset,limit in ((0x4170,.0001),):
+        for offset,limit in ((0x4180,.0001),):
             c.emit(b'\x8b\x85'+struct.pack('<i',offset)+bytes.fromhex('25 ff ff ff 7f')+b'\x3d'+struct.pack('<f',limit));jump(b'\x0f\x87')
-        for offset in (0x7680,0x7684):
+        for offset in (0x7690,0x7694):
             c.emit(b'\x8b\x86'+struct.pack('<i',offset)+bytes.fromhex('25 ff ff ff 7f')+b'\x3d'+struct.pack('<f',.00001));jump(b'\x0f\x87')
     reason(5)
     for address in (command_target,command_target+4):
@@ -113,11 +114,11 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
     reason(6)
     for address,maximum in ((data+96,16),(data+100,16),(data+104,16),(data+108,1)):
         c.relative(b'\x8b\x05',address);c.emit(b'\x3d'+struct.pack('<f',maximum));jump(b'\x0f\x87')
-    reason(7);vp(3,0x170);ps(0x28,4,3);ps(0x59,4,3);sum_xyz();st(4,f+100)
+    reason(7);vp(3,0x1b0);ps(0x28,4,3);ps(0x59,4,3);sum_xyz();st(4,f+100)
     c.relative(b'\x0f\x2e\x25',k+16);jump(b'\x0f\x8a');jump(b'\x0f\x82')
     c.relative(b'\x0f\x2e\x25',k+20);jump(b'\x0f\x87');ps(0x28,1,4)
-    ld(0,command_target);broadcast(0);vp(2,0x1cb0);ps(0x59,2,0)
-    ld(0,command_target+4);broadcast(0);vp(4,0x1cc0);ps(0x59,4,0);ps(0x58,2,4)
+    ld(0,command_target);broadcast(0);vp(2,0x1e60);ps(0x59,2,0)
+    ld(0,command_target+4);broadcast(0);vp(4,0x1e70);ps(0x59,4,0);ps(0x58,2,4)
     c.relative(b'\x0f\x54\x15',data+576)
     ps(0x28,4,2);ps(0x59,4,3);sum_xyz();ss(0x5e,4,1);broadcast(4);ps(0x59,4,3);ps(0x5c,2,4)
     c.relative(b'\x0f\x54\x15',data+576);reason(8);clamp('target_bounded');storeps(2,f+80)
@@ -132,10 +133,10 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
                   allow_planetary_input=allow_planetary_input,
                   allow_combat_input=allow_combat_input,allow_power_input=allow_power_input)
     c.relative(b'\x48\x8b\x05',generation);c.relative(b'\x48\x3b\x05',f+152);jump()
-    c.relative(b'\x0f\x10\x15',f+64);ps(0x58,7,2)
-    c.relative(b'\x0f\x54\x3d',data+576);c.relative(b'\x0f\x10\x05',f+112)
-    c.relative(b'\x0f\x54\x05',data+592);ps(0x56,7,0) # original W lane bit-exact
-    storeps(7,f+128);c.relative(b'\x48\xff\x05',f+40)
+    c.relative(b'\x0f\x10\x15',f+64);c.emit(bytes.fromhex('44 0f 58 c2'))  # ADDPS XMM8,XMM2
+    c.relative(b'\x44\x0f\x54\x05',data+576);c.relative(b'\x0f\x10\x05',f+112)
+    c.relative(b'\x0f\x54\x05',data+592);c.emit(bytes.fromhex('44 0f 56 c0')) # ORPS XMM8,XMM0: original W lane bit-exact
+    c.relative(b'\x44\x0f\x11\x05',f+128);c.relative(b'\x48\xff\x05',f+40)
     if integration:c.relative(b'\x83\x0d',integration['frame']+200,b'\x30')
     if integration:
         c.relative(b'\x48\x8b\x05',integration['frame']+24);c.relative(b'\x48\x89\x05',f+160)
@@ -145,7 +146,7 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
     c.label('restore')
     for r in range(6):c.emit(bytes([0xf3,0x0f,0x6f,0x44+8*r,0x24,0x20+16*r]))
     c.emit(bytes.fromhex('48 8d a4 24 80 00 00 00 41 5b 41 5a 41 59 41 58 5a 59 58 9d'))
-    c.emit(SITES[0x175C435][3:]);c.relative(b'\xe9',site+7)
+    c.emit(SITES[FORCE_SITE][ADDPS:]);c.relative(b'\xe9',site+len(SITES[FORCE_SITE]))
     result=c.finish()
     if len(result)>(0x1800 if integration else 0xa00):raise ValueError('Force cave overlaps data')
     return result
@@ -156,21 +157,21 @@ class MavPatch:
         limit=bounded_limit(bound)
         self.pm,self.pid=pm,pid;self.base=pm.process_base.lpBaseOfDll
         for rva,original in SITES.items():
-            if pm.read_bytes(self.base+rva,7)!=original:raise RuntimeError('Original MAV bytes differ')
-        self.cave=allocate_near(pm.process_handle,self.base+0x175C134)
-        force_cave=allocate_near(pm.process_handle,self.base+0x175C435) if integration else self.cave+0x200
+            if pm.read_bytes(self.base+rva,len(original))!=original:raise RuntimeError('Original MAV bytes differ')
+        self.cave=allocate_near(pm.process_handle,self.base+CAPTURE_SITE)
+        force_cave=allocate_near(pm.process_handle,self.base+FORCE_SITE) if integration else self.cave+0x200
         self.block=self.cave+(0x400 if integration else 0xc00);self.force=self.block+FORCE;self.patches={}
         for i,(rva,original) in enumerate(SITES.items()):
             site=self.base+rva;cave=force_cave if i else self.cave
-            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6e8d708,bound,integration)
+            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6f60828,bound,integration)
             pm.write_bytes(cave,code,len(code))
             if not K.FlushInstructionCache(pm.process_handle,cave,len(code)):raise OSError('Cache flush failed')
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('MAV cave readback differs')
-            patch=b'\xe9'+struct.pack('<i',cave-site-5)+b'\x90'*2
+            patch=b'\xe9'+struct.pack('<i',cave-site-5)+b'\x90'*(len(original)-5)
             self.patches[rva]={'site':site,'original':original.hex(),'patch':patch.hex(),'code':code.hex()}
         state=initial_state(ship,lease,bound);pm.write_bytes(self.block,state,len(state))
         if not K.FlushInstructionCache(pm.process_handle,self.cave,0x1000):raise OSError('Cache flush failed')
-        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'180836/25732212','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
+        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'183791/26271400','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
         with Path(manifest).open('x') as f:json.dump(self.metadata,f,indent=2)
     def install(self,writer=replace_code):
         for item in self.patches.values():writer(self.pm,self.pid,item['site'],bytes.fromhex(item['original']),bytes.fromhex(item['patch']))
@@ -191,10 +192,10 @@ class MavPatch:
         self.clear();self.pm.write_bytes(self.block,bytes(4),4);results={}
         for rva,item in self.patches.items():
             try:
-                site=item['site'];original=bytes.fromhex(item['original']);patch=bytes.fromhex(item['patch']);current=self.pm.read_bytes(site,7)
+                site=item['site'];original=bytes.fromhex(item['original']);patch=bytes.fromhex(item['patch']);current=self.pm.read_bytes(site,len(original))
                 if current==patch:writer(self.pm,self.pid,site,patch,original)
                 elif current!=original:raise RuntimeError('Foreign code; refused')
-                results[hex(rva)]=self.pm.read_bytes(site,7)==original
+                results[hex(rva)]=self.pm.read_bytes(site,len(original))==original
             except BaseException as error:results[hex(rva)]=repr(error)
         if any(v is not True for v in results.values()):raise RuntimeError(str(results))
         return results

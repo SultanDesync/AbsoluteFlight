@@ -1,16 +1,17 @@
-"""T95 native side of the ship alarms (mod/ship_alarms.py), build 180836 / Steam 25732212.
+"""T95 native side of the ship alarms (mod/ship_alarms.py), build 183791 / Steam 26271400.
 
 Three pieces, each pinned by its bytes; any mismatch leaves the alarms off (silence, native lights) and the
-ditch and crash unchanged. Static research: research/re-log/2026-10-19_claude_ditch-ambience.md.
+ditch and crash unchanged. Static research: research/re-log/2026-10-19_claude_ditch-ambience.md (build 180836;
+re-checked on 183791 against the aligned code, 2026-10-28).
 
 - Sound: the exported AK::SoundEngine::PostEvent (resolved by its export name, entry bytes pinned), the same
-  call cTkAudioManager::Play 0x2E32990 makes, on the ship's audio object [ship+0x6258] (eject 0x17542BE) or the
-  HUD object [M+0x732938] (0x4050AD). Wwise queues it to the audio thread; the runtime posts from the flight
+  call cTkAudioManager::Play 0x2EA5A10 makes, on the ship's audio object [ship+0x6268] (eject 0x178740E) or the
+  HUD object [M+0x7330F8] (0x40CD6D). Wwise queues it to the audio thread; the runtime posts from the flight
   thread like the game does, and only loop stops from elsewhere (shutdown).
-- Engine sound: the game's own switch 0x1764960(ship, on), which posts Pl_Ship_Engines_Start/Stop and keeps its
-  state in ship+0x6718, so the landing machine's later calls stay consistent. Flight thread only.
-- Cockpit alarm lights: byte ship+0x6F4F (pinned by the only native writer, 0x1763340..0x176336B, inside Update)
-  held on from the Update after-hook each frame; the light pass (0x17D5AB0.. pinned, it reads the globals below
+- Engine sound: the game's own switch 0x1797D60(ship, on), which posts Pl_Ship_Engines_Start/Stop and keeps its
+  state in ship+0x6728, so the landing machine's later calls stay consistent. Flight thread only.
+- Cockpit alarm lights: byte ship+0x6F5F (pinned by the only native writer, 0x1796740..0x179676B, inside Update)
+  held on from the Update after-hook each frame; the light pass (0x180AB40.. pinned, it reads the globals below
   by RIP) then pulses AlarmLightColour at AlarmRate. Red = the game's own hostile colour copied over the normal
   light blue while ours, with the hostile intensity; originals restored where they still hold our values.
 """
@@ -20,23 +21,23 @@ import struct
 
 POST_EVENT_EXPORT = (b'?PostEvent@SoundEngine@AK@@YAII_KIP6AXW4AkCallbackType@@PEAUAkCallbackInfo@@@ZPEAXIPEAU'
                      b'AkExternalSourceInfo@@I@Z')
-POST_EVENT_RVA = 0x319D740
-ENGINE_SOUND_RVA = 0x1764960
-PINS = {  # rva -> bytes at that rva (exe on disk, build 180836)
+POST_EVENT_RVA = 0x32107D0
+ENGINE_SOUND_RVA = 0x1797D60
+PINS = {  # rva -> bytes at that rva (exe on disk, build 183791)
     POST_EVENT_RVA: '488bc44889580848896810488970184c89702041574883ec704533d2498bf141',
-    ENGINE_SOUND_RVA: '48895c2408574883ec300fb681186700000fb6fa488bd984d2744b84c00f859f',
-    0x1763340: '389f4f6f00007506899f506f00004488af4f6f0000eb14389f4f6f00007506899f506f0000889f4f6f0000',
-    0x17D5AB0: ('488b05517c6b05b301f30f10354f03a503410f28c380b80da45700007418f30f10353603a503eb0ef30f10352803a503'
-                '32db410f28c380be6f02000000741ef30f5935057698050f28c6e8bff0c001f30f5cf0b2030f28c6e8b39a590184db74'
-                '0af30f101deb02a503eb08f30f101ddd02a50384db488d0df4f0a403488d05ddf0a403480f45c10f1030'),
+    ENGINE_SOUND_RVA: '48895c2408574883ec300fb681286700000fb6fa488bd984d2744b84c00f859f',
+    0x1796740: '389f5f6f00007506899f606f00004488af5f6f0000eb14389f5f6f00007506899f606f0000889f5f6f0000',
+    0x180AB40: ('488b05e15c7505b301f30f10353fc5ae03410f28c380b86daa5700007418f30f103526c5ae03eb0ef30f103518c5ae03'
+                '32db410f28c380be6f02000000741ef30f5935ed92a2050f28c6e82124c801f30f5cf0b2030f28c6e813585d0184db74'
+                '0af30f101ddbc4ae03eb08f30f101dcdc4ae0384db488d0db4b2ae03488d059db2ae03480f45c10f1030'),
 }
-APP_GLOBAL = 0x6E8D708   # cGcApplication::Data
-HUD_OBJECT = 0x732938    # [M+...]: the audio object of 137 native UI sounds
-SHIP_OBJECT = 0x6258     # [ship+...]: the ship's 3D audio object
-ALARM_FLAG = 0x6F4F      # ship byte: cockpit alarm lights on
-GLOBALS = 0x5224BC0      # gcspaceshipglobals (light pass RIP refs 0x17D5AB9..0x17D5B2C)
+APP_GLOBAL = 0x6F60828   # cGcApplication::Data
+HUD_OBJECT = 0x7330F8    # [M+...]: the audio object of 137 native UI sounds
+SHIP_OBJECT = 0x6268     # [ship+...]: the ship's 3D audio object
+ALARM_FLAG = 0x6F5F      # ship byte: cockpit alarm lights on
+GLOBALS = 0x52F5E10      # gcspaceshipglobals (light pass RIP refs 0x180AB49..0x180ABBC)
 COLOUR, COLOUR_HOSTILE = 0x50, 0x60          # 4 floats each: light blue, red
-INTENSITY, INTENSITY_HOSTILE, RATE = 0x1240, 0x1244, 0x1248
+INTENSITY, INTENSITY_HOSTILE, RATE = 0x1270, 0x1274, 0x1278  # 183791: +0x30 (light pass RIP refs)
 
 K = C.WinDLL('kernel32', use_last_error=True)
 K.GetProcAddress.argtypes = [C.c_void_p, C.c_char_p]

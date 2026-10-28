@@ -13,9 +13,10 @@ the native force stage used in that invocation.
 import csv,math,struct,time
 
 # Engine block fields per research/18 (T53 static map): BoostMaxSpeed, Falloff, OverspeedBrake, ThrustForce.
-SHIP_FIELDS=(('boost_max_speed',0x6640,'<f'),('falloff',0x6650,'<f'),('overspeed_brake',0x6680,'<f'),('thrust_force',0x6694,'<f'),
-             ('max_endpoint',0x6674,'<f'),('min_endpoint',0x6678,'<f'),('smooth_velocity',0x6700,'<f'),
-             ('smooth_position',0x6704,'<f'),('shared_demand',0x7698,'<f'),('gate_674c',0x674C,'<I'),('gate_6720',0x6720,'<B'))
+# 183791 offsets (each +0x10 from 180836); column names keep their 180836 offsets for continuity.
+SHIP_FIELDS=(('boost_max_speed',0x6650,'<f'),('falloff',0x6660,'<f'),('overspeed_brake',0x6690,'<f'),('thrust_force',0x66A4,'<f'),
+             ('max_endpoint',0x6684,'<f'),('min_endpoint',0x6688,'<f'),('smooth_velocity',0x6710,'<f'),
+             ('smooth_position',0x6714,'<f'),('shared_demand',0x76A8,'<f'),('gate_674c',0x675C,'<I'),('gate_6720',0x6730,'<B'))
 CHANNELS=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical')
 NEWTONIAN_COLUMNS=(['flight_model','newtonian_admitted','newtonian_reason','command_state','command_generation','command_age_ms',
                     'newtonian_native_reason','newtonian_invocation','newtonian_speed','newtonian_forward_speed',

@@ -1,4 +1,4 @@
-"""Build-180836 D6 roll cave: low XMM7 lane, native deadlines, verified restore."""
+"""Build-183791 (remapped from 180836) D6 roll cave: low XMM7 lane, native deadlines, verified restore."""
 import contextlib
 import ctypes as C
 import json
@@ -17,8 +17,8 @@ K.VirtualProtectEx.restype=C.c_int
 K.FlushInstructionCache.argtypes=[C.c_void_p,C.c_void_p,C.c_size_t];K.FlushInstructionCache.restype=C.c_int
 K.GetCurrentProcess.argtypes=[];K.GetCurrentProcess.restype=C.c_void_p
 K.VirtualAllocEx.argtypes=[C.c_void_p,C.c_void_p,C.c_size_t,C.c_uint32,C.c_uint32];K.VirtualAllocEx.restype=C.c_void_p
-ORIGINAL=bytes.fromhex("44 0F 28 EF F3 44 0F 59 AE 88 66 00 00")
-SITE_RVA=0x175DCE9
+ORIGINAL=bytes.fromhex("44 0F 28 EF F3 44 0F 59 AE 98 66 00 00")
+SITE_RVA=0x17910C8
 
 
 class Code:

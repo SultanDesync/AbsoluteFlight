@@ -94,6 +94,11 @@ class ShipCondition:
         rng = random.Random(now_ms)
         self.fall_spin = tuple(m*(1. if rng.random() < .5 else -1.)*rng.uniform(.75, 1.) for m in TUMBLE)
 
+    def hold_fall(self, ms):
+        """The game stood still for ms (paused): the fall's timers wait as long."""
+        if self.fall_since_ms is not None:self.fall_since_ms += ms
+        if self.fall_still_ms is not None:self.fall_still_ms += ms
+
     def tumble(self, speed):
         """(yaw, pitch, roll) stick shares for the falling wreck at this speed (u/s); centred when not falling."""
         if self.fall_since_ms is None or speed is None:return (0., 0., 0.)

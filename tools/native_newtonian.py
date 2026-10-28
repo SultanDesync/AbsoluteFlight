@@ -1,4 +1,4 @@
-"""T55 qualified acceleration seam, exact build180836 / Steam25732212.
+"""T55 qualified acceleration seam, exact build 183791 / Steam 26271400 (remapped from 180836 on 2026-10-28).
 
 Only final stack XYZ is replaced, immediately before native mass scaling. Native
 rotation, collisions, gravity, integration and all fallback paths remain native.
@@ -18,7 +18,7 @@ import struct
 from native_roll_patch import Code, K, MemoryInfo, replace_code
 
 MANIFEST=Path(__file__).with_name('native_newtonian_sites.json')
-EXPECTED_SHA='13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499'
+EXPECTED_SHA='d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87'
 CONTROL=0x000; WORK=0x400; WORK_SIZE=0x400; RING=0x1000
 SLOT=0x800; CAPACITY=1024; ALLOCATION=RING+SLOT*CAPACITY
 NEAR_DISTANCE=0x10000000 # one contiguous block within256MiB of final site
@@ -27,15 +27,15 @@ COMMAND=0x800; MAX_LEASE_MS=250
 # low-height gate (ship+0x6720) and a nonzero ground-clearance term are tolerated, and that term
 # is added to the command as a safety net. 0 (the initial value) keeps the space-only admission.
 PLANETARY=0x3F0
-LOW_HEIGHT='80 be 20 67 00 00 00'
-# T88 integrator clamp. The radial velocity clamp is 2*[ship+0x6640] (BoostMaxSpeed), loaded at
-# 0x176043D and doubled at 0x176044C (research/re-log/2026-10-16_codex_newtonian-gates.md, CONFIRMED
+LOW_HEIGHT='80 be 30 67 00 00 00'
+# T88 integrator clamp. The radial velocity clamp is 2*[ship+0x6650] (BoostMaxSpeed; 0x6640 on 180836), loaded at
+# 0x179383F and doubled at 0x179384F (183791; 0x176043D/0x176044C on 180836) (research/re-log/2026-10-16_codex_newtonian-gates.md, CONFIRMED
 # static). In air native blends that field toward the Planet engine block, which capped a Sultan
 # Fighter at 305.6 u/s (2*152.8) on 2026-10-19. Planetary caves only; signature unique in the exe.
 CLAMP_HALF=0x3F4
-CLAMP_SITE={'rva':0x176043d,'size':8,'original':'f30f109640660000',
-            'signature':'f30f1096406600004533c90f287d60f30f58d20fc6c00049',
-            'instructions':['0x176043d: movss xmm2, dword ptr [rsi + 0x6640]']}
+CLAMP_SITE={'rva':0x179383f,'size':8,'original':'f30f109650660000',
+            'signature':'f30f1096506600004533c9440f284d50f30f58d20fc6c000',
+            'instructions':['0x179383f: movss xmm2, dword ptr [rsi + 0x6650]']}
 # T93 ditch at sea (research/re-log/2026-10-19_claude_ditching.md). The native ground-clearance term treats
 # the sea as ground, and under water it grows to thousands of u/s^2: one frame of it flung a ditched ship
 # from 15 to 306 u/s (user flight 2026-10-19). While WATER is 1 and the ship is over water (ship+0x62E0),
@@ -46,15 +46,15 @@ WATER_PUSH=0x3EC
 DEFAULT_WATER_PUSH=50.
 # T101 manual landing (research/re-log/2026-10-20_claude_manual-landing-m1-m2.md). While GEAR is 1 the planetary
 # caves never add the ground-clearance term to a written command, so Sultan can fly down to touchdown; native
-# fallback frames keep it. The planetary final cave also copies UpdateControlled's terrain clearance [rbp+0x18]
-# (min of height above sea and above the terrain ray hit, 0x1756F9C) into the work record at CLEARANCE.
+# fallback frames keep it. The planetary clearance cave (CLEARANCE_SITE) copies UpdateControlled's terrain clearance
+# (min of height above sea and above the terrain ray hit) into the work record at CLEARANCE.
 GEAR=0x3E8
 CLEARANCE=0x330
 # Corvette (10): 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete. Only the normal piloted caller
-# (return 0x1751001) is latched, so its idle route (0x1750C82) stays native (T65 static map).
+# (return 0x1784121 on 183791, 0x1751001 on 180836) is latched, so its idle route stays native (T65 static map).
 SUPPORTED_CLASSES=frozenset((1,2,3,4,6,7,8,9,10))
 CORVETTE=10
-CORVETTE_AUTOPILOT=3  # ship+0x6420 alignment selector: the Corvette autopilot flies (hand back to native)
+CORVETTE_AUTOPILOT=3  # ship+0x6430 (0x6420 on 180836) alignment selector: the Corvette autopilot flies (hand back to native)
 REASONS={0:'idle',1:'native_disabled',2:'expired_coast',3:'identity_changed',
          4:'native_mode',5:'physics_unqualified',6:'missing_same_invocation_terms',
          7:'height_safety_active',8:'nonfinite_velocity_or_gravity',9:'applied',
@@ -123,7 +123,7 @@ def _owner_guard(c,data,avoidance=False):
     if avoidance:
         _check(c,b'\x48\x3b\x0d',data+16) # explicit RCX native body
         c.relative(b'\x48\x8b\x05',data+8)
-        c.emit(bytes.fromhex('48 05 a0 70 00 00 4c 39 f8'));c.relative(b'\x0f\x85','out')
+        c.emit(bytes.fromhex('48 05 b0 70 00 00 4c 39 f8'));c.relative(b'\x0f\x85','out')
     else:
         _check(c,b'\x48\x3b\x35',data+8)
         _check(c,b'\x48\x3b\x2d',data+40)
@@ -165,7 +165,7 @@ def capture_code(kind,cave,site,data):
         _store_xmm(c,0,w+VECTORS['direction_blend'])
         bit=BITS['direction_blend']|BITS['proportional_weighted']|BITS['alignment_weighted']
     elif kind=='height':
-        _stack_vector(c,0x580,w+VECTORS['height'])
+        _stack_vector(c,0x520,w+VECTORS['height'])
         # Original XMM0 saved at our RSP+20; PRE-add is prior full correction.
         c.emit(bytes.fromhex('0f 10 44 24 20'));_store_xmm(c,0,w+VECTORS['before_height'])
         bit=BITS['height']|BITS['before_height']
@@ -173,8 +173,9 @@ def capture_code(kind,cave,site,data):
         name,r=source[kind]
         # XMM0..5 are saved before guards; RAX use never alters their value.
         _store_xmm(c,r,w+VECTORS[name]);bit=BITS[name]
-        if kind=='gravity':_store_xmm(c,7,w+VECTORS['control_without_gravity'])
-        if kind=='reverse':_stack_vector(c,0x100,w+VECTORS['accum100'])
+        # 183791: the control sum without gravity is XMM9 at the gravity site (was XMM7).
+        if kind=='gravity':_store_xmm(c,9,w+VECTORS['control_without_gravity'])
+        if kind=='reverse':_stack_vector(c,0x50,w+VECTORS['accum100'])  # 183791: accumulator [rbp+0x50] (was +0x100)
     c.relative(b'\x81\x0d',data+60,struct.pack('<I',bit))
     c.label('out');_restore(c)
     if not after:c.emit(original)
@@ -187,8 +188,8 @@ def latch_code(cave,site,data,base):
     c=Code(cave);c.emit(bytes.fromhex(site['original']));_save(c)
     _check(c,b'\x83\x3d',data,b'\x01')
     _check(c,b'\x48\x3b\x35',data+8)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1751001))
-    c.emit(bytes.fromhex('48 39 85 58 41 00 00'));c.relative(b'\x0f\x85','out')
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     c.emit(bytes.fromhex('65 8b 04 25 48 00 00 00'))
     c.relative(b'\x83\x3d',data+56,b'\x00');c.relative(b'\x0f\x84','set_thread')
     _check(c,b'\x3b\x05',data+56)
@@ -208,8 +209,8 @@ def latch_code(cave,site,data,base):
 def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,allow_planetary_flight=False):
     from native_autobank import AUTOBANK_COUNT,AUTOBANK_INVOCATION
     c=Code(cave);_save(c);_owner_guard(c,data)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1751001))
-    c.emit(bytes.fromhex('48 39 85 58 41 00 00'));c.relative(b'\x0f\x85','out')
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     w=data+WORK
     def reason(n):c.relative(b'\xc7\x05',w+60,struct.pack('<I',n))
     def fail(n):reason(n)
@@ -223,14 +224,14 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     # Capture before any admission/rejection. Only pinned own-body memory is read.
     for reg,target in ((6,16),(13,24)):
         c.relative((b'\x4c' if reg>=8 else b'\x48')+bytes([0x89,0x05+8*(reg%8)]),w+target)
-    _stack_vector(c,0x60,w+80);_stack_vector(c,0x60,w+96)
+    _stack_vector(c,0x50,w+80);_stack_vector(c,0x50,w+96)
     c.relative(b'\x8b\x05',data+60);c.relative(b'\x89\x05',w+56)
     c.emit(b'\x48\xb8'+struct.pack('<Q',get_tick)+b'\xff\xd0')
     c.relative(b'\x48\x89\x05',w+48)
     fail(3)
     # Identity chain must still match the originally qualified native player body.
-    c.emit(bytes.fromhex('48 8b 86 48 62 00 00'));ne(b'\x48\x3b\x05',data+160)
-    c.emit(bytes.fromhex('48 83 c0 60'));ne(b'\x48\x3b\x05',data+16)
+    c.emit(bytes.fromhex('48 8b 86 58 62 00 00'));ne(b'\x48\x3b\x05',data+160)
+    c.emit(bytes.fromhex('48 83 c0 50'));ne(b'\x48\x3b\x05',data+16)
     ne(b'\x4c\x3b\x2d',data+16)
     c.emit(bytes.fromhex('49 8b 85 90 02 00 00'));ne(b'\x48\x3b\x05',data+24)
     c.emit(bytes.fromhex('48 89 c2')) # RDX=S after all native volatile values saved
@@ -250,20 +251,20 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     for offset,target in ((0x270,0x11c),(0x274,0x120),(0x27c,0x124),(0x338,0x128)):
         _snapshot_scalar(c,13,offset,w+target)
     _snapshot_scalar(c,2,0,w+0x12c)
-    for offset,target in ((0x6640,0x130),(0x6694,0x134),(0x6644,0x138),(0x7308,0x13c),
-                          (0x6420,0x140),(0x76b5,0x144),(0x6cd4,0x148),(0x715c,0x14c)):
+    for offset,target in ((0x6650,0x130),(0x66a4,0x134),(0x6654,0x138),(0x7318,0x13c),
+                          (0x6430,0x140),(0x76ed,0x144),(0x6ce4,0x148),(0x716c,0x14c)):
         _snapshot_scalar(c,6,offset,w+target)
-    _snapshot_scalar(c,5,0x4170,w+0x150)
+    _snapshot_scalar(c,5,0x4180,w+0x150)
     for offset,target in ((0x18,0x154),(0x24,0x158),(0x30,0x15c)):
-        c.relative(b'\x8b\x05',base+0x715d0e0+offset);c.relative(b'\x89\x05',w+target)
-    c.relative(b'\x8b\x05',base+0x50af608);c.relative(b'\x89\x05',w+0x160)
-    for offset,target in ((0x674c,0x164),(0x6720,0x168),(0x7710,0x16c),(0x73d0,0x170)):
+        c.relative(b'\x8b\x05',base+0x7233e58+offset);c.relative(b'\x89\x05',w+target)
+    c.relative(b'\x8b\x05',base+0x517f478);c.relative(b'\x89\x05',w+0x160)
+    for offset,target in ((0x675c,0x164),(0x6730,0x168),(0x7740,0x16c),(0x73e0,0x170)):
         _snapshot_scalar(c,6,offset,w+target)
-    if allow_planetary_flight:_snapshot_scalar(c,5,0x18,w+CLEARANCE)
+    # T101 clearance: 7.10 reuses its stack slot before this site, so clearance_code captures it where it's written.
     # Effective backend identity is checked before R3 reads pinned motion values.
     fail(3)
-    c.relative(b'\x48\x8b\x05',base+0x6e8d708);ne(b'\x48\x3b\x05',data+80)
-    c.emit(bytes.fromhex('48 8b 80 58 c8 72 00'));ne(b'\x48\x3b\x05',data+304)
+    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
     c.emit(bytes.fromhex('49 8b 80 80 03 00 00'));ne(b'\x48\x3b\x05',data+88)
     c.emit(bytes.fromhex('48 89 c7 48 8b 40 40'));ne(b'\x48\x3b\x05',data+256)
     c.relative(b'\x48\x8b\x05',data+264);c.emit(bytes.fromhex('48 8b 00'));ne(b'\x48\x3b\x05',data+272)
@@ -279,25 +280,25 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     # R3 never changes the native stack; records still identify failed qualification.
     fail(1);c.relative(b'\x83\x3d',data+4,b'\x01');c.relative(b'\x0f\x85','publish')
     fail(4)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1751001))
-    ins_ne('48 39 85 58 41 00 00')
-    for code in ('80 be c8 60 00 00 01','83 be 4c 67 00 00 00','80 be 20 67 00 00 00',
-                 '83 be 08 73 00 00 00','83 be 20 64 00 00 00','80 be d0 73 00 00 00',
-                 '80 be b5 76 00 00 00','80 be d4 6c 00 00 00','80 be 10 77 00 00 00'):
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    ins_ne('48 39 85 68 41 00 00')
+    for code in ('80 be c8 60 00 00 01','83 be 5c 67 00 00 00','80 be 30 67 00 00 00',
+                 '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
+                 '80 be ed 76 00 00 00','80 be e4 6c 00 00 00','80 be 40 77 00 00 00'):
         if allow_planetary_flight and code==LOW_HEIGHT:low_height_gate(c,data,'publish','low_height_ok')
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','publish')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
-    c.relative(b'\x48\x8b\x05',base+0x6e8d708);ne(b'\x48\x3b\x05',data+80)
-    for code in ('83 b8 98 54 87 00 00','80 b8 0d a4 57 00 00','83 b8 78 b0 72 00 00','83 b8 68 b0 72 00 00'):
-        if allow_combat_flight and code=='80 b8 0d a4 57 00 00':
+    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    for code in ('83 b8 98 bd 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
+        if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
             # Known manual-combat byte only. Unknown unsigned values stay native.
-            c.emit(bytes.fromhex('80 b8 0d a4 57 00 01'));c.relative(b'\x0f\x87','publish')
+            c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','publish')
         else:ins_ne(code)
     c.emit(bytes.fromhex('48 8b 86 c0 60 00 00'));ne(b'\x48\x3b\x05',data+168)
     c.emit(bytes.fromhex('48 8b 00'));ne(b'\x48\x3b\x05',data+176)
     # The class owner and its actual cGcSpaceshipClasses enum are pinned.
-    c.emit(bytes.fromhex('48 8b 46 28'));ne(b'\x48\x3b\x05',data+312)
+    c.emit(bytes.fromhex('48 8b 46 30'));ne(b'\x48\x3b\x05',data+312)
     c.emit(bytes.fromhex('8b 80 d0 00 00 00'));ne(b'\x3b\x05',data+320)
     # Backend gravity callback registration is an independent effective property.
     c.emit(bytes.fromhex('48 8b 87 b0 0b 00 00'));ne(b'\x48\x3b\x05',data+328)
@@ -397,33 +398,33 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     ne(b'\x83\x3d',data,b'\x01');ne(b'\x83\x3d',data+4,b'\x01')
     # Recheck live own identity/mode immediately before stack XYZ writes.
     reason(3)
-    c.emit(bytes.fromhex('48 8b 86 48 62 00 00'));ne(b'\x48\x3b\x05',data+160)
+    c.emit(bytes.fromhex('48 8b 86 58 62 00 00'));ne(b'\x48\x3b\x05',data+160)
     c.emit(bytes.fromhex('49 8b 85 90 02 00 00'));ne(b'\x48\x3b\x05',data+24)
     c.emit(bytes.fromhex('48 8b 40 08'));ne(b'\x48\x3b\x05',data+32)
     c.emit(bytes.fromhex('49 8b 85 28 03 00 00'));ne(b'\x48\x3b\x05',data+32)
-    c.relative(b'\x48\x8b\x05',base+0x6e8d708);ne(b'\x48\x3b\x05',data+80)
-    c.emit(bytes.fromhex('48 8b 80 58 c8 72 00'));ne(b'\x48\x3b\x05',data+304)
-    c.emit(bytes.fromhex('48 8b 46 28'));ne(b'\x48\x3b\x05',data+312)
+    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
+    c.emit(bytes.fromhex('48 8b 46 30'));ne(b'\x48\x3b\x05',data+312)
     c.emit(bytes.fromhex('8b 80 d0 00 00 00'));ne(b'\x3b\x05',data+320)
     reason(4)
     if allow_combat_flight:
         # Re-read every protected mode after the helper; an earlier C1 snapshot
         # must not authorize writes after a power/planet/pulse/frontend change.
-        for code in ('80 be c8 60 00 00 01','83 be 4c 67 00 00 00','80 be 20 67 00 00 00',
-                     '83 be 08 73 00 00 00','83 be 20 64 00 00 00','80 be d0 73 00 00 00',
-                     '80 be b5 76 00 00 00','80 be d4 6c 00 00 00','80 be 10 77 00 00 00'):
+        for code in ('80 be c8 60 00 00 01','83 be 5c 67 00 00 00','80 be 30 67 00 00 00',
+                     '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
+                     '80 be ed 76 00 00 00','80 be e4 6c 00 00 00','80 be 40 77 00 00 00'):
             if allow_planetary_flight and code==LOW_HEIGHT:low_height_gate(c,data,'publish','low_height_recheck_ok')
             else:ins_ne(code)
         c.emit(bytes.fromhex('49 8b 95 90 02 00 00 f6 42 01 18'));c.relative(b'\x0f\x85','publish')
         c.emit(bytes.fromhex('4d 8b 85 28 03 00 00 49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
-        c.relative(b'\x48\x8b\x05',base+0x6e8d708);ne(b'\x48\x3b\x05',data+80)
-        ins_ne('83 b8 98 54 87 00 00')
-        c.emit(bytes.fromhex('80 b8 0d a4 57 00 01'));c.relative(b'\x0f\x87','publish')
-        ins_ne('83 b8 78 b0 72 00 00');ins_ne('83 b8 68 b0 72 00 00')
+        c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+        ins_ne('83 b8 98 bd 89 00 00')
+        c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','publish')
+        ins_ne('83 b8 dc b6 72 00 00');ins_ne('83 b8 cc b6 72 00 00')
     else:
         # Preserve the research/default cave bytes and its original admission.
-        for code in ('83 be 08 73 00 00 00','83 be 20 64 00 00 00','80 be d4 6c 00 00 00',
-                     '80 be b5 76 00 00 00','80 be 10 77 00 00 00'):
+        for code in ('83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e4 6c 00 00 00',
+                     '80 be ed 76 00 00 00','80 be 40 77 00 00 00'):
             ins_ne(code)
     # Three scalar stores: no native W, velocity or angular state is written.
     def stores(height):
@@ -432,18 +433,18 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
             c.relative(b'\xf3\x0f\x58\x05',w+VECTORS['gravity']+4*i)
             # T88: the native ground-clearance push stays as a safety net (zero unless tolerated above).
             if height:c.relative(b'\xf3\x0f\x58\x05',w+VECTORS['height']+4*i)
-            c.emit(b'\xf3\x0f\x11\x85'+struct.pack('<i',0x60+4*i))
+            c.emit(b'\xf3\x0f\x11\x85'+struct.pack('<i',0x50+4*i))
     if allow_planetary_flight:
         # T101: gear down, Sultan flies to touchdown; the ground push stays out.
         c.relative(b'\x83\x3d',data+GEAR,b'\x01');c.relative(b'\x0f\x84','without_height')
         # T93: over water with WATER on the sea is Sultan's; the height term (sea as ground) stays out.
         c.relative(b'\x83\x3d',data+WATER,b'\x01');c.relative(b'\x0f\x85','with_height')
-        c.emit(bytes.fromhex('80 be e0 62 00 00 00'));c.relative(b'\x0f\x84','with_height')
+        c.emit(bytes.fromhex('80 be f0 62 00 00 00'));c.relative(b'\x0f\x84','with_height')
         c.label('without_height');stores(False);c.relative(b'\xe9','stored')
         c.label('with_height');stores(True);c.label('stored')
     else:stores(False)
     c.relative(b'\x8b\x05',w+68);c.relative(b'\x89\x05',w+60)
-    _stack_vector(c,0x60,w+96)
+    _stack_vector(c,0x50,w+96)
     c.relative(b'\xc7\x05',w+64,struct.pack('<I',1))
     c.relative(b'\x48\xff\x05',data+216)
     c.label('publish')
@@ -453,8 +454,8 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
         h=w+VECTORS['height']
         c.relative(b'\x83\x3d',w+64,b'\x01');c.relative(b'\x0f\x84','water_done')
         c.relative(b'\x83\x3d',data+WATER,b'\x01');c.relative(b'\x0f\x85','water_done')
-        c.emit(bytes.fromhex('80 be e0 62 00 00 00'));c.relative(b'\x0f\x84','water_done')
-        c.emit(bytes.fromhex('83 be 08 73 00 00 00'));c.relative(b'\x0f\x85','water_done')
+        c.emit(bytes.fromhex('80 be f0 62 00 00 00'));c.relative(b'\x0f\x84','water_done')
+        c.emit(bytes.fromhex('83 be 18 73 00 00 00'));c.relative(b'\x0f\x85','water_done')
         c.relative(b'\xf3\x0f\x10\x05',h);c.emit(bytes.fromhex('f3 0f 59 c0'))  # xmm0 = hx*hx
         for i in (1,2):  # xmm0 += h[i]*h[i]
             c.relative(b'\xf3\x0f\x10\x0d',h+4*i);c.emit(bytes.fromhex('f3 0f 59 c9 f3 0f 58 c1'))
@@ -465,8 +466,8 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
         c.emit(bytes.fromhex('b8 00 00 80 3f 66 0f 6e d0 f3 0f 5c ca'))  # k-1
         for i in range(3):  # stack += h*(k-1): the native command keeps a capped height term
             c.relative(b'\xf3\x0f\x10\x05',h+4*i);c.emit(bytes.fromhex('f3 0f 59 c1'))
-            c.emit(b'\xf3\x0f\x58\x85'+struct.pack('<i',0x60+4*i))
-            c.emit(b'\xf3\x0f\x11\x85'+struct.pack('<i',0x60+4*i))
+            c.emit(b'\xf3\x0f\x58\x85'+struct.pack('<i',0x50+4*i))
+            c.emit(b'\xf3\x0f\x11\x85'+struct.pack('<i',0x50+4*i))
         c.label('water_done')
     # Associate assist telemetry with this sealed invocation, not a later live
     # counter sample which could already belong to the next flight frame.
@@ -498,19 +499,26 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
 # bank. Static 2026-10-19 (claude), build 180836. The site is `test al,al; jne 0x175DC98`; taking that
 # jump is native's own pilot-is-rolling path. Planetary caves only; signature unique, no jump into it.
 AUTO_LEVEL_OFF=0x3F8
-LEVEL_SITE={'rva':0x175d69d,'size':8,'original':'84c00f85f3050000',
-            'signature':'84c00f85f3050000f30f1005fb8dac03488d9500380000f3',
-            'instructions':['0x175d69d: test al, al','0x175d69f: jne 0x175dc98']}
-LEVEL_SKIP=0x175dc98-0x175d69d
+LEVEL_SITE={'rva':0x1790a7b,'size':8,'original':'84c00f85f4050000',
+            'signature':'84c00f85f4050000f30f1005a56cb603488d9510380000f3',
+            'instructions':['0x1790a7b: test al, al','0x1790a7d: jne 0x1791077']}
+LEVEL_SKIP=0x1791077-0x1790a7b
 # Water auto-level: with ship+0x6720 (low height) and ship+0x62E0 (over water within AutoLevelWaterMargin
 # 90 of the sea surface, set at 0x1756F50..0x1756FB8) native measures tilt from planet up and past
 # AutoLevelWaterAngle 45 (globals+0x1288, 0x175E974) torques the ship back (0x1055790, AutoLevelWaterTorque
 # globals+0x1290): the 45-degree bank wall at sea level. Site `cmp byte [rsi+0x62E0],0; je 0x175E9E9`;
 # taking the jump is native's own not-over-water path. Same switch as LEVEL_SITE. Static 2026-10-19 (claude).
-WATER_SITE={'rva':0x175e71d,'size':13,'original':'80bee0620000000f84bf020000',
-            'signature':'80bee0620000000f84bf020000488d9590390000498bcde8',
-            'instructions':['0x175e71d: cmp byte ptr [rsi + 0x62e0], 0','0x175e724: je 0x175e9e9']}
-WATER_SKIP=0x175e9e9-0x175e71d
+WATER_SITE={'rva':0x1791b23,'size':13,'original':'80bef0620000000f84bc020000',
+            'signature':'80bef0620000000f84bc020000488d95a0390000498bcde8',
+            'instructions':['0x1791b23: cmp byte ptr [rsi + 0x62f0], 0','0x1791b2a: je 0x1791dec']}
+WATER_SKIP=0x1791dec-0x1791b23
+# T101 terrain clearance, 183791: UpdateControlled stores min(height above sea, above the terrain ray hit) to
+# [rbp-0x60] at 0x178A0BB ([rbp+0x18] at 0x1756F9C on 180836). 7.10 reuses that slot for a damping lerp
+# (0x17932D2) on some frames before the final site, so the value is copied into the work record here, after
+# the latch has cleared it. Planetary caves only; signature unique, no jump into it.
+CLEARANCE_SITE={'rva':0x178a0bb,'size':5,'original':'f30f1175a0',
+                'signature':'f30f1175a07213f3410f108424d83100000f2fc17204b001',
+                'instructions':['0x178a0bb: movss dword ptr [rbp - 0x60], xmm6']}
 
 def _skip_gates(c,data):
     """Sultan planetary flight owns this ship: switch, auto-level off, bridge enabled and overriding,
@@ -520,7 +528,7 @@ def _skip_gates(c,data):
     c.relative(b'\x83\x3d',data,b'\x01');c.relative(b'\x0f\x85','native')
     c.relative(b'\x83\x3d',data+4,b'\x01');c.relative(b'\x0f\x85','native')
     c.relative(b'\x48\x3b\x35',data+8);c.relative(b'\x0f\x85','native')
-    c.emit(bytes.fromhex('83 be 08 73 00 00 00'));c.relative(b'\x0f\x85','native')  # landing state native
+    c.emit(bytes.fromhex('83 be 18 73 00 00 00'));c.relative(b'\x0f\x85','native')  # landing state native
 
 def level_code(cave,site,data):
     """Skip native roll auto-level under _skip_gates; otherwise the original test and branch."""
@@ -538,7 +546,21 @@ def water_code(cave,site,data):
     _skip_gates(c,data)
     c.relative(b'\xe9',skip)
     c.label('native')
-    c.emit(bytes.fromhex('80 be e0 62 00 00 00'));c.relative(b'\x0f\x84',skip)
+    c.emit(bytes.fromhex('80 be f0 62 00 00 00'));c.relative(b'\x0f\x84',skip)
+    c.relative(b'\xe9',site['address']+site['size'])
+    return c.finish()
+
+def clearance_code(cave,site,data):
+    """Copy native terrain clearance XMM6 into the work record for the qualified ship and frame with the planetary
+    switch on; then the native store. Flags are live into the next JB, so they're saved first."""
+    c=Code(cave)
+    c.emit(b'\x9c')  # pushfq: the native JB after this site reads COMISS flags
+    c.relative(b'\x83\x3d',data+PLANETARY,b'\x01');c.relative(b'\x0f\x85','out')
+    c.relative(b'\x48\x3b\x35',data+8);c.relative(b'\x0f\x85','out')
+    c.relative(b'\x48\x3b\x2d',data+40);c.relative(b'\x0f\x85','out')
+    c.relative(b'\xf3\x0f\x11\x35',data+WORK+CLEARANCE)  # movss [work+CLEARANCE],xmm6
+    c.label('out');c.emit(b'\x9d')
+    c.emit(bytes.fromhex(site['original']))
     c.relative(b'\xe9',site['address']+site['size'])
     return c.finish()
 
@@ -559,8 +581,8 @@ def clamp_code(cave,site,data):
 
 def after_integrator_code(cave,site,data,base):
     c=Code(cave);_save(c);_owner_guard(c,data)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1751001))
-    c.emit(bytes.fromhex('48 39 85 58 41 00 00'));c.relative(b'\x0f\x85','out')
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     c.relative(b'\x48\x8b\x05',data+48)
     _check(c,b'\x48\x3b\x05',data+240)
     c.emit(bytes.fromhex('49 8b 85 90 02 00 00'));_check(c,b'\x48\x3b\x05',data+24)
@@ -577,8 +599,8 @@ def after_integrator_code(cave,site,data,base):
     c.relative(b'\x48\x89\x15',data+136)
     c.relative(b'\x48\xff\x05',data+224)
     c.label('out');_restore(c)
-    # Displaced MOV RCX,[RIP+572D29A] explicitly relocated, target module6E8D708.
-    c.relative(b'\x48\x8b\x0d',base+0x6e8d708)
+    # Displaced MOV RCX,[RIP+57CCFB6] explicitly relocated, target module 6F60828 (183791).
+    c.relative(b'\x48\x8b\x0d',base+0x6f60828)
     c.relative(b'\xe9',site['address']+site['size'])
     return c.finish()
 
@@ -688,7 +710,7 @@ def fixture_from_scene(scene,read_bytes,module_base,speed_bound):
             raise ValueError('Unknown matching gravity callback')
     identity=scene['identity'];ship=ptr(p['ship']);app=ptr(scene['manager'])
     attachment=ptr(scene['native_player_identity']['attachment_handle'])
-    if q(app+0x72c858)!=attachment:raise ValueError('Local player attachment changed')
+    if q(app+0x72cf48)!=attachment:raise ValueError('Local player attachment changed')
     result=dict(ship=ship,body=b,state=s,context=c,application=app,backend=h,
                 body_record=body,motion=motion,handle=ptr(p['native_handle']),motion_id=mid,
                 body_flags=u(body+0x54),physics=ptr(p['physics']),
@@ -698,8 +720,8 @@ def fixture_from_scene(scene,read_bytes,module_base,speed_bound):
                 gravity_cached_bits=u(b+0x27c),gravity_factor_word=struct.unpack('<H',raw(motion+0x78,2))[0],
                 custom_flag=u(b+0x338),custom_vector=list(struct.unpack('<4f',raw(b+0x340,16))),
                 custom_vector_bits=list(struct.unpack('<3I',raw(b+0x340,12))),
-                speed_bound=float(speed_bound),boost_max_speed=struct.unpack('<f',raw(ship+0x6640,4))[0])
-    if q(ship+0x6248)!=result['physics'] or q(b+0x290)!=s or q(b+0x328)!=c or q(be)!=bp or q(me)!=mp:
+                speed_bound=float(speed_bound),boost_max_speed=struct.unpack('<f',raw(ship+0x6650,4))[0])
+    if q(ship+0x6258)!=result['physics'] or q(b+0x290)!=s or q(b+0x328)!=c or q(be)!=bp or q(me)!=mp:
         raise ValueError('Fixture identities changed while extending snapshot')
     return result
 
@@ -728,15 +750,15 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
         return b
     def q(a):return struct.unpack('<Q',raw(a,8))[0]
     def u(a):return struct.unpack('<I',raw(a,4))[0]
-    manager=q(module_base+0x6e8d708)
-    player=manager+0x72c6f0
+    manager=q(module_base+0x6f60828)
+    player=manager+0x72cde0
     handle=q(player+0x168)
     if handle==0:raise IdentityError('native player has no attached spaceship handle')
     index=handle>>32
     if index>0xfeff:raise IdentityError('native player attachment index out of bounds')
-    entity=module_base+0x53983d0+0x58*index
+    entity=module_base+0x546af40+0x58*index
     if q(entity+0x50)!=handle:raise IdentityError('player attachment generation mismatch')
-    component_type=struct.unpack('<h',raw(module_base+0x50af6f8,2))[0]
+    component_type=struct.unpack('<h',raw(module_base+0x517f568,2))[0]
     if not 0<=component_type<256:raise IdentityError('spaceship component type outside attachment bitmask')
     mask_bytes=raw(entity+0x30,32)
     mask=int.from_bytes(mask_bytes,'little')
@@ -745,7 +767,7 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
     components=q(entity+0x20)
     ship=q(components+8*rank)
     if not ship:raise IdentityError('native player spaceship component null')
-    pool=q(module_base+0x50afa80)
+    pool=q(module_base+0x517f8f0)
     count=u(pool+4);array=q(pool+8)
     if not 0<count<=max_pool_count:raise IdentityError('spaceship pool count outside bounded snapshot')
     # 512-pointer reads preserve a modest upper bound on any single RPM request.
@@ -761,9 +783,9 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
     if active!=1 or controller==0:raise IdentityError('native player ship controller inactive or invalid')
     vtable=q(controller)
     if not vtable:raise IdentityError('concrete controller vtable null')
-    if (q(module_base+0x6e8d708)!=manager or q(player+0x168)!=handle or q(entity+0x50)!=handle
+    if (q(module_base+0x6f60828)!=manager or q(player+0x168)!=handle or q(entity+0x50)!=handle
         or raw(entity+0x30,32)!=mask_bytes or q(entity+0x20)!=components
-        or q(components+8*rank)!=ship or q(module_base+0x50afa80)!=pool
+        or q(components+8*rank)!=ship or q(module_base+0x517f8f0)!=pool
         or u(pool+4)!=count or q(pool+8)!=array or q(array+8*matches[0])!=ship
         or q(ship+0x60c0)!=wrapper or q(wrapper)!=controller or raw(ship+0x60c8,1)[0]!=1):
         raise IdentityError('native player/attachment/pool identity changed during snapshot')
@@ -773,7 +795,7 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
             'pool_count':count,'pool_array':hex(array),'selected_pool_index':matches[0],
             'controller_active':active,'controller_wrapper':hex(wrapper),'concrete_controller':hex(controller),
             'concrete_controller_vtable':hex(vtable),'identity_method':'native14842c0 attachment component lookup + bounded pool cross-check',
-            'build':'180836 / Steam25732212'}
+            'build':'183791 / Steam26271400'}
 
 class SnapshotError(RuntimeError):
     pass
@@ -812,10 +834,10 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
             limit=ctrl if ctrl<0xcd else (1<<(ctrl-0xc5))-1
             if ctrl==0 or probe==limit:raise SnapshotError('native handle not found')
         raise SnapshotError('native handle lookup probe bound exceeded')
-    physics=u64(ship+0x6248); rigid=physics+0x60
+    physics=u64(ship+0x6258); rigid=physics+0x50
     state=u64(rigid+0x290); context=u64(rigid+0x328)
     backend=u64(context+0x380); manager=u64(backend+0xbb0)
-    if u64(backend+0x20)!=module_base+0x35875a8:
+    if u64(backend+0x20)!=module_base+0x3633618:
         raise SnapshotError('unrecognized backend body-accessor vtable')
     handle=u64(state+0x88)
     body_id=(handle if handle&(1<<63) else lookup(backend+0x1138,handle))&0xffffff
@@ -835,12 +857,12 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
         obj=u64(manager+0xf88+16*i)
         callbacks.append({'index':i,'body_mask':u32(manager+0xf80+16*i),'object':hex(obj),
                           'vtable':hex(u64(obj)),
-                          'is_native_angular_factor_callback':obj==module_base+0x500b760 and u64(obj)==module_base+0x3528c78})
+                          'is_native_angular_factor_callback':obj==module_base+0x50da910 and u64(obj)==module_base+0x35d4a20})
     flags=raw(state,2)
     result={'ship':hex(ship),'physics':hex(physics),'rigid':hex(rigid),'state':hex(state),
             'context':hex(context),'context_id':u64(context+0xa38),'backend':hex(backend),
             'backend_interface_vtable':hex(u64(backend+0x20)),
-            'backend_interface_expected':hex(module_base+0x35875a8),
+            'backend_interface_expected':hex(module_base+0x3633618),
             'modifier_manager':hex(manager),'native_handle':hex(handle),'body_id':body_id,
             'body_record':hex(body),'body_wrapper':hex(wrapper),'body_flags54':u32(body+0x54),
             'motion_id':motion_id,'motion_record':hex(motion),'state_flags':list(flags),
@@ -852,7 +874,7 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
             'custom_gravity_enabled':raw(rigid+0x338,1)[0],
             'custom_gravity_vector':list(struct.unpack('<4f',raw(rigid+0x340,16))),
             'gravity_callback_mask':u32(manager+0xf78),'gravity_callbacks':callbacks}
-    if (u64(ship+0x6248)!=physics or u64(rigid+0x290)!=state or u64(rigid+0x328)!=context
+    if (u64(ship+0x6258)!=physics or u64(rigid+0x290)!=state or u64(rigid+0x328)!=context
         or u64(context+0x380)!=backend or u64(backend+0xbb0)!=manager
         or u64(state+0x88)!=handle or u32(body+0x80)!=motion_id or u64(body+0xb8)!=rigid
         or u32(manager+0xf7c)!=count):
@@ -871,7 +893,7 @@ def fixture_from_ship(pm, base, ship, *, speed_bound=None, allow_nonzero_gravity
     identity=resolve_local_player_ship(read,base)
     if int(identity['ship'],16)!=ship:raise IdentityError('Requested ship is not native player ship')
     p=snapshot_physics(read,ship,base)
-    boost=struct.unpack('<f',read(ship+0x6640,4))[0]
+    boost=struct.unpack('<f',read(ship+0x6650,4))[0]
     if not math.isfinite(boost) or boost<=0:raise SnapshotError('Invalid native speed bound')
     bound=1.9*boost if speed_bound is None else float(speed_bound)
     scene={'selection':'native_local_player_ship','physics':p,'identity':{
@@ -880,7 +902,7 @@ def fixture_from_ship(pm, base, ship, *, speed_bound=None, allow_nonzero_gravity
     result=fixture_from_scene(scene,read,base,bound)
     q=lambda address:struct.unpack('<Q',read(address,8))[0]
     u=lambda address:struct.unpack('<I',read(address,4))[0]
-    class_owner=q(ship+0x28)
+    class_owner=q(ship+0x30)
     if not class_owner:raise IdentityError('Ship class owner is null')
     ship_class=u(class_owner+0xd0)
     if ship_class not in SUPPORTED_CLASSES:raise IdentityError('Ship class requires native flight')
@@ -892,7 +914,7 @@ def fixture_from_ship(pm, base, ship, *, speed_bound=None, allow_nonzero_gravity
     if not allow_nonzero_gravity and (p['gravity_scalar_rigid27c']!=0 or
             p['packed_gravity_factor_motion78']!=0 or p['custom_gravity_enabled']):
         raise SnapshotError('Nonzero gravity needs explicit qualification')
-    if (q(ship+0x28)!=class_owner or u(class_owner+0xd0)!=ship_class or
+    if (q(ship+0x30)!=class_owner or u(class_owner+0xd0)!=ship_class or
             u(manager+0xf7c)!=len(callbacks) or
             callbacks!=[(q(manager+0xf80+16*i),q(manager+0xf88+16*i)) for i in range(len(callbacks))]):
         raise SnapshotError('Class/gravity callback identity changed during snapshot')
@@ -937,14 +959,15 @@ class Bridge:
         from native_autobank import assist_code
         if self.data:raise RuntimeError('Already prepared')
         manifest=site_manifest()
-        if self.allow_planetary_flight:manifest['sites'].update(clamp=dict(CLAMP_SITE),level=dict(LEVEL_SITE),water=dict(WATER_SITE))
+        if self.allow_planetary_flight:manifest['sites'].update(clamp=dict(CLAMP_SITE),level=dict(LEVEL_SITE),water=dict(WATER_SITE),
+                                                                clearance=dict(CLEARANCE_SITE))
         for site in manifest['sites'].values():
             expected=bytes.fromhex(site['signature'])
             if self.pm.read_bytes(self.base+site['rva'],len(expected))!=expected:
                 raise RuntimeError('Exact-build site signature mismatch')
         # Two pages per cave leave room for complete same-invocation gates.
         allocation_size=ALLOCATION+len(manifest['sites'])*0x2000
-        self.data=_allocate_data(self.pm.process_handle,self.base+0x176042d,allocation_size)
+        self.data=_allocate_data(self.pm.process_handle,self.base+0x179382f,allocation_size)
         for index,(kind,v) in enumerate(manifest['sites'].items()):
             site=self.base+v['rva'];cave=self.data+ALLOCATION+index*0x2000
             patch=b'\xe9'+struct.pack('<i',cave-site-5)+b'\x90'*(v['size']-5)
@@ -959,6 +982,7 @@ class Bridge:
                              allow_planetary_flight=self.allow_planetary_flight) if kind=='final' else
                   after_integrator_code(cave,site,self.data,self.base) if kind=='after_integrator' else
                   clamp_code(cave,site,self.data) if kind=='clamp' else
+                  clearance_code(cave,site,self.data) if kind=='clearance' else
                   level_code(cave,site,self.data) if kind=='level' else
                   water_code(cave,site,self.data) if kind=='water' else
                   assist_code(cave,site,self.data,self.base,self.get_tick,

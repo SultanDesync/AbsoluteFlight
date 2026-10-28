@@ -1,149 +1,149 @@
 {
- "file_version": "180836",
- "sha256": "13d5060d4efb9d2a6a6b1b349bc4257231056cc2a055df4bb15d816262cc3499",
- "steam_buildid": "25732212",
+ "file_version": "183791",
+ "sha256": "d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87",
+ "steam_buildid": "26271400",
  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
  "targets": {
   "BeginPage": {
-   "rva": "0x1b99a0",
+   "rva": "0x1bd040",
    "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 0F 57 C0 33 C0",
    "matches": [
-    "0x1b99a0"
+    "0x1bd040"
    ]
   },
   "Header": {
-   "rva": "0x1b68a0",
-   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100de2339704488d",
+   "rva": "0x1b9f40",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100dca2fa304488d",
    "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
    "matches": [
-    "0x1b68a0"
+    "0x1b9f40"
    ]
   },
   "Boolean": {
-   "rva": "0x1b6c30",
+   "rva": "0x1ba2d0",
    "entry32": "4c894424185657415541574883ec7883790801410fb6f94c8bac24c80000004c",
    "pattern": "4C 89 44 24 ? 56 57 41 55",
    "matches": [
-    "0x1b6c30"
+    "0x1ba2d0"
    ]
   },
   "Int": {
-   "rva": "0x1b6e20",
+   "rva": "0x1ba4c0",
    "entry32": "44894c24204c8944241855564157488d6c24d94881ece0000000837908014c8b",
    "pattern": "44 89 4C 24 ? 4C 89 44 24 ? 55 56 41 57",
    "matches": [
-    "0x1b6e20"
+    "0x1ba4c0"
    ]
   },
   "Float": {
-   "rva": "0x1b70a0",
+   "rva": "0x1ba740",
    "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
    "pattern": "F3 0F 11 5C 24 ? 55 53 41 54",
    "matches": [
-    "0x1b70a0"
+    "0x1ba740"
    ]
   },
   "Button": {
-   "rva": "0x1b6a80",
+   "rva": "0x1ba120",
    "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 57 48 81 EC ? ? ? ? 32 DB",
    "matches": [
-    "0x1b6a80"
+    "0x1ba120"
    ]
   },
   "BeginList": {
-   "rva": "0x1b7cd0",
+   "rva": "0x1bb370",
    "entry32": "48895c240848896c2410488974241857415641574883ec2033db488d792c8959",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 33 DB 48 8D 79 ? 89 59",
    "matches": [
-    "0x1b7cd0"
+    "0x1bb370"
    ]
   },
   "ListOption": {
-   "rva": "0x1b7df0",
+   "rva": "0x1bb490",
    "entry32": "40534883ec2048634120488d59204c8bca83f83f0f87870000004869c8840000",
    "pattern": "40 53 48 83 EC ? 48 63 41 ? 48 8D 59",
    "matches": [
-    "0x1b7df0"
+    "0x1bb490"
    ]
   },
   "EndPage": {
-   "rva": "0x1ba180",
+   "rva": "0x1bd820",
    "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
    "pattern": "48 8B C4 55 57 48 8D 68 ? 48 81 EC ? ? ? ? 83 79",
    "matches": [
-    "0x1ba180"
+    "0x1bd820"
    ]
   },
   "FinalizePage": {
-   "rva": "0x1b9e90",
+   "rva": "0x1bd530",
    "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 55 41 56 41 57 48 83 EC ? 48 8B 81 ? ? ? ? 45 33 FF",
    "matches": [
-    "0x1b9e90"
+    "0x1bd530"
    ]
   },
   "DoOptions": {
-   "rva": "0x6e08b0",
-   "entry32": "4055488dac24a0d8ffffb860280000e80c26d002482be0833d165c7d06000f84",
+   "rva": "0x6edba0",
+   "entry32": "4055488dac24a0d8ffffb860280000e8fcd6d902482be0833d76ba8906000f84",
    "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
    "matches": [
-    "0x6e08b0"
+    "0x6edba0"
    ]
   },
   "DoGameSwitcher": {
-   "rva": "0x6e16a0",
+   "rva": "0x6ee990",
    "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
    "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
    "matches": [
-    "0x6e16a0"
+    "0x6ee990"
    ]
   },
   "UpdateRender": {
-   "rva": "0x8fa160",
+   "rva": "0x9097a0",
    "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
    "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
    "matches": [
-    "0x8fa160"
+    "0x9097a0"
    ]
   },
   "ApplicationUpdate": {
-   "rva": "0x2d7580",
-   "entry32": "40534883ec20e8e58392024889058efdf206e8d964efff803d8a7ff904000fb6",
+   "rva": "0x2dd2d0",
+   "entry32": "40534883ec20e8c5e19802488905ae0d0007e80940efff803d643b0605000fb6",
    "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
    "matches": [
-    "0x2d7580"
+    "0x2dd2d0"
    ]
   },
   "RequestOptionsPage": {
-   "rva": "0x2e44f0",
-   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0df991ba0648",
+   "rva": "0x2ea3b0",
+   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0d5964c70648",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
    "matches": [
-    "0x2e44f0"
+    "0x2ea3b0"
    ]
   },
   "RenderPage": {
-   "rva": "0x907b50",
-   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e867b3ad02482be04889b424",
+   "rva": "0x917850",
+   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e8473ab702482be04889b424",
    "pattern": "48 89 4C 24 ? 55 53 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 89 B4 24 ? ? ? ? 48 89 BC 24",
    "matches": [
-    "0x907b50"
+    "0x917850"
    ]
   },
   "Activate": {
-   "rva": "0x8fe180",
-   "entry32": "405556574157488bec4883ec588b8108c40100450fb6f84863f2488bf983f804",
+   "rva": "0x90d7c0",
+   "entry32": "405556574157488bec4883ec588b8178c40100450fb6f84863f2488bf983f804",
    "pattern": "40 55 56 57 41 57 48 8B EC",
    "matches": [
-    "0x8fe180"
+    "0x90d7c0"
    ]
   }
  },
  "globals": {
-  "mOpenMenuIndex": "0x6eb64e4",
-  "mOpenMenus_slot": "0x6eb64e8",
+  "mOpenMenuIndex": "0x6f89634",
+  "mOpenMenus_slot": "0x6f89638",
   "selection": "index == 0 means closed; otherwise menus[index-1]"
  },
  "source": {
@@ -151,486 +151,501 @@
  },
  "builders": {
   "General": {
-   "rva": "0x6eea40",
+   "rva": "0x6fdba0",
    "direct_ui_calls": [
     {
-     "call_rva": "0x6eea82",
-     "return_rva": "0x6eea87",
+     "call_rva": "0x6fdbe2",
+     "return_rva": "0x6fdbe7",
      "function": "Header"
     },
     {
-     "call_rva": "0x6eeadc",
-     "return_rva": "0x6eeae1",
+     "call_rva": "0x6fdc3c",
+     "return_rva": "0x6fdc41",
      "function": "Int"
     },
     {
-     "call_rva": "0x6eeb72",
-     "return_rva": "0x6eeb77",
+     "call_rva": "0x6fdcd1",
+     "return_rva": "0x6fdcd6",
      "function": "Int"
     },
     {
-     "call_rva": "0x6eec00",
-     "return_rva": "0x6eec05",
+     "call_rva": "0x6fdd5e",
+     "return_rva": "0x6fdd63",
      "function": "Int"
     },
     {
-     "call_rva": "0x6eec8a",
-     "return_rva": "0x6eec8f",
+     "call_rva": "0x6fdde7",
+     "return_rva": "0x6fddec",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6eec9c",
-     "return_rva": "0x6eeca1",
+     "call_rva": "0x6fddf9",
+     "return_rva": "0x6fddfe",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eecae",
-     "return_rva": "0x6eecb3",
+     "call_rva": "0x6fde0b",
+     "return_rva": "0x6fde10",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eecd8",
-     "return_rva": "0x6eecdd",
+     "call_rva": "0x6fde35",
+     "return_rva": "0x6fde3a",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eed21",
-     "return_rva": "0x6eed26",
+     "call_rva": "0x6fde7d",
+     "return_rva": "0x6fde82",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6eed33",
-     "return_rva": "0x6eed38",
+     "call_rva": "0x6fde8f",
+     "return_rva": "0x6fde94",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eed45",
-     "return_rva": "0x6eed4a",
+     "call_rva": "0x6fdea1",
+     "return_rva": "0x6fdea6",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eed5a",
-     "return_rva": "0x6eed5f",
+     "call_rva": "0x6fdeb6",
+     "return_rva": "0x6fdebb",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eed6f",
-     "return_rva": "0x6eed74",
+     "call_rva": "0x6fdecb",
+     "return_rva": "0x6fded0",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eed90",
-     "return_rva": "0x6eed95",
+     "call_rva": "0x6fdeeb",
+     "return_rva": "0x6fdef0",
      "function": "Header"
     },
     {
-     "call_rva": "0x6eeddb",
-     "return_rva": "0x6eede0",
-     "function": "Boolean"
-    },
-    {
-     "call_rva": "0x6eee1f",
-     "return_rva": "0x6eee24",
-     "function": "Boolean"
-    },
-    {
-     "call_rva": "0x6eee79",
-     "return_rva": "0x6eee7e",
+     "call_rva": "0x6fdf3c",
+     "return_rva": "0x6fdf41",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6eee8b",
-     "return_rva": "0x6eee90",
+     "call_rva": "0x6fdf4e",
+     "return_rva": "0x6fdf53",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eeea0",
-     "return_rva": "0x6eeea5",
+     "call_rva": "0x6fdf60",
+     "return_rva": "0x6fdf65",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eeeb5",
-     "return_rva": "0x6eeeba",
+     "call_rva": "0x6fdf75",
+     "return_rva": "0x6fdf7a",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6eef3b",
-     "return_rva": "0x6eef40",
-     "function": "Header"
-    },
-    {
-     "call_rva": "0x6eef78",
-     "return_rva": "0x6eef7d",
+     "call_rva": "0x6fdfee",
+     "return_rva": "0x6fdff3",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6ef02d",
-     "return_rva": "0x6ef032",
+     "call_rva": "0x6fe046",
+     "return_rva": "0x6fe04b",
+     "function": "BeginList"
+    },
+    {
+     "call_rva": "0x6fe058",
+     "return_rva": "0x6fe05d",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6fe06d",
+     "return_rva": "0x6fe072",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6fe082",
+     "return_rva": "0x6fe087",
+     "function": "ListOption"
+    },
+    {
+     "call_rva": "0x6fe107",
+     "return_rva": "0x6fe10c",
+     "function": "Header"
+    },
+    {
+     "call_rva": "0x6fe144",
+     "return_rva": "0x6fe149",
+     "function": "Boolean"
+    },
+    {
+     "call_rva": "0x6fe1f7",
+     "return_rva": "0x6fe1fc",
      "function": "Float"
     },
     {
-     "call_rva": "0x6ef06b",
-     "return_rva": "0x6ef070",
+     "call_rva": "0x6fe234",
+     "return_rva": "0x6fe239",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6ef07d",
-     "return_rva": "0x6ef082",
+     "call_rva": "0x6fe246",
+     "return_rva": "0x6fe24b",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6ef0c3",
-     "return_rva": "0x6ef0c8",
+     "call_rva": "0x6fe28c",
+     "return_rva": "0x6fe291",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6ef0e6",
-     "return_rva": "0x6ef0eb",
+     "call_rva": "0x6fe2af",
+     "return_rva": "0x6fe2b4",
      "function": "Header"
     },
     {
-     "call_rva": "0x6ef11f",
-     "return_rva": "0x6ef124",
+     "call_rva": "0x6fe2e8",
+     "return_rva": "0x6fe2ed",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6ef19d",
-     "return_rva": "0x6ef1a2",
+     "call_rva": "0x6fe35d",
+     "return_rva": "0x6fe362",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6ef1fc",
-     "return_rva": "0x6ef201",
+     "call_rva": "0x6fe3bd",
+     "return_rva": "0x6fe3c2",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6ef20e",
-     "return_rva": "0x6ef213",
+     "call_rva": "0x6fe3cf",
+     "return_rva": "0x6fe3d4",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6ef220",
-     "return_rva": "0x6ef225",
+     "call_rva": "0x6fe3e1",
+     "return_rva": "0x6fe3e6",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6ef273",
-     "return_rva": "0x6ef278",
+     "call_rva": "0x6fe433",
+     "return_rva": "0x6fe438",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6ef34e",
-     "return_rva": "0x6ef353",
+     "call_rva": "0x6fe50f",
+     "return_rva": "0x6fe514",
      "function": "Button"
     },
     {
-     "call_rva": "0x6ef3ea",
-     "return_rva": "0x6ef3ef",
+     "call_rva": "0x6fe5aa",
+     "return_rva": "0x6fe5af",
      "function": "Button"
     },
     {
-     "call_rva": "0x6ef4d6",
-     "return_rva": "0x6ef4db",
+     "call_rva": "0x6fe696",
+     "return_rva": "0x6fe69b",
      "function": "Button"
     },
     {
-     "call_rva": "0x6ef510",
-     "return_rva": "0x6ef515",
+     "call_rva": "0x6fe6c9",
+     "return_rva": "0x6fe6ce",
      "function": "FinalizePage"
     }
    ]
   },
   "Controls": {
-   "rva": "0x6e5ed0",
+   "rva": "0x6f3230",
    "direct_ui_calls": [
     {
-     "call_rva": "0x6e5f34",
-     "return_rva": "0x6e5f39",
+     "call_rva": "0x6f3294",
+     "return_rva": "0x6f3299",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e5f54",
-     "return_rva": "0x6e5f59",
+     "call_rva": "0x6f32b4",
+     "return_rva": "0x6f32b9",
      "function": "Button"
     },
     {
-     "call_rva": "0x6e5f7c",
-     "return_rva": "0x6e5f81",
+     "call_rva": "0x6f32dc",
+     "return_rva": "0x6f32e1",
      "function": "Button"
     },
     {
-     "call_rva": "0x6e5f8c",
-     "return_rva": "0x6e5f91",
+     "call_rva": "0x6f32ec",
+     "return_rva": "0x6f32f1",
      "function": "RequestOptionsPage"
     },
     {
-     "call_rva": "0x6e5fba",
-     "return_rva": "0x6e5fbf",
+     "call_rva": "0x6f331a",
+     "return_rva": "0x6f331f",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e601a",
-     "return_rva": "0x6e601f",
+     "call_rva": "0x6f337a",
+     "return_rva": "0x6f337f",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e6083",
-     "return_rva": "0x6e6088",
+     "call_rva": "0x6f33e3",
+     "return_rva": "0x6f33e8",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e6095",
-     "return_rva": "0x6e609a",
+     "call_rva": "0x6f33f5",
+     "return_rva": "0x6f33fa",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e60b8",
-     "return_rva": "0x6e60bd",
+     "call_rva": "0x6f3418",
+     "return_rva": "0x6f341d",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e6135",
-     "return_rva": "0x6e613a",
+     "call_rva": "0x6f3495",
+     "return_rva": "0x6f349a",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e6147",
-     "return_rva": "0x6e614c",
+     "call_rva": "0x6f34a7",
+     "return_rva": "0x6f34ac",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e615c",
-     "return_rva": "0x6e6161",
+     "call_rva": "0x6f34bc",
+     "return_rva": "0x6f34c1",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e6171",
-     "return_rva": "0x6e6176",
+     "call_rva": "0x6f34d1",
+     "return_rva": "0x6f34d6",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e61da",
-     "return_rva": "0x6e61df",
+     "call_rva": "0x6f353a",
+     "return_rva": "0x6f353f",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e61ec",
-     "return_rva": "0x6e61f1",
+     "call_rva": "0x6f354c",
+     "return_rva": "0x6f3551",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e6201",
-     "return_rva": "0x6e6206",
+     "call_rva": "0x6f3561",
+     "return_rva": "0x6f3566",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e6266",
-     "return_rva": "0x6e626b",
+     "call_rva": "0x6f35c6",
+     "return_rva": "0x6f35cb",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e627b",
-     "return_rva": "0x6e6280",
+     "call_rva": "0x6f35db",
+     "return_rva": "0x6f35e0",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e628d",
-     "return_rva": "0x6e6292",
+     "call_rva": "0x6f35ed",
+     "return_rva": "0x6f35f2",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e62ed",
-     "return_rva": "0x6e62f2",
+     "call_rva": "0x6f364d",
+     "return_rva": "0x6f3652",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e6340",
-     "return_rva": "0x6e6345",
+     "call_rva": "0x6f36a0",
+     "return_rva": "0x6f36a5",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e63a0",
-     "return_rva": "0x6e63a5",
+     "call_rva": "0x6f3700",
+     "return_rva": "0x6f3705",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e63ee",
-     "return_rva": "0x6e63f3",
+     "call_rva": "0x6f374e",
+     "return_rva": "0x6f3753",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e6409",
-     "return_rva": "0x6e640e",
+     "call_rva": "0x6f3769",
+     "return_rva": "0x6f376e",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e6499",
-     "return_rva": "0x6e649e",
+     "call_rva": "0x6f37f9",
+     "return_rva": "0x6f37fe",
      "function": "Int"
     },
     {
-     "call_rva": "0x6e6558",
-     "return_rva": "0x6e655d",
+     "call_rva": "0x6f38b8",
+     "return_rva": "0x6f38bd",
      "function": "Int"
     },
     {
-     "call_rva": "0x6e65a2",
-     "return_rva": "0x6e65a7",
+     "call_rva": "0x6f3902",
+     "return_rva": "0x6f3907",
      "function": "Int"
     },
     {
-     "call_rva": "0x6e65e2",
-     "return_rva": "0x6e65e7",
+     "call_rva": "0x6f3942",
+     "return_rva": "0x6f3947",
      "function": "Int"
     },
     {
-     "call_rva": "0x6e6622",
-     "return_rva": "0x6e6627",
+     "call_rva": "0x6f3982",
+     "return_rva": "0x6f3987",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e667c",
-     "return_rva": "0x6e6681",
+     "call_rva": "0x6f39dc",
+     "return_rva": "0x6f39e1",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e66f2",
-     "return_rva": "0x6e66f7",
+     "call_rva": "0x6f3a52",
+     "return_rva": "0x6f3a57",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e672c",
-     "return_rva": "0x6e6731",
+     "call_rva": "0x6f3a8c",
+     "return_rva": "0x6f3a91",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e6769",
-     "return_rva": "0x6e676e",
+     "call_rva": "0x6f3ac9",
+     "return_rva": "0x6f3ace",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e677b",
-     "return_rva": "0x6e6780",
+     "call_rva": "0x6f3adb",
+     "return_rva": "0x6f3ae0",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e6790",
-     "return_rva": "0x6e6795",
+     "call_rva": "0x6f3af0",
+     "return_rva": "0x6f3af5",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e67a5",
-     "return_rva": "0x6e67aa",
+     "call_rva": "0x6f3b05",
+     "return_rva": "0x6f3b0a",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e67d3",
-     "return_rva": "0x6e67d8",
+     "call_rva": "0x6f3b33",
+     "return_rva": "0x6f3b38",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e681b",
-     "return_rva": "0x6e6820",
+     "call_rva": "0x6f3b7b",
+     "return_rva": "0x6f3b80",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e6848",
-     "return_rva": "0x6e684d",
+     "call_rva": "0x6f3ba8",
+     "return_rva": "0x6f3bad",
      "function": "FinalizePage"
     }
    ]
   },
   "Camera": {
-   "rva": "0x6e4f10",
+   "rva": "0x6f2270",
    "direct_ui_calls": [
     {
-     "call_rva": "0x6e4faf",
-     "return_rva": "0x6e4fb4",
+     "call_rva": "0x6f230f",
+     "return_rva": "0x6f2314",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e5034",
-     "return_rva": "0x6e5039",
+     "call_rva": "0x6f2394",
+     "return_rva": "0x6f2399",
      "function": "Float"
     },
     {
-     "call_rva": "0x6e506f",
-     "return_rva": "0x6e5074",
+     "call_rva": "0x6f23cf",
+     "return_rva": "0x6f23d4",
      "function": "Float"
     },
     {
-     "call_rva": "0x6e50cc",
-     "return_rva": "0x6e50d1",
+     "call_rva": "0x6f242c",
+     "return_rva": "0x6f2431",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e511d",
-     "return_rva": "0x6e5122",
+     "call_rva": "0x6f247d",
+     "return_rva": "0x6f2482",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e5156",
-     "return_rva": "0x6e515b",
+     "call_rva": "0x6f24b6",
+     "return_rva": "0x6f24bb",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e51a7",
-     "return_rva": "0x6e51ac",
+     "call_rva": "0x6f2507",
+     "return_rva": "0x6f250c",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e51c2",
-     "return_rva": "0x6e51c7",
+     "call_rva": "0x6f2522",
+     "return_rva": "0x6f2527",
      "function": "Header"
     },
     {
-     "call_rva": "0x6e520d",
-     "return_rva": "0x6e5212",
+     "call_rva": "0x6f256d",
+     "return_rva": "0x6f2572",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e5251",
-     "return_rva": "0x6e5256",
+     "call_rva": "0x6f25b1",
+     "return_rva": "0x6f25b6",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e52b1",
-     "return_rva": "0x6e52b6",
+     "call_rva": "0x6f2611",
+     "return_rva": "0x6f2616",
      "function": "Int"
     },
     {
-     "call_rva": "0x6e52f1",
-     "return_rva": "0x6e52f6",
+     "call_rva": "0x6f2651",
+     "return_rva": "0x6f2656",
      "function": "BeginList"
     },
     {
-     "call_rva": "0x6e5306",
-     "return_rva": "0x6e530b",
+     "call_rva": "0x6f2666",
+     "return_rva": "0x6f266b",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e5318",
-     "return_rva": "0x6e531d",
+     "call_rva": "0x6f2678",
+     "return_rva": "0x6f267d",
      "function": "ListOption"
     },
     {
-     "call_rva": "0x6e53c4",
-     "return_rva": "0x6e53c9",
+     "call_rva": "0x6f2724",
+     "return_rva": "0x6f2729",
      "function": "Float"
     },
     {
-     "call_rva": "0x6e5449",
-     "return_rva": "0x6e544e",
+     "call_rva": "0x6f27a9",
+     "return_rva": "0x6f27ae",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e5495",
-     "return_rva": "0x6e549a",
+     "call_rva": "0x6f27f5",
+     "return_rva": "0x6f27fa",
      "function": "Boolean"
     },
     {
-     "call_rva": "0x6e54ed",
-     "return_rva": "0x6e54f2",
+     "call_rva": "0x6f284d",
+     "return_rva": "0x6f2852",
      "function": "FinalizePage"
     }
    ]
@@ -638,118 +653,118 @@
  },
  "driver_ui_calls": [
   {
-   "call_rva": "0x6e0901",
-   "return_rva": "0x6e0906",
+   "call_rva": "0x6edbf1",
+   "return_rva": "0x6edbf6",
    "function": "BeginPage"
   },
   {
-   "call_rva": "0x6e09be",
-   "return_rva": "0x6e09c3",
+   "call_rva": "0x6edcae",
+   "return_rva": "0x6edcb3",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e09cb",
-   "return_rva": "0x6e09d0",
+   "call_rva": "0x6edcbb",
+   "return_rva": "0x6edcc0",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e09ed",
-   "return_rva": "0x6e09f2",
+   "call_rva": "0x6edcdd",
+   "return_rva": "0x6edce2",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e09fd",
-   "return_rva": "0x6e0a02",
+   "call_rva": "0x6edced",
+   "return_rva": "0x6edcf2",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e0a35",
-   "return_rva": "0x6e0a3a",
+   "call_rva": "0x6edd25",
+   "return_rva": "0x6edd2a",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e0a45",
-   "return_rva": "0x6e0a4a",
+   "call_rva": "0x6edd35",
+   "return_rva": "0x6edd3a",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e0a67",
-   "return_rva": "0x6e0a6c",
+   "call_rva": "0x6edd57",
+   "return_rva": "0x6edd5c",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e0a77",
-   "return_rva": "0x6e0a7c",
+   "call_rva": "0x6edd67",
+   "return_rva": "0x6edd6c",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e0a99",
-   "return_rva": "0x6e0a9e",
+   "call_rva": "0x6edd89",
+   "return_rva": "0x6edd8e",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e0aa9",
-   "return_rva": "0x6e0aae",
+   "call_rva": "0x6edd99",
+   "return_rva": "0x6edd9e",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e0acb",
-   "return_rva": "0x6e0ad0",
+   "call_rva": "0x6eddbb",
+   "return_rva": "0x6eddc0",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e0adb",
-   "return_rva": "0x6e0ae0",
+   "call_rva": "0x6eddcb",
+   "return_rva": "0x6eddd0",
    "function": "RequestOptionsPage"
   },
   {
-   "call_rva": "0x6e0afd",
-   "return_rva": "0x6e0b02",
+   "call_rva": "0x6edded",
+   "return_rva": "0x6eddf2",
    "function": "Button"
   },
   {
-   "call_rva": "0x6e0b15",
-   "return_rva": "0x6e0b1a",
+   "call_rva": "0x6ede05",
+   "return_rva": "0x6ede0a",
    "function": "FinalizePage"
   },
   {
-   "call_rva": "0x6e0b2b",
-   "return_rva": "0x6e0b30",
+   "call_rva": "0x6ede1b",
+   "return_rva": "0x6ede20",
    "function": "EndPage"
   }
  ],
  "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
  "menu_index_instructions": [
   {
-   "rva": "0x6e0906",
-   "instruction": "mov ecx, dword ptr [rip + 0x67d5bd8]"
+   "rva": "0x6edbf6",
+   "instruction": "mov ecx, dword ptr [rip + 0x689ba38]"
   },
   {
-   "rva": "0x6e090c",
-   "instruction": "lea r15, [rip - 0x6e0913]"
+   "rva": "0x6edbfc",
+   "instruction": "lea r15, [rip - 0x6edc03]"
   },
   {
-   "rva": "0x6e0913",
-   "instruction": "mov rax, qword ptr [rip + 0x67d5bce]"
+   "rva": "0x6edc03",
+   "instruction": "mov rax, qword ptr [rip + 0x689ba2e]"
   },
   {
-   "rva": "0x6e091a",
+   "rva": "0x6edc0a",
    "instruction": "dec ecx"
   },
   {
-   "rva": "0x6e091c",
+   "rva": "0x6edc0c",
    "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
   },
   {
-   "rva": "0x6e0923",
+   "rva": "0x6edc13",
    "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
   },
   {
-   "rva": "0x6e092a",
+   "rva": "0x6edc1a",
    "instruction": "mov rcx, qword ptr [rax + rcx*8]"
   },
   {
-   "rva": "0x6e092e",
+   "rva": "0x6edc1e",
    "instruction": "movsxd rax, dword ptr [rcx]"
   }
  ]

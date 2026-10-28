@@ -230,7 +230,7 @@ class NativeOptions:
 
     def choice(self,text):
         """Float block that prints text as the value: step 1, no scale or suffix. The native row
-        formats with sprintf(buf, fmt, value, suffix) (0x1B72E2), so a format with no conversions
+        formats with sprintf(buf, fmt, value, suffix) (0x1BA982 on 183791), so a format with no conversions
         prints the text as is."""
         return self._block(('choice',text),struct.pack('<ffQQ',1.,1.,self.s(''),self.s(text.replace('%','%%'))))
 

@@ -1,10 +1,10 @@
-"""Black space (Visuals page, default Off), NMS 180836 / Steam 25732212.
+"""Black space (Visuals page, default Off), NMS 183791 / Steam 26271400.
 
 Turns the space nebula, space fog and the space colour palettes to black, so space is black and the
 stars, suns and planets stay as they are. Data writes only: no code patches or hooks.
 
 How the game builds a system's space sky (static, research/re-log/2026-10-23_claude_black-space.md):
-the generator at NMS.exe+0x1650CA0 copies cGcSkyGlobals.SpaceSkyMin into the solar system's sky
+the generator at NMS.exe+0x1682F00 copies cGcSkyGlobals.SpaceSkyMin into the solar system's sky
 properties (system+0x2020), draws each nebula and fog value between SpaceSkyMin and SpaceSkyMax from
 the system seed, and picks a colour palette: common or rare (system+0x2044) and an entry (+0x2040).
 The palettes are spaceskycolours.mbin and spacerareskycolours.mbin as loaded, two list pointers at
@@ -14,12 +14,15 @@ generator+0x6C0, and hold the sky's colours (top, middle, bottom, fog, nebula). 
 - system: the current system's nebula and fog values, so the nebula goes without a warp.
 Each part is checked against this build's shipped data before anything is written (another build or
 another sky mod leaves that part alone). Off and shutdown put back every value still ours.
+183791 (static, 2026-10-28): cGcSkyGlobals, cGcSpaceSkyProperties, cGcSolarSystemData and
+cGcSolarSystemSkyColourData keep their 180836 reflection GUIDs and sizes; the 7.10 globals and palette
+MBINs still match VANILLA, SYSTEM_TAIL and PALETTES. Only the app and system member offsets moved.
 """
 import hashlib
 import struct
 import threading
 
-SKY_GLOBALS = 0x5231F20          # NMS.exe RVA of cGcSkyGlobals (NMS.py global scan, 2026-10-14 log)
+SKY_GLOBALS = 0x53031A0          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
 BLOCKS = {'SpaceSkyMax': 0x1900, 'SpaceSkyMin': 0x19A0}  # cGcSpaceSkyProperties, 0xA0 each
 BLOCK_SIZE = 0xA0
 # Turned to 0. The two fog colour strengths already ship at 0.
@@ -42,9 +45,9 @@ VANILLA = bytes.fromhex(
 assert len(VANILLA) == 2 * BLOCK_SIZE
 
 # Chain to the generator and the current system, every link in the pinned code below.
-APP_GLOBAL = 0x6E8D708      # cGcApplication::Data (same global as ai_pilots)
-SYSTEM_FROM_APP = 0x72AFB0  # current solar system
-GENERATOR_FROM_SYSTEM = 0x521180
+APP_GLOBAL = 0x6F60828      # cGcApplication::Data (same global as ai_pilots)
+SYSTEM_FROM_APP = 0x72B610  # current solar system
+GENERATOR_FROM_SYSTEM = 0x522390
 PALETTE_LISTS = 0x6C0       # generator+0x6C0: common list, +0x6C8: rare list; list = {data ptr, count}
 SYSTEM_SKY = 0x2020         # system sky properties (cGcSpaceSkyProperties copy)
 SYSTEM_SEED = 0x2480        # 16 bytes; a new seed means a new system was generated
@@ -59,13 +62,13 @@ PALETTES = (('common', 10, 'afef1e3b3f29bdd77075577170ce732e25c32ac1e6932dcab983
 # StarVisibility, SunSize, SunStrength, pad: copied from SpaceSkyMin as is, so a real system sky has them.
 SYSTEM_TAIL = bytes.fromhex('85eb513f0ad7a33b9a99193f00000000')
 PINS = {
-    # mov rax,[NMS+0x6E8D708]; ... mov rcx,[rax+0x72AFB0]; ... seed to rcx+0x2480; add rcx,0x521180;
-    # call the sky generator 0x1650CA0.
-    0x1B1C9A: bytes.fromhex('488b0567bacd060f104580488b88b0af720048894da848894db0488d81e02500000f1181802400004881c180115200488945b8e8ceef4901'),
+    # mov rax,[NMS+0x6F60828]; ... mov rcx,[rax+0x72B610]; ... seed to rcx+0x2480; add rcx,0x522390;
+    # call the sky generator 0x1682F00.
+    0x1B535A: bytes.fromhex('488b05c7b4da060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c190235200488945b8e86edb4c01'),
     # Generator: system sky properties at system+0x2020.
-    0x1650D3A: bytes.fromhex('498b0b4881c120200000'),
+    0x1682F9A: bytes.fromhex('498b0b4881c120200000'),
     # Generator: palette list = [generator + set*8 + 0x6C0], entry count at list+8.
-    0x1650E8C: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
+    0x16830EC: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
 }
 
 

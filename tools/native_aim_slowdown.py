@@ -1,7 +1,7 @@
-"""Scoped replacement of native ship input friction, NMS 180836 / Steam 25732212.
+"""Scoped replacement of native ship input friction, NMS 183791 / Steam 26271400.
 
-The producer resets +0x54, optionally calculates native sticky gain, and joins at
-RVA 0x142109F before both scalar pitch/yaw consumers. This cave replaces that
+The producer resets +0x64, optionally calculates native sticky gain, and joins at
+RVA 0x1447C92 before both scalar pitch/yaw consumers. This cave replaces that
 one factor; it never multiplies another slowdown onto it or adds steering.
 
 Admission uses this invocation's D12 owner, stack, thread, scalar receipts,
@@ -23,12 +23,12 @@ from command_mailbox import CommandMailbox, reader_code
 from native_roll_patch import Code, K
 from native_six_axis import save, restore
 
-SITE_RVA = 0x142109F
-ORIGINAL = bytes.fromhex('f30f10442430410f28c8')
-CALLER_RVA = 0x1759165
-APP_GLOBAL = 0x6E8D708
+SITE_RVA = 0x1447C92
+ORIGINAL = bytes.fromhex('f30f10442438410f28c8')
+CALLER_RVA = 0x178C3CB
+APP_GLOBAL = 0x6F60828
 PRODUCER_OFFSET = 0x60D0
-FACTOR_OFFSET = 0x54
+FACTOR_OFFSET = 0x64
 BLOCK = 0x800
 DATA_SIZE = 128
 COMMAND_MS = 50
@@ -38,11 +38,11 @@ MAX_GAIN = 1.
 # Exact-build below-entry pins. The producer's saved outer RBP is [RBP+100],
 # and its original return address is [RBP+108], from this prologue.
 PINS = {
-    0x141FEE1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
-    0x1420AC5: bytes.fromhex('c746540000803f'),
-    0x142133E: bytes.fromhex('f30f594e54'),
-    0x1421450: bytes.fromhex('f30f594e54'),
-    0x1759160: bytes.fromhex('e86b6dccff'),
+    0x1446AC1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
+    0x14476A5: bytes.fromhex('c746640000803f'),
+    0x1447F4B: bytes.fromhex('f30f594e64'),
+    0x1448064: bytes.fromhex('f30f594e64'),
+    0x178C3C6: bytes.fromhex('e8e5a6cbff'),
 }
 
 _RETAINED = []
@@ -121,18 +121,18 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
     stopped(gain_mailbox)
     # Current native protected modes take precedence over a previous Python tick.
     c.relative(b'\x4c\x8b\x15', frame+8)  # R10 = ship, not producer
-    for raw in ('41 80 ba c8 60 00 00 01', '41 80 ba 20 67 00 00 00',
-                '41 83 ba 4c 67 00 00 00', '41 83 ba 08 73 00 00 00',
-                '41 83 ba 20 64 00 00 00', '41 80 ba d0 73 00 00 00',
-                '41 80 ba b5 76 00 00 00', '41 80 ba d4 6c 00 00 00',
-                '41 80 ba 10 77 00 00 00'):
+    for raw in ('41 80 ba c8 60 00 00 01', '41 80 ba 30 67 00 00 00',
+                '41 83 ba 5c 67 00 00 00', '41 83 ba 18 73 00 00 00',
+                '41 83 ba 30 64 00 00 00', '41 80 ba e0 73 00 00 00',
+                '41 80 ba ed 76 00 00 00', '41 80 ba e4 6c 00 00 00',
+                '41 80 ba 40 77 00 00 00'):
         reject(raw)
     pointer(0, base+APP_GLOBAL if global_slot is None else global_slot)
     reject('48 8b 00 48 85 c0', b'\x0f\x84')
-    for raw in ('83 b8 98 54 87 00 00', '83 b8 78 b0 72 00 00',
-                '83 b8 68 b0 72 00 00'):
+    for raw in ('83 b8 98 bd 89 00 00', '83 b8 dc b6 72 00 00',
+                '83 b8 cc b6 72 00 00'):
         reject(raw)
-    reject('80 b8 0d a4 57 00 01', b'\x0f\x87')  # known manual combat allowed
+    reject('80 b8 6d aa 57 00 01', b'\x0f\x87')  # known manual combat allowed
     pointer(0, tick); c.emit(bytes.fromhex('ff d0'))
     # Check all independently leased D12 clocks before publishing any observation.
     for address in (frame+40, frame+64, pilot_deadline):
@@ -142,7 +142,7 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
     c.relative(b'\x48\xff\x05', data)
     c.relative(b'\x48\xff\x05', data+8)
     c.relative(b'\x48\x89\x05', data+32)
-    c.emit(bytes.fromhex('8b 46 54'))
+    c.emit(bytes.fromhex('8b 46 64'))
     c.relative(b'\x89\x05', data+24)
     c.relative(b'\x89\x05', data+28)
     c.relative(b'\x48\x8b\x05', frame+24)
@@ -163,7 +163,7 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
     # pinned payload stays immutable across any concurrent neutral publication.
     stopped(flight_mailbox, 'unpin')
     stopped(gain_mailbox, 'unpin')
-    c.emit(bytes.fromhex('89 46 54'))
+    c.emit(bytes.fromhex('89 46 64'))
     c.relative(b'\x89\x05', data+28)
     c.relative(b'\x48\xff\x05', data+16)
     c.relative(b'\x48\x8b\x05', frame+24)

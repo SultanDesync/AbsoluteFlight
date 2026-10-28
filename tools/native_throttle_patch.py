@@ -1,12 +1,12 @@
-"""D10 stack-u cave, build180836/25732212 only; disabled until explicitly armed."""
+"""D10 stack-u cave, build 183791/26271400 only (remapped from 180836); disabled until explicitly armed."""
 import json
 from pathlib import Path
 import struct
 from native_roll_patch import Code,K,allocate_near,replace_code
 
-SITE_RVA=0x175A6F4
-ORIGINAL=bytes.fromhex('F3 0F 10 95 70 41 00 00')
-GLOBAL_SLOT_RVA=0x6E8D708
+SITE_RVA=0x178D96B
+ORIGINAL=bytes.fromhex('F3 0F 10 95 80 41 00 00')
+GLOBAL_SLOT_RVA=0x6F60828
 
 
 def cave_bytes(cave,site,data,get_tick,global_slot):
@@ -19,20 +19,20 @@ def cave_bytes(cave,site,data,get_tick,global_slot):
         c.relative(prefix,target,suffix);c.relative(b'\x0f\x85','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',1))
     gate(b'\x48\x3b\x35',data+8) # exact RSI owner
-    c.emit(bytes.fromhex('48 8D 86 74 66 00 00 48 39 C3'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('48 8D 86 84 66 00 00 48 39 C3'));c.relative(b'\x0f\x85','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',2))
-    c.emit(bytes.fromhex('83 BE 4C 67 00 00 00'));c.relative(b'\x0f\x85','reject')
-    c.emit(bytes.fromhex('80 BE 20 67 00 00 00'));c.relative(b'\x0f\x85','reject')
-    # Original RSP+0x64 becomes current RSP+0x124 after flags/GPR/XMM saves.
+    c.emit(bytes.fromhex('83 BE 5C 67 00 00 00'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('80 BE 30 67 00 00 00'));c.relative(b'\x0f\x85','reject')
+    # Original RSP+0x60 (183791; was +0x64) becomes current RSP+0x120 after flags/GPR/XMM saves.
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',3))
-    c.emit(bytes.fromhex('83 BC 24 24 01 00 00 FF'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('83 BC 24 20 01 00 00 FF'));c.relative(b'\x0f\x85','reject')
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot))
     c.emit(bytes.fromhex('48 85 C0'));c.relative(b'\x0f\x84','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',4))
-    c.emit(bytes.fromhex('83 B8 98 54 87 00 00'));c.relative(b'\x0f\x85','reject')
-    c.emit(bytes.fromhex('80 B8 0D A4 57 00 00'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('83 B8 98 BD 89 00 00'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('80 B8 6D AA 57 00 00'));c.relative(b'\x0f\x85','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',5))
-    c.emit(bytes.fromhex('8B 85 70 41 00 00'));c.relative(b'\x89\x05',data+48)
+    c.emit(bytes.fromhex('8B 85 80 41 00 00'));c.relative(b'\x89\x05',data+48)
     c.emit(bytes.fromhex('25 FF FF FF 7F 85 C0'));c.relative(b'\x0f\x85','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',6))
     c.relative(b'\x8b\x05',data+4)
@@ -45,7 +45,7 @@ def cave_bytes(cave,site,data,get_tick,global_slot):
     c.relative(b'\xc7\x05',data+56,bytes(4))
     c.relative(b'\x83\x3d',data,b'\x01');c.relative(b'\x0f\x85','restore') # mode2: observe eligibility only
     c.relative(b'\x8b\x05',data+4)
-    c.emit(bytes.fromhex('89 85 70 41 00 00'));c.relative(b'\x89\x05',data+52)
+    c.emit(bytes.fromhex('89 85 80 41 00 00'));c.relative(b'\x89\x05',data+52)
     c.relative(b'\xff\x05',data+60)
     c.relative(b'\xe9','restore')
     c.label('reject');c.relative(b'\x48\xff\x05',data+40)
