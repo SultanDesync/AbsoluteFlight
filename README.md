@@ -11,6 +11,8 @@ with every report. Your feedback is what shapes the next builds.
 the research and flew every feature. See [HOW-IT-WAS-MADE.md](HOW-IT-WAS-MADE.md) for who did what, and
 what that means for you.
 
+**Linux / Steam Deck:** see [LINUX.md](LINUX.md) for the compatibility patch and launch options.
+
 **Discord:** https://discord.gg/jjk8nEMzFK is where testing happens: bug reports, feedback, shared tunings,
 new builds and tester chat. See "Reporting a problem" below.
 

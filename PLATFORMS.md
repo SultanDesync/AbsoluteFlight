@@ -13,18 +13,11 @@ the game plays as normal, so after a game update you can keep playing while a ne
 Support for other builds and stores is planned: the mod will find the game code it needs by its
 contents, not its location, and turn on each feature it can confirm.
 
-## Linux and Steam Deck (Proton): unsupported, but likely to work
+## Linux and Steam Deck (Proton): unsupported, but working on a Steam Deck
 
-Absolute Flight isn't tested on Linux. Players have run the same author's Starfield HOTAS mod under
-Proton without much trouble.
+Not officially supported and not guaranteed. A Steam Deck (Proton 11.0) runs 0.2.3-alpha with the Linux
+compatibility patch `AbsoluteFlight-Proton.asi` and these launch options:
 
-- Install as the README says (the zip's two folders into the game folder).
-- In Steam, right-click No Man's Sky > **Properties** > **Launch Options**, and enter:
+`PROTON_ENABLE_HIDRAW=1 WINEDLLOVERRIDES="winmm=n,b" %command%`
 
-  `WINEDLLOVERRIDES="winmm=n,b" %command%`
-
-  Without it, Proton uses its own winmm.dll, so the mod doesn't load and the game plays as normal.
-- If an axis or buttons are missing when you bind them, add `PROTON_ENABLE_HIDRAW=1` before `%command%`.
-  It lets the game read your stick and throttle directly.
-- Bindings made on Windows won't carry over (devices get new IDs under Proton): bind again in the menu.
-- Don't bind the stick or throttle to game controls through Steam Input.
+Full setup, what each part does and what to send if it fails: [LINUX.md](LINUX.md).

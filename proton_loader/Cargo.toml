@@ -1,0 +1,15 @@
+[package]
+name = "absolute-flight-proton"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Linux/Proton add-on for Absolute Flight: keeps room next to NMS.exe for pyMHF's hooks."
+publish = false
+
+[lib]
+name = "absoluteflight_proton"
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+strip = true
