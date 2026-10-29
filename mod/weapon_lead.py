@@ -1,4 +1,4 @@
-"""T72 ship prediction input correction, NMS 183791 / Steam 26271400.
+"""T72 ship prediction input correction, NMS 183877 / Steam 26295378.
 
 Native prediction already solves with a full velocity vector. Ordinary projectiles
 inherit GameplayGlobals.ProjectileSpeedBoost times that velocity; prediction must
@@ -13,24 +13,24 @@ import threading
 import time
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6F60828
-INHERITANCE = 0x5332428
+APP_GLOBAL = 0x6F5F868
+INHERITANCE = 0x5331468
 OWNERS = {'pip': 0x733180, 'aim_assist': 0x72FF60}  # app+: frame owner objects
 # These sites are below the hooked entries and remain verifiable on hot reload.
 PINS = {
-    0x15B9952: bytes.fromhex('410f5c370f58c8'),
-    0x99681C: bytes.fromhex('e83f2ec200'),
-    0x1419D3B: bytes.fromhex('e820f91900'),
-    0x1419D92: bytes.fromhex('e8c9f81900'),
-    0x15A5B36: bytes.fromhex('f30f1005eac8d803'),
+    0x15B9832: bytes.fromhex('410f5c370f58c8'),
+    0x99684C: bytes.fromhex('e8ef2cc200'),
+    0x1419C4B: bytes.fromhex('e8f0f81900'),
+    0x1419CA2: bytes.fromhex('e899f81900'),
+    0x15A5A46: bytes.fromhex('f30f10051abad803'),
 }
 # Independent qualification: a sampling mismatch must not disable the T72 fix.
 TARGET_PINS = {
-    0x15B9681: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e88785770184c00f84e0020000'),
-    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e826c9ab02'),
-    0x2D56E66: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
-    0x2D31633: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
-    0x2D31C30: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
+    0x15B9561: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e86784770184c00f84e0020000'),
+    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e8e6c6ab02'),
+    0x2D56C26: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
+    0x2D313F3: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
+    0x2D319F0: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
 }
 TARGET_MAX_AGE_MS = 150
 

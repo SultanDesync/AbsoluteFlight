@@ -1,4 +1,4 @@
-"""Black space (Visuals page, default Off), NMS 183791 / Steam 26271400.
+"""Black space (Visuals page, default Off), NMS 183877 / Steam 26295378.
 
 Turns the space nebula, space fog and the space colour palettes to black, so space is black and the
 stars, suns and planets stay as they are. Data writes only: no code patches or hooks.
@@ -22,7 +22,7 @@ import hashlib
 import struct
 import threading
 
-SKY_GLOBALS = 0x53031A0          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
+SKY_GLOBALS = 0x53021E0          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
 BLOCKS = {'SpaceSkyMax': 0x1900, 'SpaceSkyMin': 0x19A0}  # cGcSpaceSkyProperties, 0xA0 each
 BLOCK_SIZE = 0xA0
 # Turned to 0. The two fog colour strengths already ship at 0.
@@ -45,7 +45,7 @@ VANILLA = bytes.fromhex(
 assert len(VANILLA) == 2 * BLOCK_SIZE
 
 # Chain to the generator and the current system, every link in the pinned code below.
-APP_GLOBAL = 0x6F60828      # cGcApplication::Data (same global as ai_pilots)
+APP_GLOBAL = 0x6F5F868      # cGcApplication::Data (same global as ai_pilots)
 SYSTEM_FROM_APP = 0x72B610  # current solar system
 GENERATOR_FROM_SYSTEM = 0x522390
 PALETTE_LISTS = 0x6C0       # generator+0x6C0: common list, +0x6C8: rare list; list = {data ptr, count}
@@ -64,11 +64,11 @@ SYSTEM_TAIL = bytes.fromhex('85eb513f0ad7a33b9a99193f00000000')
 PINS = {
     # mov rax,[NMS+0x6F60828]; ... mov rcx,[rax+0x72B610]; ... seed to rcx+0x2480; add rcx,0x522390;
     # call the sky generator 0x1682F00.
-    0x1B535A: bytes.fromhex('488b05c7b4da060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c190235200488945b8e86edb4c01'),
+    0x1B535A: bytes.fromhex('488b0507a5da060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c190235200488945b8e88ed94c01'),
     # Generator: system sky properties at system+0x2020.
-    0x1682F9A: bytes.fromhex('498b0b4881c120200000'),
+    0x1682DBA: bytes.fromhex('498b0b4881c120200000'),
     # Generator: palette list = [generator + set*8 + 0x6C0], entry count at list+8.
-    0x16830EC: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
+    0x1682F0C: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
 }
 
 

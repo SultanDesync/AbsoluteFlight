@@ -1,4 +1,4 @@
-"""Absolute Flight for No Man's Sky (code name AbsoluteHOTAS): release runtime (pyMHF mod), build 183791 / Steam 26271400 (7.10).
+"""Absolute Flight for No Man's Sky (code name AbsoluteHOTAS): release runtime (pyMHF mod), build 183877 / Steam 26295378 (7.10).
 
 Loads automatically. A separately enabled D21 developer pipe is disabled by default.
 Devices come from the input bus (D11) loaded
@@ -87,21 +87,27 @@ import flight_tunings
 import rotation_validation
 import additive_rotation
 
-BUILD_HASH='837146ef49fc806ff96852e37656e874f25c56bc'  # SHA1 of NMS.exe 183791 (pyMHF BINARY_HASH)
+BUILD_HASH='6b109513b5b77ae27bb262382ffd559cfbf825e9'  # SHA1 of NMS.exe 183877 (pyMHF BINARY_HASH)
 DATA=runtime_config.data_dir(ROOT)  # dev checkout: config/; release: %LOCALAPPDATA%\AbsoluteHOTAS (T100)
 SETTINGS=DATA/'hotas-settings.json'
 TUNINGS=DATA/'flight-tunings'  # named per-class flight tunings, <Class>_<Name>.json
-GAME_BUILD='183791'  # NMS.exe FileVersion of BUILD_HASH, written into saved tunings
+GAME_BUILD='183877'  # NMS.exe FileVersion of BUILD_HASH, written into saved tunings
 LOGS=DATA/'logs'
 LEASE_MS=1000
 TICK_SECONDS=.004
 CODE_WRITE_SECONDS=1.  # flight thread must take a queued code write within this, else fall back
 FRAME_SIZE=512
 MAV_FORCE=256
+THIRD_PERSON_VTABLE=0x4B0EA78  # cGcCameraBehaviourThirdPerson (RTTI, 183791)
+CAMERA_PROFILE=0x4E8  # its active settings profile name: VEHICLE in exocraft first person (LIKELY)
+FIRST_PERSON_PROFILE='VEHICLE'
+EXO_INSTALL_ATTEMPTS,EXO_INSTALL_RETRY_MS=5,2000  # a failed exocraft install is retried (thread suspension can fail at startup)
 
 K=C.WinDLL('kernel32',use_last_error=True)
 K.GetTickCount64.restype=C.c_uint64
 K.GetCurrentThreadId.restype=C.c_uint32
+K.GetCurrentProcess.restype=C.c_void_p
+K.ReadProcessMemory.argtypes=[C.c_void_p,C.c_void_p,C.c_void_p,C.c_size_t,C.POINTER(C.c_size_t)]
 U=C.WinDLL('user32')
 U.GetForegroundWindow.restype=C.c_void_p
 U.GetWindowThreadProcessId.argtypes=[C.c_void_p,C.POINTER(C.c_ulong)]
@@ -120,10 +126,10 @@ class Mem:
 PAUSE_ROOT_NATIVE={
     'FindLayer':(0x1E36D0,'40555741574883ec204c8b8950010000458bf8488bea488bf94d85c90f844302',
                  C.c_uint64,[C.c_void_p,C.c_void_p,C.c_uint32]),
-    'PollButton':(0x901CF0,'48896c24204154415641574883ec4080b9844c010000450fb6f1450fb6f84c8b',
+    'PollButton':(0x901D20,'48896c24204154415641574883ec4080b9844c010000450fb6f1450fb6f84c8b',
                   C.c_bool,[C.c_void_p,C.c_void_p,C.c_uint8,C.c_uint8,C.c_void_p,C.c_uint8,C.c_uint8]),
 }
-APP_GLOBAL=0x6F60828
+APP_GLOBAL=0x6F5F868
 
 
 class Block(C.Structure):
@@ -279,7 +285,7 @@ class AbsoluteHOTAS(Mod):
                     self.crash_damage_failed=False
 
     # NPC guns receive a private behavior row only for their positively matched player target.
-    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746FB0,
+    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746DD0,
                  func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def ai_gun_before(self,this,point,target,opaque):
         aim=getattr(self,'ai_aim',None)
@@ -293,7 +299,7 @@ class AbsoluteHOTAS(Mod):
         aim.begin(this,target,values,self.block.ship,eligible)
         return None
 
-    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746FB0,
+    @manual_hook('AbsoluteHOTASAIGun',offset=0x1746DD0,
                  func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def ai_gun_after(self,this,point,target,opaque):
         aim=getattr(self,'ai_aim',None)
@@ -301,7 +307,7 @@ class AbsoluteHOTAS(Mod):
         return None
 
     @get_caller
-    @manual_hook('AbsoluteHOTASAIBehavior',offset=0x1751120,
+    @manual_hook('AbsoluteHOTASAIBehavior',offset=0x1750F40,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def ai_gun_behavior(self,manager,position,role,_result_):
         aim=getattr(self,'ai_aim',None)
@@ -337,7 +343,7 @@ class AbsoluteHOTAS(Mod):
             frame['allowed']=False
             lead.latest={'state':'scope rejected: '+repr(error),'inheritance_multiplier':None}
 
-    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F30,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='before')
+    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F60,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='before')
     def lead_hud_before(self,this,dt):
         self._lead_begin('pip',this)
         aiming=getattr(self,'aiming',None)
@@ -349,7 +355,7 @@ class AbsoluteHOTAS(Mod):
                 if presenter is not None:presenter.clear()
             except BaseException:aiming.reset('HUD admission failed')
 
-    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F30,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASLeadHUD',offset=0x993F60,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
     def lead_hud_after(self,this,dt):
         try:
             aiming=getattr(self,'aiming',None)
@@ -361,15 +367,15 @@ class AbsoluteHOTAS(Mod):
             if getattr(self,'aiming',None) is not None:self.aiming.reset('HUD solution rejected: '+repr(error))
         finally:self.weapon_lead.end('pip',this)
 
-    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419AF0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
+    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419A00,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
     def lead_aim_before(self,this,target,speed):
         self._lead_begin('aim_assist',this)
 
-    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419AF0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASLeadAim',offset=0x1419A00,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def lead_aim_after(self,this,target,speed):
         self.weapon_lead.end('aim_assist',this)
 
-    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9660,
+    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9540,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p,C.c_float]),detour_time='before')
     def weapon_prediction(self,target,out,position,velocity,speed):
         eligible=False;result=None
@@ -387,7 +393,7 @@ class AbsoluteHOTAS(Mod):
             except BaseException:aiming.reset('prediction observation failed')
         return result
 
-    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9660,
+    @manual_hook('AbsoluteHOTASWeaponLead',offset=0x15B9540,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def weapon_prediction_after(self,target,out,position,velocity,speed,_result_):
         aiming=getattr(self,'aiming',None)
@@ -396,7 +402,7 @@ class AbsoluteHOTAS(Mod):
             except BaseException:aiming.reset('prediction completion failed')
 
     @get_caller
-    @manual_hook('AbsoluteHOTASAimSolver',offset=0x15B99B0,
+    @manual_hook('AbsoluteHOTASAimSolver',offset=0x15B9890,
                  func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def aim_solver_after(self,r,u,speed,_result_):
         aiming=getattr(self,'aiming',None)
@@ -404,7 +410,7 @@ class AbsoluteHOTAS(Mod):
             try:aiming.solver_after(r,u,speed,_result_,caller=self.aim_solver_after.caller_address())
             except BaseException:aiming.reset('solver observation failed')
 
-    @manual_hook('AbsoluteHOTASManualAim',offset=0x141B500,
+    @manual_hook('AbsoluteHOTASManualAim',offset=0x141B410,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_float]),detour_time='after')
     def manual_aim_after(self,this,out,distance,_result_):
         aiming=getattr(self,'aiming',None)
@@ -419,7 +425,7 @@ class AbsoluteHOTAS(Mod):
         eligible=self._aiming_eligible()
         solution=self.aiming.sample(ship=self.block.ship,eligible=eligible,mode=self.store.values.get('pip-mode','lead'))
         self.aim_pip_visible=None
-        app=q(int(_internal.BASE_ADDRESS)+0x6F60828)
+        app=q(int(_internal.BASE_ADDRESS)+0x6F5F868)
         if (eligible and app and hud==app+0x733180 and solution
                 and C.c_ubyte.from_address(hud+0xFEC15).value):
             self.aim_pip_visible=(solution['ship'],solution['target'],solution['tick'])
@@ -427,7 +433,7 @@ class AbsoluteHOTAS(Mod):
             shown=presenter.update(hud,self.block.ship,self.store.values,solution,eligible,epoch=epoch)
             if self.store.values.get('pip-mode','lead')=='lag' and not shown:self.aim_pip_visible=None
 
-    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65B0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65E0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def pip_draw_before(self,this):
         local=getattr(self,'aim_draw',None)
         if local is None:return
@@ -435,7 +441,7 @@ class AbsoluteHOTAS(Mod):
         if stack is None:stack=local.stack=[]
         stack.append(int(this or 0))
 
-    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65B0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASPipDrawScope',offset=0x9A65E0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def pip_draw_after(self,this):
         local=getattr(self,'aim_draw',None)
         stack=getattr(local,'stack',None)
@@ -443,7 +449,7 @@ class AbsoluteHOTAS(Mod):
         elif stack:stack.clear()
 
     @NOOP
-    @manual_hook('AbsoluteHOTASPipWidget',offset=0x2E3C6D0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASPipWidget',offset=0x2E3BD40,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def pip_widget(self,this):
         try:
             stack=getattr(getattr(self,'aim_draw',None),'stack',None)
@@ -457,13 +463,13 @@ class AbsoluteHOTAS(Mod):
                               and self.store.values.get('flight-controls-enabled',False))
                     if aiming is None or aiming.sample(ship=self.block.ship,eligible=eligible,mode='lag') is None:return None
         except BaseException:pass
-        try:return self._original(0x2E3C6D0)(this)
+        try:return self._original(0x2E3BD40)(this)
         except BaseException as error:
             self.hook_errors+=1;self.log('native pip draw failed: '+repr(error));return None
 
     # Keep UpdateControlled's native return address intact for its exact caller gate.
     # pyMHF calls a hooked original through ctypes, so hook the outer Update instead.
-    @manual_hook('AbsoluteHOTASPilot',offset=0x177D700,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASPilot',offset=0x177D520,func_def=FUNCDEF(None,[C.c_void_p,C.c_float]),detour_time='after')
     def pilot(self,this,dt):
         try:
             ship=C.cast(this,C.c_void_p).value
@@ -522,7 +528,7 @@ class AbsoluteHOTAS(Mod):
 
     # ---------- head tracking: H3 camera composition (build 183791; caller head_tracking.CALLER only) ----------
     @get_caller
-    @manual_hook('AbsoluteHOTASHeadPose',offset=0x1449670,
+    @manual_hook('AbsoluteHOTASHeadPose',offset=0x1449580,
                  func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_float,C.c_void_p,C.c_float]),detour_time='after')
     def head_pose(self,this,output,base,parameter4,limits,dt,_result_):
         """All gates, the lease and the write live in HeadTracker.camera; this only supplies the flight clock."""
@@ -584,25 +590,39 @@ class AbsoluteHOTAS(Mod):
         return True
 
     @get_caller
-    @manual_hook('AbsoluteHOTASFlightClock',offset=0x2D315A0,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASFlightClock',offset=0x2D31360,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p]),detour_time='after')
     def flight_clock(self,this,out,_result_):
         try:
             if getattr(self,'pilot_recovery',None) is not None:return None
-            if not self.active or this!=self.rigid or self.flight_clock.caller_address()!=0x178F342:return None
+            if not self.active or this!=self.rigid or self.flight_clock.caller_address()!=0x178F162:return None
             if K.GetCurrentThreadId()!=self.pilot_boundary.thread:return None
             if C.c_ubyte.from_address(self.block.ship+0x60C8).value!=1:return None
             self.block.pilot_until=K.GetTickCount64()+400
         except BaseException:self.hook_errors+=1;self.block.pilot_until=0
         return None
 
+    # Exocraft view (0.2.3-dev.11, user: "3pp steering is camera driven"): in third person the steering axis pans the
+    # camera. Both exocraft views run through one cGcCameraBehaviourThirdPerson (0.2.3-dev.13 live: the first-person
+    # update never runs while driving), whose active settings profile is named at +0x4E8: VEHICLE in one view and the
+    # exocraft's own (BUGGY for the Roamer) in the other, on every switch (read-only probe 2026-10-28,
+    # research/re-log/2026-10-28_claude_exocraft-input-183791.md). VEHICLE is LIKELY first person: the floats at +0x4C8,
+    # a chase camera's lag, are nonzero only in the other profile. Update: RCX behaviour, XMM1 dt, R8 output.
+    @manual_hook('AbsoluteHOTASThirdPersonCamera',offset=0x68E8E0,func_def=FUNCDEF(None,[C.c_void_p,C.c_float,C.c_void_p]),detour_time='after')
+    def third_person_camera(self,this,dt,output):
+        try:
+            if this and C.c_uint64.from_address(this).value==int(_internal.BASE_ADDRESS)+THIRD_PERSON_VTABLE:
+                self.camera_profile=C.string_at(this+CAMERA_PROFILE,16).split(b'\0')[0].decode('latin1')
+        except BaseException:self.hook_errors+=1
+        return None
+
     @get_caller
-    @manual_hook('AbsoluteHOTASScalar',offset=0x1445790,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint32]),detour_time='after')
+    @manual_hook('AbsoluteHOTASScalar',offset=0x14456A0,func_def=FUNCDEF(C.c_float,[C.c_void_p,C.c_uint32]),detour_time='after')
     def scalar(self,this,action,_result_):
         """Pitch/yaw substitution from the frame's pinned mailbox copy (six_axis_trial, D12)."""
         try:
             f=self.frame
             if not self.active or not f or this!=self.controller or action not in (0x97,0x98):return None
-            if self.scalar.caller_address()!={0x97:0x1446B94,0x98:0x1446B85}[action]:return None
+            if self.scalar.caller_address()!={0x97:0x1446AA4,0x98:0x1446A95}[action]:return None
             now=K.GetTickCount64()
             if C.c_uint32.from_address(f+72).value&STRICT_ROTATION:
                 if self.box.agent_stopped() or not self._eligible_native(now):return None
@@ -635,7 +655,7 @@ class AbsoluteHOTAS(Mod):
     def _eligible_input(self,now):
         """Physical axes remain available under native planet/combat/power handling."""
         if getattr(self,'pilot_recovery',None) is not None:return False
-        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f60828)
+        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f5f868)
         return bool(self.block.pilot_until>now and manager and ship
             and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value<=3
             and C.c_uint32.from_address(manager+0x89bd98).value==0
@@ -666,7 +686,7 @@ class AbsoluteHOTAS(Mod):
         opt-in plus their complete ownership, physics and protected-mode gates.
         """
         if getattr(self,'pilot_recovery',None) is not None:return False
-        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f60828)
+        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f5f868)
         return bool(self.block.pilot_until>now and manager and ship
             and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value==0
             and (allow_low_height or C.c_ubyte.from_address(ship+0x6730).value==0) and C.c_uint32.from_address(manager+0x89bd98).value==0
@@ -684,7 +704,7 @@ class AbsoluteHOTAS(Mod):
         pm=self.pm;base=pm.process_base.lpBaseOfDll
         tick=C.cast(K.GetTickCount64,C.c_void_p).value;pilot=C.addressof(self.block)+24
         lease=K.GetTickCount64()+LEASE_MS
-        if not self.frame:self.frame=allocate_near(pm.process_handle,base+0x178B12D)
+        if not self.frame:self.frame=allocate_near(pm.process_handle,base+0x178AF4D)
         state=bytearray(FRAME_SIZE);struct.pack_into('<Q',state,8,ship);struct.pack_into('<Q',state,40,lease)
         C.memmove(self.frame,bytes(state),FRAME_SIZE)
         self.controller=q(q(ship+0x60c0))
@@ -1094,6 +1114,104 @@ class AbsoluteHOTAS(Mod):
             patch.disable();return
         patch.publish(crash_damage.Settings.from_values(v),self.block.ship,submerged=ditching)
         for hit in patch.hits():self._handle_crash_hit(hit,tick)
+
+    def _ensure_native_actions(self):
+        """T59: the game-action cave, installed once per session as soon as a game-control row is bound with Button
+        output on game actions (on foot too: the quick menu and Interact), and handed to the button lane. Any failure
+        leaves the game's own input as it is, and the rows send their keys instead."""
+        if getattr(self,'native_actions',None) is not None or getattr(self,'native_actions_failed',False):return
+        if not self.active or self.stopping.is_set():return
+        from button_actions import native_id
+        store=getattr(self,'store',None);bindings=getattr(store,'buttons',None);values=getattr(store,'values',None)
+        if not isinstance(bindings,list) or not isinstance(values,dict):return
+        # Exocraft controls hold Vehicle_Reverse as a game button too, so they need the lane with no button bound.
+        exo=bool(values.get('exo-enabled'))
+        game=values.get('button-output','direct')=='direct' and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict))
+        if not (exo or game):return  # nothing bound, nothing patched (Exocraft buttons have only the game's action)
+        lane=None
+        try:
+            from native_actions import NativeActions,ALLOCATION
+            from native_eject import allocate_after_image
+            base=int(_internal.BASE_ADDRESS)
+            if self.pm is None:  # bound in the main menu: no flight install has opened the process yet (0.2.3-dev.1)
+                import pymem
+                self.pm=pymem.Pymem(os.getpid())
+            allocation=getattr(sys,'_absolute_hotas_native_actions_allocation',0)
+            if not allocation:
+                allocation=allocate_after_image(self.pm.process_handle,base,length=ALLOCATION)
+                sys._absolute_hotas_native_actions_allocation=allocation
+            lane=NativeActions(base,allocation)
+            lane.install(self._external_write_code,self.pm,os.getpid())
+            lane.enable();self.native_actions=lane;self.buttons.native_lane=lane
+            self.log(f'game actions installed at {allocation:#x} (input manager slot +0x20)')
+        except BaseException as error:
+            self.native_actions_failed=True
+            self.log('game actions unavailable: '+repr(error))
+            if lane is not None and lane.installed:
+                try:lane.restore(self._external_write_code,self.pm,os.getpid())
+                except BaseException as restore_error:self.log('game actions restore failed: '+repr(restore_error))
+
+    def _process_read(self,address,size):
+        """Bytes from this process that fail as OSError on an unmapped address instead of faulting the game."""
+        buffer=C.create_string_buffer(size);count=C.c_size_t()
+        if not K.ReadProcessMemory(K.GetCurrentProcess(),C.c_void_p(address),buffer,size,C.byref(count)) or count.value!=size:
+            raise OSError(f'unreadable {address:#x}')
+        return buffer.raw
+
+    def _driving(self):
+        """The game's exocraft controls (action set VehicleMode) are current, with Exocraft controls on. None of it
+        is read while the page's switch is off."""
+        if not self.store.values.get('exo-enabled'):return False
+        from native_analog_actions import VEHICLE_MODE,current_set
+        current=current_set(self._process_read,int(_internal.BASE_ADDRESS))
+        if current!=getattr(self,'exo_set',None):
+            self.exo_set=current;self.log(f'game action set {current}'+(' (exocraft)' if current==VEHICLE_MODE else ''))
+        return current==VEHICLE_MODE
+
+    def _step_exocraft(self,live):
+        """Exocraft page axes and buttons into the analog cave (tools/native_analog_actions.py), installed once per
+        session when Exocraft controls are switched on. live: driving, focused, no HOTAS menu or capture open.
+        Any failure leaves the game's own exocraft input as it is."""
+        lane=getattr(self,'exo_lane',None);values=self.store.values
+        if lane is None:
+            if not values.get('exo-enabled') or getattr(self,'exo_lane_failed',False) or not self.active or self.stopping.is_set():return
+            if K.GetTickCount64()<getattr(self,'exo_lane_retry_at',0):return
+            try:
+                from native_analog_actions import NativeAnalogActions,ALLOCATION
+                from native_eject import allocate_after_image
+                base=int(_internal.BASE_ADDRESS)
+                if self.pm is None:
+                    import pymem
+                    self.pm=pymem.Pymem(os.getpid())
+                allocation=getattr(sys,'_absolute_hotas_exo_allocation',0)
+                if not allocation:
+                    allocation=allocate_after_image(self.pm.process_handle,base,length=ALLOCATION)
+                    sys._absolute_hotas_exo_allocation=allocation
+                lane=NativeAnalogActions(base,allocation)
+                lane.install(self._external_write_code,self.pm,os.getpid())
+                lane.enable();self.exo_lane=lane
+                self.log(f'exocraft controls installed at {allocation:#x} (input manager slot +0x28)')
+            except BaseException as error:
+                # 0.2.3-dev.14 live: at the main menu the native patcher's thread suspension failed once ("Windows call
+                # failed") and exocraft controls stayed off all session. A build mismatch fails the same way every time.
+                attempts=self.exo_lane_attempts=getattr(self,'exo_lane_attempts',0)+1
+                if attempts>=EXO_INSTALL_ATTEMPTS:self.exo_lane_failed=True
+                else:self.exo_lane_retry_at=K.GetTickCount64()+EXO_INSTALL_RETRY_MS
+                self.log(f'exocraft controls unavailable (attempt {attempts} of {EXO_INSTALL_ATTEMPTS}'
+                         +(', giving up' if getattr(self,'exo_lane_failed',False) else ', retrying')+'): '+repr(error))
+                if lane is not None and lane.installed:
+                    try:lane.restore(self._external_write_code,self.pm,os.getpid())
+                    except BaseException as restore_error:self.log('exocraft controls restore failed: '+repr(restore_error))
+                return
+        from exocraft_controls import answers,held_natives
+        profile=getattr(self,'camera_profile',None)
+        third=live and profile is not None and profile!=FIRST_PERSON_PROFILE  # unknown: first person, as dev.11 drove
+        if live and (profile,third)!=getattr(self,'exo_view',None):
+            self.exo_view=(profile,third)
+            self.log(f'exocraft view: {"third person (steering pans the camera)" if third else "first person"}, camera profile {profile}')
+        out=answers(values,self.table.unit,self.buttons.exo_natives,third) if live else {}
+        lane.publish(out)
+        self.buttons.axis_natives=held_natives(out)  # Vehicle_Reverse past half travel, on the game-action lane next tick
 
     def _crash_ditching(self):
         """The ditch at sea is running (user 2026-10-20: crash damage inactive meanwhile): the ship is in the water
@@ -1523,10 +1641,8 @@ class AbsoluteHOTAS(Mod):
         """Swap a call on another game thread. Python-side thread suspension can deadlock on the interpreter
         lock, so the bus DLL does the suspend-write-resume natively (T100, code_patch). A DLL built before
         that export falls back to the dev venv helper (tools/patch_call.py, the T77 live-proof method)."""
-        if getattr(self,'code_patcher',False) is False:
-            self.code_patcher=code_patch.load(runtime_config.load(ROOT)['bus'])
-            if self.code_patcher is None:self.log('bus DLL has no native code patch; using the dev venv helper')
-        if self.code_patcher is not None and pid==os.getpid():return self.code_patcher(site,expected,replacement)
+        patcher=self._native_patcher()
+        if patcher is not None and pid==os.getpid():return patcher(site,expected,replacement)
         import subprocess
         python=ROOT/'.venv'/'Scripts'/'python.exe'
         result=subprocess.run([str(python),'-I',str(ROOT/'tools'/'patch_call.py'),str(pid),f'{site:x}',expected.hex(),replacement.hex()],
@@ -1535,11 +1651,23 @@ class AbsoluteHOTAS(Mod):
         if result.returncode!=0:raise RuntimeError(f'patch_call {site:#x} failed: {line or result.stderr.strip()[-300:]}')
         return line
 
+    def _native_patcher(self):
+        """The bus DLL's in-process code patcher (suspends threads natively, no GIL deadlock), or None."""
+        if getattr(self,'code_patcher',False) is False:
+            self.code_patcher=code_patch.load(runtime_config.load(ROOT)['bus'])
+            if self.code_patcher is None:self.log('bus DLL has no native code patch; using the dev venv helper')
+        return self.code_patcher
+
     def _write_code(self,pm,pid,site,expected,replacement):
         """Writer for the patch classes. Every patched site is inside UpdateControlled, so the
         flight thread applies the write from the outer Update after-detour, after Controlled returned.
         When that drain is idle (paused, on foot or unloading), the existing external helper
         owns suspension. Suspending another Python thread in-process can deadlock on its GIL."""
+        recovery=getattr(self,'pilot_recovery',None)
+        if recovery is not None and getattr(self,'recovery_native',None) is recovery:
+            # This handover's flight thread already missed one write: the rest go native at once (0.2.3-dev.4: each
+            # waited its own second, about 20 s for a full restore after a warp).
+            return self._recovery_write(pid,site,expected,replacement)
         item={'args':(pm,pid,site,expected,replacement),'done':threading.Event(),'error':None}
         with self.code_lock:self.code_writes.append(item)
         if not item['done'].wait(CODE_WRITE_SECONDS):
@@ -1547,12 +1675,22 @@ class AbsoluteHOTAS(Mod):
                 queued=any(i is item for i in self.code_writes)
                 if queued:self.code_writes.remove(item)
             if queued:
-                if getattr(self,'pilot_recovery',None) is not None:
-                    raise RuntimeError('Player recovery boundary unavailable; native delivery remains disabled')
+                if recovery is not None:
+                    self.recovery_native=recovery
+                    return self._recovery_write(pid,site,expected,replacement)
                 self.log(f'code write at {site:#x}: flight thread idle, using external patch helper')
                 return self._external_write_code(pm,pid,site,expected,replacement)
             item['done'].wait()
         if item['error'] is not None:raise item['error']
+
+    def _recovery_write(self,pid,site,expected,replacement):
+        """A code write during player recovery that the flight thread didn't take. A warp hands the flight to a new
+        thread that can take many seconds to start draining (0.2.3-dev.3: HOTAS off for 30-48 s after each warp).
+        Delivery is already off, and the bus DLL suspends threads natively, so the restore doesn't wait for it.
+        Python-side suspension stays ruled out here."""
+        patcher=self._native_patcher() if pid==os.getpid() else None
+        if patcher is None:raise RuntimeError('Player recovery boundary unavailable; native delivery remains disabled')
+        return patcher(site,expected,replacement)
 
     def _drain_code_writes(self):
         """Flight thread, top of pilot(): apply queued code writes."""
@@ -1834,6 +1972,7 @@ class AbsoluteHOTAS(Mod):
                         self._aiming_tick(tick,self._aim_deflection(),reason is None and armed)
                     elif getattr(self,'aim_slowdown',None) is not None:self.aim_slowdown.disable()
                     self._step_crash_damage(tick,piloting,recovering)
+                    self._ensure_native_actions()
                     self._step_wreck_fall(tick,piloting)
                     self._step_eject_retry(tick,piloting,recovering)
                     # T93: a ditch knocks the engines out. The pilot blacks out once per crash (user 2026-10-19:
@@ -1883,8 +2022,10 @@ class AbsoluteHOTAS(Mod):
                         self.buttons.synthetic_keys=frozenset()
                         if not getattr(self,'touchdown_failed',False):self.touchdown_failed=True;self.log('touchdown error: '+repr(error))
                     self._log_axis_states()
-                    self.buttons.step(self.table.digital,now,flight_buttons_live(reason),
-                                      self.capture is None and not self.menu_open and self._focused())
+                    keys_live=self.capture is None and not self.menu_open and self._focused()
+                    driving=self._driving()
+                    self.buttons.step(self.table.digital,now,flight_buttons_live(reason),keys_live,driving)
+                    self._step_exocraft(driving and keys_live)
                     self._eject_hold(now,tick,reason is None)
                     # Dialogs and menus: the free stick drives the cursor (the frontend flag also releases flight axes).
                     v=self.store.values
@@ -2075,14 +2216,14 @@ class AbsoluteHOTAS(Mod):
 
     # T107: the planet update passes the region map its stack copy of the observer matrix (rdx); moving that copy
     # moves only the terrain focus. The after hook puts it back.
-    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4720,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4630,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def terrain_focus_before(self,this,observer,extra):
         terrain=getattr(self,'terrain',None)
         if terrain is None or not terrain.enabled:return
         try:terrain.focus_before(C.cast(observer,C.c_void_p).value,self._terrain_velocity())
         except BaseException as error:terrain.fail(error);self.hook_errors+=1
 
-    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4720,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASTerrainFocus',offset=0x12A4630,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def terrain_focus_after(self,this,observer,extra):
         terrain=getattr(self,'terrain',None)
         if terrain is None or not (terrain.enabled or terrain.pending):return
@@ -2162,9 +2303,9 @@ class AbsoluteHOTAS(Mod):
 
     def _menu_depth(self):
         """(depth, menu type) of the native options stack; F0: menus[depth-1], depth 0 = closed."""
-        depth=C.c_uint32.from_address(_internal.BASE_ADDRESS+0x6F89634).value
+        depth=C.c_uint32.from_address(_internal.BASE_ADDRESS+0x6F88674).value
         if depth==0 or depth>32:return depth,None
-        state=q(q(_internal.BASE_ADDRESS+0x6F89638)+8*(depth-1))
+        state=q(q(_internal.BASE_ADDRESS+0x6F88678)+8*(depth-1))
         return depth,C.c_int32.from_address(state).value
 
     def _original(self,rva):
@@ -2175,7 +2316,12 @@ class AbsoluteHOTAS(Mod):
 
     def _live(self):
         v=self.store.values;live={}
-        for c in ('pitch','yaw','roll','strafe-lateral','strafe-vertical','throttle'):live[c]=self.table.unit(v[f'bind-{c}-axis'])
+        for c in ('pitch','yaw','roll','strafe-lateral','strafe-vertical','throttle','exo-steer','exo-throttle','exo-brake','exo-look-x','exo-look-y'):live[c]=self.table.unit(v[f'bind-{c}-axis'])
+        # The page shows only with the pause menu open, when the game's set is FRONTEND and nothing is answered
+        # (0.2.3-dev.8 live: it never left NOT DRIVING), so report whether the last drive was answered.
+        exo=getattr(self,'exo_lane',None)
+        live['exocraft']=('off' if not v['exo-enabled'] else 'unavailable' if getattr(self,'exo_lane_failed',False)
+                          else 'answered' if exo is not None and exo.status()['hits'] else 'ready')
         if v['throttle-style']=='hosas' and v['hosas-stick-mode']=='rate':live['throttle-target']=self.control.throttle.rate.target
         if getattr(self,'ship_class',None) is not None:live['ship-class']=self.ship_class
         live['newtonian']=self._translation_status()
@@ -2198,7 +2344,7 @@ class AbsoluteHOTAS(Mod):
     def _ui_fail(self,error):
         self.hook_errors+=1;self.log('menu error: '+''.join(traceback.format_exception(error)))
 
-    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBA0,func_def=FUNCDEF(None,[]),detour_time='before')
+    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBF0,func_def=FUNCDEF(None,[]),detour_time='before')
     def options_enter(self):
         u=self.ui;u.page=0;u.inserted=False;u.ours=None;u.entry=False
         try:
@@ -2220,12 +2366,12 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBA0,func_def=FUNCDEF(None,[]),detour_time='after')
+    @manual_hook('AbsoluteHOTASOptions',offset=0x6EDBF0,func_def=FUNCDEF(None,[]),detour_time='after')
     def options_leave(self):
         self.ui.ours=None;self.ui.entry=False
         return None
 
-    @manual_hook('AbsoluteHOTASSwitcher',offset=0x6EE990,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASSwitcher',offset=0x6EE9E0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def switcher_leave(self,this):
         """Pause Options root (DoGameSwitcher): poll our BUTTON_HOTAS after the native buttons."""
         try:
@@ -2247,7 +2393,7 @@ class AbsoluteHOTAS(Mod):
         u=self.ui
         if getattr(u,'inserted',True) or (getattr(u,'ours',None) is None and not getattr(u,'entry',False)):return None
         try:
-            if self.page_finalize.caller_address()!=0x6F3BAD or page!=u.page or C.c_int32.from_address(page+8).value!=0:return None
+            if self.page_finalize.caller_address()!=0x6F3BFD or page!=u.page or C.c_int32.from_address(page+8).value!=0:return None
         except BaseException as e:
             self._ui_fail(e);return None
         u.inserted=True;dirty=C.string_at(page+0x10,1);u.emitting=True
@@ -2358,7 +2504,7 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASAppUpdate',offset=0x2DD2D0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASAppUpdate',offset=0x2DD2C0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='after')
     def app_update(self,this):
         """Push a queued HOTAS screen on the application thread, as F0's navigator did."""
         try:
@@ -2376,12 +2522,12 @@ class AbsoluteHOTAS(Mod):
         except BaseException as e:self._ui_fail(e)
         return None
 
-    @manual_hook('AbsoluteHOTASRender',offset=0x9152F0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASRender',offset=0x915320,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def render_enter(self,manager,a,b):
         self.ui.manager=manager if (self.menu is not None and self.menu.depth_routes) else 0;self.ui.ctx=0
         return None
 
-    @manual_hook('AbsoluteHOTASRender',offset=0x9152F0,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
+    @manual_hook('AbsoluteHOTASRender',offset=0x915320,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def render_leave(self,manager,a,b):
         self.ui.manager=0;self.ui.ctx=0
         return None
@@ -2507,7 +2653,7 @@ class AbsoluteHOTAS(Mod):
             self.hud_errors+=1;self.log('flight HUD error: '+''.join(traceback.format_exception(error)))
             if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
 
-    @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199BE40,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
+    @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199BC00,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
     def nvg_begin(self,ctx,w,h,ratio):
         if getattr(self.ui,'manager',0):self.ui.ctx=ctx
         try:
@@ -2515,7 +2661,7 @@ class AbsoluteHOTAS(Mod):
         except BaseException:self.hud_errors+=1
         return None
 
-    @manual_hook('AbsoluteHOTASNvgEnd',offset=0x199BF00,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
+    @manual_hook('AbsoluteHOTASNvgEnd',offset=0x199BCC0,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def nvg_end(self,ctx):
         """Draw meters over their spacer rows; state must be byte-identical after nvgRestore (U3)."""
         try:
@@ -2638,6 +2784,15 @@ class AbsoluteHOTAS(Mod):
             except Exception as error:self.log('terrain look-ahead restore failed: '+repr(error))
         try:self.buttons.release(reason)  # never leave a key or mouse button down
         except BaseException:pass
+        lane=getattr(self,'native_actions',None)
+        if lane is not None:
+            self.buttons.native_lane=None
+            try:lane.restore(self._external_write_code,self.pm,os.getpid());self.native_actions=None;self.log('game actions restored')
+            except BaseException as error:self.log('game actions restore failed: '+repr(error))
+        lane=getattr(self,'exo_lane',None)
+        if lane is not None:
+            try:lane.restore(self._external_write_code,self.pm,os.getpid());self.exo_lane=None;self.log('exocraft controls restored')
+            except BaseException as error:self.log('exocraft controls restore failed: '+repr(error))
         with self.newtonian_lock:
             self.translation_command=None
             if self.newtonian:

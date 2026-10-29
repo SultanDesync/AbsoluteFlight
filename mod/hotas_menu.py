@@ -7,7 +7,7 @@ help in the native description panel, values applied as they change and saved on
 """
 from dataclasses import dataclass,field
 import math
-from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,LANDING_CONTROLS,DAMAGE_CONTROLS,VISUAL_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
+from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,EXO_CONTROLS,EXO_LOOK,LANDING_CONTROLS,DAMAGE_CONTROLS,VISUAL_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
 import crash_damage
@@ -23,7 +23,7 @@ ROOT='root'
 # switch before its knobs, a binding beside what it acts on, live readouts last, then page actions.
 ROUTES=(('flight-model','Flight Model',None),('flight-tuning','Flight Tuning',None),
         ('atmosphere','Atmosphere Flight',None),
-        ('flight-axes','Flight Axes',None),('buttons','Buttons',None),
+        ('flight-axes','Flight Axes',None),('buttons','Buttons',None),('exocraft','Exocraft',None),
         ('head-tracking','Head Tracking',None),
         ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),('damage','Ship Damage',None),
         ('visuals','Visuals',None),
@@ -180,10 +180,10 @@ def throttle_meter(values,live=None,focused=None):
 
 
 def bindable(action_id):
-    """Actions the release runtime delivers today: live mod actions and keyboard/mouse output."""
+    """Actions the release runtime delivers today: live mod actions, the game's own actions and keyboard/mouse output."""
     a=hotas_buttons.action(action_id)
     if a is not None and a.id=='mod.gear' and not manual_landing.ENABLED:return False  # manual landing off (user 2026-10-25)
-    return a is not None and (a.id in LIVE_MOD_ACTIONS or a.lane in ('key','mouse'))
+    return a is not None and (a.id in LIVE_MOD_ACTIONS or a.lane in ('key','mouse','native'))
 
 
 def _action_rows(action_id,label,help_text,b,device_names,has_modifier=False):
@@ -197,6 +197,7 @@ def _action_rows(action_id,label,help_text,b,device_names,has_modifier=False):
 
 CURSOR_STATES={'on':'STICK','flight':'IN FLIGHT, OFF','off':'OFF','key output off':'OFF','unfocused':'OFF',
                'hotas menu':'OFF IN THIS MENU','no frontend flag':'NO MENU SIGNAL'}
+GAME_PATH_STATES={'direct':'SENDING: GAME ACTIONS','keys':'SENDING: KEYS','fallback':'GAME ACTIONS UNAVAILABLE: SENDING KEYS'}
 KEY_OUTPUT_STATES={'unqualified':'OFF: TURN ON THE SWITCH ABOVE','unfocused':'WAITING: NMS NOT FOCUSED','active':'ON','idle':'ON'}
 
 
@@ -217,6 +218,15 @@ def button_rows(buttons,values,device_names=None,live=None):
         rows+=_action_rows(a.id,a.label,a.help,bound.get(a.id),device_names,modifier is not None)
         if a.id=='mod.parking-brake':rows+=_visible_rows(('parking-brake-mode',),values)  # T106: latched or hold
         if a.id=='mod.eject':rows+=_visible_rows(('eject-hold-time',),values)  # T93: this action's hold
+    # T59 (user 2026-10-28): one row per game control; Button output picks the game action or the key for all of them.
+    rows.append(Row('header','buttons-game-header','GAME CONTROLS'))
+    rows.append(control_row(BY_ID['button-output'],values))
+    path=((live or {}).get('key-output') or {}).get('path')
+    if path:rows.append(Row('header','buttons-path',GAME_PATH_STATES.get(path,str(path).upper())))
+    for group,presets in hotas_buttons.GAME_GROUPS:
+        rows.append(Row('header','buttons-preset-'+group.lower().replace(' ','-'),group))
+        for action_id,label in presets:
+            rows+=_action_rows(action_id,label,"Presses the game's own action, or sends this key (Button output).",bound.get(action_id),device_names,modifier is not None)
     rows.append(Row('header','buttons-key-header','KEYBOARD & MOUSE'))
     rows.append(control_row(BY_ID['key-output-enabled'],values))
     status=(live or {}).get('key-output')
@@ -233,12 +243,9 @@ def button_rows(buttons,values,device_names=None,live=None):
             rows+=_action_rows(action_id,label,'Sends this key to NMS while NMS has focus.',bound.get(action_id),device_names,modifier is not None)
     rows.append(Row('header','buttons-custom-header','CUSTOM KEYS'))
     for b in buttons.get('bindings',()):
-        if b['action'].startswith(('key.','mouse.')) and b['action'] not in hotas_buttons.PRESET_LABELS:
+        if b['action'].startswith(('key.','mouse.')) and b['action'] not in hotas_buttons.PRESET_ROWS:
             rows+=_action_rows(b['action'],_action_title(b['action']),'Sends this key to NMS while NMS has focus.',b,device_names,modifier is not None)
     rows.append(Row('button','button-add-key','Add custom key','Press a keyboard key, then the joystick button that should send it.'))
-    rows.append(Row('header','buttons-ship-header','SHIP: WAITS FOR LIVE TEST (T67)'))
-    for a in hotas_buttons.ACTIONS:
-        if a.group=='ship':rows.append(Row('button','button-bind:'+a.id,a.label,(a.help+' ' if a.help else '')+'Native action injection is qualified in the T67 live session.',enabled=False,suffix=PENDING))
     return rows
 
 
@@ -250,6 +257,37 @@ HEAD_CAMERA_STATES={'off':'NATIVE (HEAD TRACKING OFF)','applied':'HEAD TRACKING'
                     'stale':'NATIVE, HEAD POSE TOO OLD','ramp':'RETURNING TO HEAD TRACKING','changed':'HEAD TRACKING',
                     'output_alias':'NATIVE, UNEXPECTED CAMERA CALL','error':'NATIVE AFTER A CAMERA ERROR','faulted':'OFF AFTER REPEATED ERRORS',
                     'waiting':'NATIVE, WAITING FOR COCKPIT VIEW'}
+
+
+EXO_STATES={'answered':'WORKING: YOUR AXES AND BUTTONS REACH THE EXOCRAFT','ready':'READY: GET IN AN EXOCRAFT AND MOVE A BOUND AXIS',
+            'unavailable':'UNAVAILABLE ON THIS BUILD (SEE LOG)','off':'OFF'}
+
+
+def exocraft_rows(values,live=None,buttons=None,device_names=None,focused=None):
+    """Exocraft page (user 2026-10-28): the switch, then steering, throttle, brake and the exocraft's own buttons.
+    Bindings here act only while you drive, so they may share axes and buttons with flight."""
+    rows=_visible_rows(['exo-enabled'],values)
+    if not values['exo-enabled']:return rows
+    state=(live or {}).get('exocraft')
+    if state:rows.append(Row('header','exo-live','EXOCRAFT: '+EXO_STATES.get(state,str(state).upper())))
+    rows.append(Row('header','exo-steer-header','STEERING'))
+    steer=_visible_rows([c.id for c in EXO_CONTROLS if c.id=='bind-exo-steer-axis' or c.id.startswith('exo-steer-')],values,device_names)
+    rows+=[steer[0],Row('meter','exo-steer-meter','',meter=axis_meter('exo-steer',values,live,focused))]+steer[1:]
+    rows.append(Row('header','exo-throttle-header','THROTTLE'))
+    rows+=_visible_rows(['bind-exo-throttle-axis','exo-throttle-style','exo-throttle-inverted','exo-throttle-deadzone'],values,device_names)
+    rows.append(Row('header','exo-brake-header','BRAKE / REVERSE'))
+    rows+=_visible_rows(['bind-exo-brake-axis','exo-brake-inverted','exo-brake-deadzone'],values,device_names)
+    for channel,title in EXO_LOOK:
+        rows.append(Row('header',f'{channel}-header',title.upper()))
+        look=_visible_rows([c.id for c in EXO_CONTROLS if c.id==f'bind-{channel}-axis' or c.id.startswith(channel+'-')],values,device_names)
+        rows+=[look[0],Row('meter',f'{channel}-meter','',meter=axis_meter(channel,values,live,focused))]+look[1:]
+    rows.append(Row('header','exo-buttons-header','EXOCRAFT BUTTONS'))
+    buttons=buttons or {};bound={b['action']:b for b in buttons.get('bindings',())}
+    for action_id in hotas_buttons.EXO_ACTIONS:
+        a=hotas_buttons.action(action_id)
+        rows+=_action_rows(action_id,a.label,(a.help+' ' if a.help else '')+"The game's own exocraft action, while you drive. A button may also carry a flight binding; while you drive, this one wins.",
+                           bound.get(action_id),device_names,buttons.get('modifier') is not None)
+    return rows
 
 
 def head_rows(values,live=None,buttons=None,device_names=None):
@@ -313,12 +351,13 @@ def route_controls(route):
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
     if route=='combat':return list(AIMING_CONTROLS+AI_CONTROLS)
-    if route=='buttons':return ['key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
+    if route=='buttons':return ['button-output','key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
     if route=='flight-tuning':return [c.id for c in PROFILE_CONTROLS if c.id[len('tuning-'):] not in AIR_STYLE_KEYS]
     if route=='atmosphere':return ['atmosphere-model']+['tuning-'+k for k in AIR_STYLE_KEYS]+[c.id for c in AIR_CONTROLS+LANDING_CONTROLS]
     if route=='damage':return [c.id for c in DAMAGE_CONTROLS]
     if route=='visuals':return [c.id for c in VISUAL_CONTROLS]
     if route=='head-tracking':return [c.id for c in HEAD_CONTROLS]
+    if route=='exocraft':return [c.id for c in EXO_CONTROLS]
     return []
 
 
@@ -545,6 +584,8 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         rows+=button_rows(buttons or {},values,device_names,live)
     elif route=='head-tracking':
         rows+=head_rows(values,live,buttons,device_names)
+    elif route=='exocraft':
+        rows+=exocraft_rows(values,live,buttons,device_names,focused)
     else:
         raise KeyError(route)
     rows+=_footer(route)

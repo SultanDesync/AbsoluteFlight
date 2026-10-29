@@ -1,7 +1,7 @@
-"""F13: suppress only RudderToRoll's yaw-derived demand on build 183791/26271400 (remapped from 180836).
+"""F13: suppress only RudderToRoll's yaw-derived demand on build 183877/26295378 (remapped from 180836).
 
 Static source: research/re-log/2026-10-16_codex_rotation-additive.{md,json}.
-Verified executable SHA256 d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87 (183791);
+Verified executable SHA256 d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37 (183877);
 the 24-byte signature is unique in its .text section. No attachment or game write
 occurs here. The qualified assist load is replaced with zero; native yaw, explicit
 roll input, angular feedback and separate combat-follow roll paths stay native.
@@ -18,8 +18,8 @@ AUTOBANK_COUNT=0x308
 AUTOBANK_INVOCATION=0x310
 AUTOBANK_STAGE=0x318
 AUTOBANK_SITE={
-    'rva':0x1790f69,'size':8,'original':'f30f108588410000',
-    'signature':'f30f1085884100000f5705a8594603f30f59c30f28f8e9f3',
+    'rva':0x1790d89,'size':8,'original':'f30f108588410000',
+    'signature':'f30f1085884100000f5705684b4603f30f59c30f28f8e9f3',
     'instructions':['movss xmm0, dword ptr [rbp + 0x4188]'],
     'disposition':'zero yaw-derived RudderToRoll demand only under qualified Sultan flight',
 }
@@ -41,7 +41,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     ne(b'\x83\x3d',data+4,b'\x01')
     ne(b'\x83\x3d',data+AUTOBANK_SUPPRESS,b'\x01')
     stage(1)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121));ins_ne('48 39 85 68 41 00 00')
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1783F41));ins_ne('48 39 85 68 41 00 00')
     # Native clock is checked here, independently of a previous translation call.
     c.emit(b'\x48\xb8'+struct.pack('<Q',get_tick)+b'\xff\xd0')
     c.relative(b'\x48\x3b\x05',data+72);c.relative(b'\x0f\x83','out')
@@ -54,7 +54,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     c.emit(bytes.fromhex('49 8b 85 28 03 00 00'));ne(b'\x48\x3b\x05',data+32)
     c.emit(bytes.fromhex('49 89 c0')) # R8 pinned context, RDX pinned state
     c.emit(bytes.fromhex('48 8b 82 88 00 00 00'));ne(b'\x48\x3b\x05',data+112)
-    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.relative(b'\x48\x8b\x05',base+0x6f5f868);ne(b'\x48\x3b\x05',data+80)
     c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
     c.emit(bytes.fromhex('48 8b 86 c0 60 00 00'));ne(b'\x48\x3b\x05',data+168)
     c.emit(bytes.fromhex('48 8b 00'));ne(b'\x48\x3b\x05',data+176)
@@ -70,7 +70,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','out')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','out')
-    c.relative(b'\x48\x8b\x05',base+0x6f60828)
+    c.relative(b'\x48\x8b\x05',base+0x6f5f868)
     for code in ('83 b8 98 bd 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
         if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
             # Clear-space manual combat shares this assist; all other guards stay.
@@ -114,14 +114,14 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     # Zero effective time would make this an unqualified paused physics frame.
     c.emit(bytes.fromhex('41 8b 85 60 02 00 00 85 c0'));c.relative(b'\x0f\x8e','out')
     c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    for address in (base+0x7233e58+0x18,base+0x7233e58+0x24):
+    for address in (base+0x7232e78+0x18,base+0x7232e78+0x24):
         c.relative(b'\x8b\x05',address);c.emit(bytes.fromhex('85 c0'));c.relative(b'\x0f\x8e','out')
         c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    c.relative(b'\xf3\x0f\x10\x05',base+0x7233e58+0x18)
-    c.relative(b'\xf3\x0f\x59\x05',base+0x7233e58+0x24)
+    c.relative(b'\xf3\x0f\x10\x05',base+0x7232e78+0x18)
+    c.relative(b'\xf3\x0f\x59\x05',base+0x7232e78+0x24)
     c.emit(bytes.fromhex('66 0f 7e c0 85 c0'));c.relative(b'\x0f\x8e','out')
     c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    c.relative(b'\x8b\x05',base+0x7233e58+0x30);c.emit(bytes.fromhex('f7 c0 00 ff 00 00'));c.relative(b'\x0f\x84','clock_running')
+    c.relative(b'\x8b\x05',base+0x7232e78+0x30);c.emit(bytes.fromhex('f7 c0 00 ff 00 00'));c.relative(b'\x0f\x84','clock_running')
     c.emit(bytes.fromhex('f7 c0 00 00 ff 00'));c.relative(b'\x0f\x84','out')
     c.label('clock_running')
     stage(6)

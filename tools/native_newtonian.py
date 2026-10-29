@@ -1,4 +1,4 @@
-"""T55 qualified acceleration seam, exact build 183791 / Steam 26271400 (remapped from 180836 on 2026-10-28).
+"""T55 qualified acceleration seam, exact build 183877 / Steam 26295378 (remapped from 180836 on 2026-10-28).
 
 Only final stack XYZ is replaced, immediately before native mass scaling. Native
 rotation, collisions, gravity, integration and all fallback paths remain native.
@@ -18,7 +18,7 @@ import struct
 from native_roll_patch import Code, K, MemoryInfo, replace_code
 
 MANIFEST=Path(__file__).with_name('native_newtonian_sites.json')
-EXPECTED_SHA='d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87'
+EXPECTED_SHA='d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37'
 CONTROL=0x000; WORK=0x400; WORK_SIZE=0x400; RING=0x1000
 SLOT=0x800; CAPACITY=1024; ALLOCATION=RING+SLOT*CAPACITY
 NEAR_DISTANCE=0x10000000 # one contiguous block within256MiB of final site
@@ -33,7 +33,7 @@ LOW_HEIGHT='80 be 30 67 00 00 00'
 # static). In air native blends that field toward the Planet engine block, which capped a Sultan
 # Fighter at 305.6 u/s (2*152.8) on 2026-10-19. Planetary caves only; signature unique in the exe.
 CLAMP_HALF=0x3F4
-CLAMP_SITE={'rva':0x179383f,'size':8,'original':'f30f109650660000',
+CLAMP_SITE={'rva':0x179365f,'size':8,'original':'f30f109650660000',
             'signature':'f30f1096506600004533c9440f284d50f30f58d20fc6c000',
             'instructions':['0x179383f: movss xmm2, dword ptr [rsi + 0x6650]']}
 # T93 ditch at sea (research/re-log/2026-10-19_claude_ditching.md). The native ground-clearance term treats
@@ -188,7 +188,7 @@ def latch_code(cave,site,data,base):
     c=Code(cave);c.emit(bytes.fromhex(site['original']));_save(c)
     _check(c,b'\x83\x3d',data,b'\x01')
     _check(c,b'\x48\x3b\x35',data+8)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1783F41))
     c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     c.emit(bytes.fromhex('65 8b 04 25 48 00 00 00'))
     c.relative(b'\x83\x3d',data+56,b'\x00');c.relative(b'\x0f\x84','set_thread')
@@ -209,7 +209,7 @@ def latch_code(cave,site,data,base):
 def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,allow_planetary_flight=False):
     from native_autobank import AUTOBANK_COUNT,AUTOBANK_INVOCATION
     c=Code(cave);_save(c);_owner_guard(c,data)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1783F41))
     c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     w=data+WORK
     def reason(n):c.relative(b'\xc7\x05',w+60,struct.pack('<I',n))
@@ -256,14 +256,14 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
         _snapshot_scalar(c,6,offset,w+target)
     _snapshot_scalar(c,5,0x4180,w+0x150)
     for offset,target in ((0x18,0x154),(0x24,0x158),(0x30,0x15c)):
-        c.relative(b'\x8b\x05',base+0x7233e58+offset);c.relative(b'\x89\x05',w+target)
-    c.relative(b'\x8b\x05',base+0x517f478);c.relative(b'\x89\x05',w+0x160)
+        c.relative(b'\x8b\x05',base+0x7232e78+offset);c.relative(b'\x89\x05',w+target)
+    c.relative(b'\x8b\x05',base+0x517e478);c.relative(b'\x89\x05',w+0x160)
     for offset,target in ((0x675c,0x164),(0x6730,0x168),(0x7740,0x16c),(0x73e0,0x170)):
         _snapshot_scalar(c,6,offset,w+target)
     # T101 clearance: 7.10 reuses its stack slot before this site, so clearance_code captures it where it's written.
     # Effective backend identity is checked before R3 reads pinned motion values.
     fail(3)
-    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.relative(b'\x48\x8b\x05',base+0x6f5f868);ne(b'\x48\x3b\x05',data+80)
     c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
     c.emit(bytes.fromhex('49 8b 80 80 03 00 00'));ne(b'\x48\x3b\x05',data+88)
     c.emit(bytes.fromhex('48 89 c7 48 8b 40 40'));ne(b'\x48\x3b\x05',data+256)
@@ -280,7 +280,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     # R3 never changes the native stack; records still identify failed qualification.
     fail(1);c.relative(b'\x83\x3d',data+4,b'\x01');c.relative(b'\x0f\x85','publish')
     fail(4)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1783F41))
     ins_ne('48 39 85 68 41 00 00')
     for code in ('80 be c8 60 00 00 01','83 be 5c 67 00 00 00','80 be 30 67 00 00 00',
                  '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
@@ -289,7 +289,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','publish')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
-    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.relative(b'\x48\x8b\x05',base+0x6f5f868);ne(b'\x48\x3b\x05',data+80)
     for code in ('83 b8 98 bd 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
         if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
             # Known manual-combat byte only. Unknown unsigned values stay native.
@@ -402,7 +402,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     c.emit(bytes.fromhex('49 8b 85 90 02 00 00'));ne(b'\x48\x3b\x05',data+24)
     c.emit(bytes.fromhex('48 8b 40 08'));ne(b'\x48\x3b\x05',data+32)
     c.emit(bytes.fromhex('49 8b 85 28 03 00 00'));ne(b'\x48\x3b\x05',data+32)
-    c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+    c.relative(b'\x48\x8b\x05',base+0x6f5f868);ne(b'\x48\x3b\x05',data+80)
     c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
     c.emit(bytes.fromhex('48 8b 46 30'));ne(b'\x48\x3b\x05',data+312)
     c.emit(bytes.fromhex('8b 80 d0 00 00 00'));ne(b'\x3b\x05',data+320)
@@ -417,7 +417,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
             else:ins_ne(code)
         c.emit(bytes.fromhex('49 8b 95 90 02 00 00 f6 42 01 18'));c.relative(b'\x0f\x85','publish')
         c.emit(bytes.fromhex('4d 8b 85 28 03 00 00 49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
-        c.relative(b'\x48\x8b\x05',base+0x6f60828);ne(b'\x48\x3b\x05',data+80)
+        c.relative(b'\x48\x8b\x05',base+0x6f5f868);ne(b'\x48\x3b\x05',data+80)
         ins_ne('83 b8 98 bd 89 00 00')
         c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','publish')
         ins_ne('83 b8 dc b6 72 00 00');ins_ne('83 b8 cc b6 72 00 00')
@@ -499,24 +499,24 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
 # bank. Static 2026-10-19 (claude), build 180836. The site is `test al,al; jne 0x175DC98`; taking that
 # jump is native's own pilot-is-rolling path. Planetary caves only; signature unique, no jump into it.
 AUTO_LEVEL_OFF=0x3F8
-LEVEL_SITE={'rva':0x1790a7b,'size':8,'original':'84c00f85f4050000',
-            'signature':'84c00f85f4050000f30f1005a56cb603488d9510380000f3',
+LEVEL_SITE={'rva':0x179089b,'size':8,'original':'84c00f85f4050000',
+            'signature':'84c00f85f4050000f30f1005c55eb603488d9510380000f3',
             'instructions':['0x1790a7b: test al, al','0x1790a7d: jne 0x1791077']}
-LEVEL_SKIP=0x1791077-0x1790a7b
+LEVEL_SKIP=0x1790E97-0x179089b
 # Water auto-level: with ship+0x6720 (low height) and ship+0x62E0 (over water within AutoLevelWaterMargin
 # 90 of the sea surface, set at 0x1756F50..0x1756FB8) native measures tilt from planet up and past
 # AutoLevelWaterAngle 45 (globals+0x1288, 0x175E974) torques the ship back (0x1055790, AutoLevelWaterTorque
 # globals+0x1290): the 45-degree bank wall at sea level. Site `cmp byte [rsi+0x62E0],0; je 0x175E9E9`;
 # taking the jump is native's own not-over-water path. Same switch as LEVEL_SITE. Static 2026-10-19 (claude).
-WATER_SITE={'rva':0x1791b23,'size':13,'original':'80bef0620000000f84bc020000',
+WATER_SITE={'rva':0x1791943,'size':13,'original':'80bef0620000000f84bc020000',
             'signature':'80bef0620000000f84bc020000488d95a0390000498bcde8',
             'instructions':['0x1791b23: cmp byte ptr [rsi + 0x62f0], 0','0x1791b2a: je 0x1791dec']}
-WATER_SKIP=0x1791dec-0x1791b23
+WATER_SKIP=0x1791c0c-0x1791943
 # T101 terrain clearance, 183791: UpdateControlled stores min(height above sea, above the terrain ray hit) to
 # [rbp-0x60] at 0x178A0BB ([rbp+0x18] at 0x1756F9C on 180836). 7.10 reuses that slot for a damping lerp
 # (0x17932D2) on some frames before the final site, so the value is copied into the work record here, after
 # the latch has cleared it. Planetary caves only; signature unique, no jump into it.
-CLEARANCE_SITE={'rva':0x178a0bb,'size':5,'original':'f30f1175a0',
+CLEARANCE_SITE={'rva':0x1789edb,'size':5,'original':'f30f1175a0',
                 'signature':'f30f1175a07213f3410f108424d83100000f2fc17204b001',
                 'instructions':['0x178a0bb: movss dword ptr [rbp - 0x60], xmm6']}
 
@@ -581,7 +581,7 @@ def clamp_code(cave,site,data):
 
 def after_integrator_code(cave,site,data,base):
     c=Code(cave);_save(c);_owner_guard(c,data)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1784121))
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1783F41))
     c.emit(bytes.fromhex('48 39 85 68 41 00 00'));c.relative(b'\x0f\x85','out')
     c.relative(b'\x48\x8b\x05',data+48)
     _check(c,b'\x48\x3b\x05',data+240)
@@ -600,7 +600,7 @@ def after_integrator_code(cave,site,data,base):
     c.relative(b'\x48\xff\x05',data+224)
     c.label('out');_restore(c)
     # Displaced MOV RCX,[RIP+57CCFB6] explicitly relocated, target module 6F60828 (183791).
-    c.relative(b'\x48\x8b\x0d',base+0x6f60828)
+    c.relative(b'\x48\x8b\x0d',base+0x6f5f868)
     c.relative(b'\xe9',site['address']+site['size'])
     return c.finish()
 
@@ -750,15 +750,15 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
         return b
     def q(a):return struct.unpack('<Q',raw(a,8))[0]
     def u(a):return struct.unpack('<I',raw(a,4))[0]
-    manager=q(module_base+0x6f60828)
+    manager=q(module_base+0x6f5f868)
     player=manager+0x72cde0
     handle=q(player+0x168)
     if handle==0:raise IdentityError('native player has no attached spaceship handle')
     index=handle>>32
     if index>0xfeff:raise IdentityError('native player attachment index out of bounds')
-    entity=module_base+0x546af40+0x58*index
+    entity=module_base+0x5469f80+0x58*index
     if q(entity+0x50)!=handle:raise IdentityError('player attachment generation mismatch')
-    component_type=struct.unpack('<h',raw(module_base+0x517f568,2))[0]
+    component_type=struct.unpack('<h',raw(module_base+0x517e568,2))[0]
     if not 0<=component_type<256:raise IdentityError('spaceship component type outside attachment bitmask')
     mask_bytes=raw(entity+0x30,32)
     mask=int.from_bytes(mask_bytes,'little')
@@ -767,7 +767,7 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
     components=q(entity+0x20)
     ship=q(components+8*rank)
     if not ship:raise IdentityError('native player spaceship component null')
-    pool=q(module_base+0x517f8f0)
+    pool=q(module_base+0x517e8f0)
     count=u(pool+4);array=q(pool+8)
     if not 0<count<=max_pool_count:raise IdentityError('spaceship pool count outside bounded snapshot')
     # 512-pointer reads preserve a modest upper bound on any single RPM request.
@@ -783,9 +783,9 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
     if active!=1 or controller==0:raise IdentityError('native player ship controller inactive or invalid')
     vtable=q(controller)
     if not vtable:raise IdentityError('concrete controller vtable null')
-    if (q(module_base+0x6f60828)!=manager or q(player+0x168)!=handle or q(entity+0x50)!=handle
+    if (q(module_base+0x6f5f868)!=manager or q(player+0x168)!=handle or q(entity+0x50)!=handle
         or raw(entity+0x30,32)!=mask_bytes or q(entity+0x20)!=components
-        or q(components+8*rank)!=ship or q(module_base+0x517f8f0)!=pool
+        or q(components+8*rank)!=ship or q(module_base+0x517e8f0)!=pool
         or u(pool+4)!=count or q(pool+8)!=array or q(array+8*matches[0])!=ship
         or q(ship+0x60c0)!=wrapper or q(wrapper)!=controller or raw(ship+0x60c8,1)[0]!=1):
         raise IdentityError('native player/attachment/pool identity changed during snapshot')
@@ -795,7 +795,7 @@ def resolve_local_player_ship(read,module_base,*,max_pool_count=4096):
             'pool_count':count,'pool_array':hex(array),'selected_pool_index':matches[0],
             'controller_active':active,'controller_wrapper':hex(wrapper),'concrete_controller':hex(controller),
             'concrete_controller_vtable':hex(vtable),'identity_method':'native14842c0 attachment component lookup + bounded pool cross-check',
-            'build':'183791 / Steam26271400'}
+            'build':'183877 / Steam26295378'}
 
 class SnapshotError(RuntimeError):
     pass
@@ -837,7 +837,7 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
     physics=u64(ship+0x6258); rigid=physics+0x50
     state=u64(rigid+0x290); context=u64(rigid+0x328)
     backend=u64(context+0x380); manager=u64(backend+0xbb0)
-    if u64(backend+0x20)!=module_base+0x3633618:
+    if u64(backend+0x20)!=module_base+0x3632618:
         raise SnapshotError('unrecognized backend body-accessor vtable')
     handle=u64(state+0x88)
     body_id=(handle if handle&(1<<63) else lookup(backend+0x1138,handle))&0xffffff
@@ -857,12 +857,12 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
         obj=u64(manager+0xf88+16*i)
         callbacks.append({'index':i,'body_mask':u32(manager+0xf80+16*i),'object':hex(obj),
                           'vtable':hex(u64(obj)),
-                          'is_native_angular_factor_callback':obj==module_base+0x50da910 and u64(obj)==module_base+0x35d4a20})
+                          'is_native_angular_factor_callback':obj==module_base+0x50d9910 and u64(obj)==module_base+0x35d3a20})
     flags=raw(state,2)
     result={'ship':hex(ship),'physics':hex(physics),'rigid':hex(rigid),'state':hex(state),
             'context':hex(context),'context_id':u64(context+0xa38),'backend':hex(backend),
             'backend_interface_vtable':hex(u64(backend+0x20)),
-            'backend_interface_expected':hex(module_base+0x3633618),
+            'backend_interface_expected':hex(module_base+0x3632618),
             'modifier_manager':hex(manager),'native_handle':hex(handle),'body_id':body_id,
             'body_record':hex(body),'body_wrapper':hex(wrapper),'body_flags54':u32(body+0x54),
             'motion_id':motion_id,'motion_record':hex(motion),'state_flags':list(flags),
@@ -967,7 +967,7 @@ class Bridge:
                 raise RuntimeError('Exact-build site signature mismatch')
         # Two pages per cave leave room for complete same-invocation gates.
         allocation_size=ALLOCATION+len(manifest['sites'])*0x2000
-        self.data=_allocate_data(self.pm.process_handle,self.base+0x179382f,allocation_size)
+        self.data=_allocate_data(self.pm.process_handle,self.base+0x179364f,allocation_size)
         for index,(kind,v) in enumerate(manifest['sites'].items()):
             site=self.base+v['rva'];cave=self.data+ALLOCATION+index*0x2000
             patch=b'\xe9'+struct.pack('<i',cave-site-5)+b'\x90'*(v['size']-5)

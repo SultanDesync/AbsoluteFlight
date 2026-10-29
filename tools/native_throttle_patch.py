@@ -1,12 +1,12 @@
-"""D10 stack-u cave, build 183791/26271400 only (remapped from 180836); disabled until explicitly armed."""
+"""D10 stack-u cave, build 183877/26295378 only (remapped from 180836); disabled until explicitly armed."""
 import json
 from pathlib import Path
 import struct
 from native_roll_patch import Code,K,allocate_near,replace_code
 
-SITE_RVA=0x178D96B
+SITE_RVA=0x178D78B
 ORIGINAL=bytes.fromhex('F3 0F 10 95 80 41 00 00')
-GLOBAL_SLOT_RVA=0x6F60828
+GLOBAL_SLOT_RVA=0x6F5F868
 
 
 def cave_bytes(cave,site,data,get_tick,global_slot):

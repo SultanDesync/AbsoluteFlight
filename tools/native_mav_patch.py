@@ -1,4 +1,4 @@
-"""D8 candidate, build 183791/26271400 (remapped from 180836); NOT authorized or installed by import.
+"""D8 candidate, build 183877/26295378 (remapped from 180836); NOT authorized or installed by import.
 
 Only adds a bounded perpendicular correction to the native blended force lane.
 Two native sites share same-invocation coefficient capture. No velocity write.
@@ -163,7 +163,7 @@ class MavPatch:
         self.block=self.cave+(0x400 if integration else 0xc00);self.force=self.block+FORCE;self.patches={}
         for i,(rva,original) in enumerate(SITES.items()):
             site=self.base+rva;cave=force_cave if i else self.cave
-            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6f60828,bound,integration)
+            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6f5f868,bound,integration)
             pm.write_bytes(cave,code,len(code))
             if not K.FlushInstructionCache(pm.process_handle,cave,len(code)):raise OSError('Cache flush failed')
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('MAV cave readback differs')
@@ -171,7 +171,7 @@ class MavPatch:
             self.patches[rva]={'site':site,'original':original.hex(),'patch':patch.hex(),'code':code.hex()}
         state=initial_state(ship,lease,bound);pm.write_bytes(self.block,state,len(state))
         if not K.FlushInstructionCache(pm.process_handle,self.cave,0x1000):raise OSError('Cache flush failed')
-        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'183791/26271400','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
+        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'183877/26295378','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
         with Path(manifest).open('x') as f:json.dump(self.metadata,f,indent=2)
     def install(self,writer=replace_code):
         for item in self.patches.values():writer(self.pm,self.pid,item['site'],bytes.fromhex(item['original']),bytes.fromhex(item['patch']))

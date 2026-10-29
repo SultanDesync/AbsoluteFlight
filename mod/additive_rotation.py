@@ -20,7 +20,7 @@ from planetary_flight import AIR_CLASSES
 from hotas_settings import PROFILE_KEYS, parse_token
 
 MAX_LEASE_MS = 50
-BUILD_SHA256 = 'd1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87'
+BUILD_SHA256 = 'd393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37'
 FIGHTER_ENDPOINTS = {'pitch_negative': 1.1641868352890015, 'pitch_positive': -1.1641868352890015,
                      'yaw_negative': -1., 'yaw_positive': 1.}
 # T90: per-class rotation shaping (Flight Tuning > Rotation): top pitch/yaw/roll rate multipliers
@@ -102,8 +102,8 @@ def capture_identity(runtime):
     from native_rotation_trial import EXPECTED_SHA, read_engine_pins, read_mode_pins
     bridge = runtime.newtonian
     base = int(runtime.pm.process_base.lpBaseOfDll)
-    return {'exe_sha256': EXPECTED_SHA, 'file_version': '183791',
-            'steam_buildid': '26271400', 'process_id': os.getpid(),
+    return {'exe_sha256': EXPECTED_SHA, 'file_version': '183877',
+            'steam_buildid': '26295378', 'process_id': os.getpid(),
             'fixture': _copy(bridge.fixture),
             'engine_pins': read_engine_pins(runtime.pm, bridge.fixture['ship']),
             'mode_pins': read_mode_pins(runtime.pm, base),
@@ -200,8 +200,8 @@ def get_runtime_profile(identity, request=None):
     multiplies native targets and that gain, never the MaxTorque clamp.
     """
     request = DEFAULT_REQUEST if request is None else request
-    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '183791'
-            or identity.get('steam_buildid') != '26271400'):
+    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '183877'
+            or identity.get('steam_buildid') != '26295378'):
         raise ValueError('unsupported additive rotation game build')
     ship_class = identity.get('fixture', {}).get('ship_class')
     if request['additive'] and ship_class != 2:

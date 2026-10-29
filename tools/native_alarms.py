@@ -1,4 +1,4 @@
-"""T95 native side of the ship alarms (mod/ship_alarms.py), build 183791 / Steam 26271400.
+"""T95 native side of the ship alarms (mod/ship_alarms.py), build 183877 / Steam 26295378.
 
 Three pieces, each pinned by its bytes; any mismatch leaves the alarms off (silence, native lights) and the
 ditch and crash unchanged. Static research: research/re-log/2026-10-19_claude_ditch-ambience.md (build 180836;
@@ -21,21 +21,21 @@ import struct
 
 POST_EVENT_EXPORT = (b'?PostEvent@SoundEngine@AK@@YAII_KIP6AXW4AkCallbackType@@PEAUAkCallbackInfo@@@ZPEAXIPEAU'
                      b'AkExternalSourceInfo@@I@Z')
-POST_EVENT_RVA = 0x32107D0
-ENGINE_SOUND_RVA = 0x1797D60
+POST_EVENT_RVA = 0x320FF40
+ENGINE_SOUND_RVA = 0x1797B80
 PINS = {  # rva -> bytes at that rva (exe on disk, build 183791)
     POST_EVENT_RVA: '488bc44889580848896810488970184c89702041574883ec704533d2498bf141',
     ENGINE_SOUND_RVA: '48895c2408574883ec300fb681286700000fb6fa488bd984d2744b84c00f859f',
-    0x1796740: '389f5f6f00007506899f606f00004488af5f6f0000eb14389f5f6f00007506899f606f0000889f5f6f0000',
-    0x180AB40: ('488b05e15c7505b301f30f10353fc5ae03410f28c380b86daa5700007418f30f103526c5ae03eb0ef30f103518c5ae03'
-                '32db410f28c380be6f02000000741ef30f5935ed92a2050f28c6e82124c801f30f5cf0b2030f28c6e813585d0184db74'
-                '0af30f101ddbc4ae03eb08f30f101dcdc4ae0384db488d0db4b2ae03488d059db2ae03480f45c10f1030'),
+    0x1796560: '389f5f6f00007506899f606f00004488af5f6f0000eb14389f5f6f00007506899f606f0000889f5f6f0000',
+    0x180A930: ('488b05314f7505b301f30f10358fb7ae03410f28c380b86daa5700007418f30f103576b7ae03eb0ef30f103568b7ae03'
+                '32db410f28c380be6f02000000741ef30f59351d85a2050f28c6e8111dc801f30f5cf0b2030f28c6e8e3575d0184db74'
+                '0af30f101d2bb7ae03eb08f30f101d1db7ae0384db488d0d04a5ae03488d05eda4ae03480f45c10f1030'),
 }
-APP_GLOBAL = 0x6F60828   # cGcApplication::Data
+APP_GLOBAL = 0x6F5F868   # cGcApplication::Data
 HUD_OBJECT = 0x7330F8    # [M+...]: the audio object of 137 native UI sounds
 SHIP_OBJECT = 0x6268     # [ship+...]: the ship's 3D audio object
 ALARM_FLAG = 0x6F5F      # ship byte: cockpit alarm lights on
-GLOBALS = 0x52F5E10      # gcspaceshipglobals (light pass RIP refs 0x180AB49..0x180ABBC)
+GLOBALS = 0x52F4E50      # gcspaceshipglobals (light pass RIP refs 0x180AB49..0x180ABBC)
 COLOUR, COLOUR_HOSTILE = 0x50, 0x60          # 4 floats each: light blue, red
 INTENSITY, INTENSITY_HOSTILE, RATE = 0x1270, 0x1274, 0x1278  # 183791: +0x30 (light pass RIP refs)
 

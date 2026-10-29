@@ -1,4 +1,4 @@
-"""Read-only native MAV coefficient/basis snapshots, build 183791/26271400 (remapped from 180836).
+"""Read-only native MAV coefficient/basis snapshots, build 183877/26295378 (remapped from 180836).
 
 Writes only owned observer storage. Neither cave changes any native force,
 input, camera or game-data value. No force-injection mode exists in this module.
@@ -10,7 +10,7 @@ from native_roll_patch import Code,K,allocate_near,replace_code
 # 183791: the capture site moved past the coefficient's last write (no MOVAPS from XMM6 any more: the
 # coefficient is scalar XMM0, the modifier broadcast XMM1), and 7.10 swapped XMM7/XMM8, so the blended
 # force lane is XMM8 and the signed forward speed XMM7. Both sites are 8 bytes.
-CAPTURE_SITE,FORCE_SITE=0x178F476,0x178F763
+CAPTURE_SITE,FORCE_SITE=0x178F296,0x178F583
 SITES={CAPTURE_SITE:bytes.fromhex('0fc6c000440f59c0'),FORCE_SITE:bytes.fromhex('440f58c6440f2fe0')}
 ADDPS=4  # native ADDPS XMM8,XMM6 at the start of the force site; COMISS follows
 SIZE=256

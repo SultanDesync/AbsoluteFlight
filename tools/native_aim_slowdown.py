@@ -1,4 +1,4 @@
-"""Scoped replacement of native ship input friction, NMS 183791 / Steam 26271400.
+"""Scoped replacement of native ship input friction, NMS 183877 / Steam 26295378.
 
 The producer resets +0x64, optionally calculates native sticky gain, and joins at
 RVA 0x1447C92 before both scalar pitch/yaw consumers. This cave replaces that
@@ -23,10 +23,10 @@ from command_mailbox import CommandMailbox, reader_code
 from native_roll_patch import Code, K
 from native_six_axis import save, restore
 
-SITE_RVA = 0x1447C92
+SITE_RVA = 0x1447BA2
 ORIGINAL = bytes.fromhex('f30f10442438410f28c8')
-CALLER_RVA = 0x178C3CB
-APP_GLOBAL = 0x6F60828
+CALLER_RVA = 0x178C1EB
+APP_GLOBAL = 0x6F5F868
 PRODUCER_OFFSET = 0x60D0
 FACTOR_OFFSET = 0x64
 BLOCK = 0x800
@@ -38,11 +38,11 @@ MAX_GAIN = 1.
 # Exact-build below-entry pins. The producer's saved outer RBP is [RBP+100],
 # and its original return address is [RBP+108], from this prologue.
 PINS = {
-    0x1446AC1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
-    0x14476A5: bytes.fromhex('c746640000803f'),
-    0x1447F4B: bytes.fromhex('f30f594e64'),
-    0x1448064: bytes.fromhex('f30f594e64'),
-    0x178C3C6: bytes.fromhex('e8e5a6cbff'),
+    0x14469D1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
+    0x14475B5: bytes.fromhex('c746640000803f'),
+    0x1447E5B: bytes.fromhex('f30f594e64'),
+    0x1447F74: bytes.fromhex('f30f594e64'),
+    0x178C1E6: bytes.fromhex('e8d5a7cbff'),
 }
 
 _RETAINED = []

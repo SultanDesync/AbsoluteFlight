@@ -6,7 +6,7 @@ a later profile importer (research/15) maps them directly; NEW marks NMS-only se
 Fractions are stored 0..1 and shown as percent. Edits apply immediately, as native NMS
 options do; save() runs when the menu is left, revert() restores the saved file.
 """
-from dataclasses import dataclass,field
+from dataclasses import dataclass,field,replace
 import json
 import math
 import os
@@ -150,6 +150,7 @@ CONTROLS=(
         ('cruise-start','Cruise starts',.52),('cruise-end','Cruise ends',.58),('full-start','Full starts',.85),('boost-start','Boost starts',.90))],
     Control('lever-cruise-enabled','bool','Cruise zone','Hold the cruise level in the cruise zone. Off joins this range to the forward ramp.',True,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
     Control('lever-cruise-level','float','Cruise level','Forward demand while in the cruise zone, as a fraction of the speed cap or full thrust.',.5,0.,1.,.01,visible=HOTAS_ONLY+SULTAN_ONLY+(('lever-cruise-enabled',True),),new=True),
+    Control('button-output','choice','Button output',"How the game-control rows (Combat, Ship, Quick menu) reach the game. Game actions: the button presses the game's own action, whatever keys you use in the game's settings, and without Keyboard & mouse output on. Simulated keyboard & mouse: the button sends the row's default key. Without game actions (for example right after a game update) the rows send keys.",'direct',choices=(('direct','Game actions (direct)'),('keys','Simulated keyboard & mouse')),new=True),
     Control('key-output-enabled','bool','Keyboard & mouse output','Send bound keyboard keys and mouse buttons to NMS (D20). First live test: off until you turn it on. Keys go out only while NMS has focus and are always released.',False,new=True),
     Control('cursor-stick-enabled','bool','Stick moves cursor','While a dialog or menu is open, pitch and yaw move the mouse cursor; bind left click (Fire) to select. Needs Keyboard & mouse output. Never active in flight.',True,new=True),
     Control('cursor-speed','float','Cursor speed','Cursor speed at full stick deflection. Small deflections move much slower, for fine aiming.',1400.,200.,4000.,50.,'pixels',visible=(('cursor-stick-enabled',True),),new=True),
@@ -223,6 +224,25 @@ VISUAL_CONTROLS=(
 )
 CONTROLS+=VISUAL_CONTROLS
 
+# Exocraft page (user 2026-10-28): driving stays the game's; these axes and buttons answer the game's own exocraft
+# actions while you drive (tools/native_analog_actions.py), with their own bindings apart from flight.
+EXO_ON=(('exo-enabled',True),)
+EXO_LOOK=(('exo-look-x','Camera pan left / right'),('exo-look-y','Camera pan up / down'))
+EXO_CONTROLS=(
+    Control('exo-enabled','bool','Exocraft controls',"Drive exocraft with the axes and buttons on this page, through the game's own exocraft controls: steering, throttle and braking feel as they do on a gamepad. Works only while you drive, so they can share devices and buttons with your flight bindings. The keyboard keeps working. Off: the game's own input.",False,new=True),
+    *[replace(c,visible=EXO_ON,new=True) for c in _axis_controls('exo-steer','Steering')],
+    Control('bind-exo-throttle-axis','axis-binding','Binding','Physical axis that drives the exocraft forward: a throttle lever, a gas pedal or a stick axis. Select to rebind, then move the axis.',visible=EXO_ON,new=True),
+    Control('exo-throttle-style','choice','Throttle style','Lever or pedal: one end is idle, the other full throttle. Centre stop: the centre is stop, forward drives and back brakes and reverses, for a centred stick axis.','lever',choices=(('lever','Lever or pedal'),('split','Centre stop')),visible=EXO_ON,new=True),
+    Control('exo-throttle-inverted','bool','Invert','Reverse the direction of the throttle axis.',False,visible=EXO_ON,new=True),
+    Control('exo-throttle-deadzone','float','Deadzone','Travel at idle (or around the centre) that produces no throttle.',.03,0.,.5,visible=EXO_ON,new=True),
+    Control('bind-exo-brake-axis','axis-binding','Binding','Physical axis that brakes and, once stopped, reverses: a brake pedal or a second lever. Optional with the Centre stop throttle. Select to rebind, then move the axis.',visible=EXO_ON,new=True),
+    Control('exo-brake-inverted','bool','Invert','Reverse the direction of the brake axis.',False,visible=EXO_ON,new=True),
+    Control('exo-brake-deadzone','float','Deadzone','Brake travel at rest that produces no braking.',.03,0.,.5,visible=EXO_ON,new=True),
+    # Camera pan (user 2026-10-28): the game's own CameraLookX/Y while you drive, as a gamepad's right stick.
+    *[replace(c,visible=EXO_ON,new=True) for channel,title in EXO_LOOK for c in _axis_controls(channel,title)],
+)
+CONTROLS+=EXO_CONTROLS
+
 # Active-class tuning rows are views into profiles, never a second persisted source of truth.
 PROFILE_CONTROLS=(
     Control('tuning-acceleration-scale','float','Acceleration scale','Multiplier on the ship effective native ThrustForce, including its class-tier (C/B/A/S) bonus.',1.,.05,3.,.05,'multiplier',new=True),
@@ -275,7 +295,7 @@ PROFILE_KEYS={c.id:c.id[len('tuning-'):].replace('-','_') for c in PROFILE_CONTR
 ROTATION_STYLE_KEYS=('pitch_rate','yaw_rate','roll_rate','turn_response')
 BY_ID={c.id:c for c in CONTROLS}
 # (lower, upper): lower must stay MIN_GAP below upper, as the U3 boundaries do.
-ORDERED_PAIRS=tuple((f'{ch}-deadzone',f'{ch}-saturation') for ch,_ in AXIS_CHANNELS)+(
+ORDERED_PAIRS=tuple((f'{ch}-deadzone',f'{ch}-saturation') for ch,_ in AXIS_CHANNELS+(('exo-steer','Steering'),)+EXO_LOOK)+(
     ('throttle-deadzone','hosas-saturation'),('throttle-idle-plateau','throttle-detent-center'))
 LEVER_BOUNDARIES=('reverse-end','parking-end','coast-end','cruise-start','cruise-end','full-start','boost-start')
 ZONE_PAIRS=tuple(('lever-'+a,'lever-'+b) for a,b in zip(LEVER_BOUNDARIES,LEVER_BOUNDARIES[1:]))
@@ -488,10 +508,15 @@ def coerce(control,value,values=None):
     return round(value,6)
 
 
+def exo_binding(binding_id):return binding_id.startswith('bind-exo-')
+
+
 def binding_conflict(values,binding_id,token):
-    """Other binding currently holding token, or None."""
+    """Other binding currently holding token, or None. Exocraft axes act only while driving and flight axes only
+    in the ship, so an exocraft axis shares a device axis with a flight axis freely; each side holds it once."""
     for c in CONTROLS:
-        if c.kind=='axis-binding' and c.id!=binding_id and values.get(c.id)==token:return c.id
+        if (c.kind=='axis-binding' and c.id!=binding_id and exo_binding(c.id)==exo_binding(binding_id)
+                and values.get(c.id)==token):return c.id
     return None
 
 
@@ -568,7 +593,12 @@ class SettingsStore:
         buttons=[];modifier=None
         if isinstance(data,dict) and isinstance(data.get('values'),dict) and data.get('schema') in SCHEMA_VERSIONS and 'buttons' in data:
             raw_buttons=data['buttons'] if isinstance(data['buttons'],dict) else {}
-            loaded,modifier,issues=hotas_buttons.load_bindings(raw_buttons.get('bindings'),raw_buttons.get('modifier'))
+            raw_list=raw_buttons.get('bindings')
+            if isinstance(raw_list,list):  # 0.2.3 dev game-action rows move onto their shared rows, after the bindings already there
+                raw_list=([b for b in raw_list if not (isinstance(b,dict) and b.get('action') in hotas_buttons.DEV_ROWS)]
+                          +[dict(b,action=hotas_buttons.DEV_ROWS[b['action']]) for b in raw_list
+                            if isinstance(b,dict) and b.get('action') in hotas_buttons.DEV_ROWS])
+            loaded,modifier,issues=hotas_buttons.load_bindings(raw_list,raw_buttons.get('modifier'))
             seen=set()
             for b in loaded:  # the menu keeps one binding per action
                 if b.action in seen:issues.append(f'{b.action}: extra binding on {b.token} dropped');continue
@@ -690,7 +720,9 @@ class SettingsStore:
         token=hotas_buttons.canonical(token)
         if token==self.button_modifier:return 'modifier'
         if layer is None:layer=(self.button_for(action_id) or {}).get('layer','normal')
-        return next((b['action'] for b in self.buttons if b['token']==token and b['layer']==layer and b['action']!=action_id),None)
+        context=hotas_buttons.context_for(action_id)  # an exocraft binding shares its button with a flight one
+        return next((b['action'] for b in self.buttons if b['token']==token and b['layer']==layer and b['action']!=action_id
+                     and hotas_buttons.context_for(b['action'])==context),None)
 
     def assign_button(self,action_id,token,steal_from=None,layer=None):
         """Bind action_id to token, keeping its behaviour (and its layer unless layer is given).

@@ -1,8 +1,9 @@
 {
- "file_version": "183791",
- "sha256": "d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87",
- "steam_buildid": "26271400",
+ "file_version": "183877",
+ "sha256": "d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37",
+ "steam_buildid": "26295378",
  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
+ "remap_note": "183877 (2026-10-29, claude): targets (rva, entry32, signature.rva, matches) and menu_index_instructions were carried by tools/game_update.py scan and checked on disk; nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
  "targets": {
   "BeginPage": {
    "rva": "0x1bd040",
@@ -14,7 +15,7 @@
   },
   "Header": {
    "rva": "0x1b9f40",
-   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100dca2fa304488d",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100db21fa304488d",
    "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
    "matches": [
     "0x1b9f40"
@@ -85,59 +86,59 @@
    ]
   },
   "DoOptions": {
-   "rva": "0x6edba0",
-   "entry32": "4055488dac24a0d8ffffb860280000e8fcd6d902482be0833d76ba8906000f84",
+   "rva": "0x6edbf0",
+   "entry32": "4055488dac24a0d8ffffb860280000e88ccdd902482be0833d66aa8906000f84",
    "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
    "matches": [
-    "0x6edba0"
+    "0x6edbf0"
    ]
   },
   "DoGameSwitcher": {
-   "rva": "0x6ee990",
+   "rva": "0x6ee9e0",
    "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
    "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
    "matches": [
-    "0x6ee990"
+    "0x6ee9e0"
    ]
   },
   "UpdateRender": {
-   "rva": "0x9097a0",
+   "rva": "0x9097d0",
    "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
    "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
    "matches": [
-    "0x9097a0"
+    "0x9097d0"
    ]
   },
   "ApplicationUpdate": {
-   "rva": "0x2dd2d0",
-   "entry32": "40534883ec20e8c5e19802488905ae0d0007e80940efff803d643b0605000fb6",
+   "rva": "0x2dd2c0",
+   "entry32": "40534883ec20e895df9802488905fefdff06e81940efff803db42b0605000fb6",
    "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
    "matches": [
-    "0x2dd2d0"
+    "0x2dd2c0"
    ]
   },
   "RequestOptionsPage": {
-   "rva": "0x2ea3b0",
-   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0d5964c70648",
+   "rva": "0x2ea3a0",
+   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0da954c70648",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
    "matches": [
-    "0x2ea3b0"
+    "0x2ea3a0"
    ]
   },
   "RenderPage": {
-   "rva": "0x917850",
-   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e8473ab702482be04889b424",
+   "rva": "0x917880",
+   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e8f730b702482be04889b424",
    "pattern": "48 89 4C 24 ? 55 53 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 89 B4 24 ? ? ? ? 48 89 BC 24",
    "matches": [
-    "0x917850"
+    "0x917880"
    ]
   },
   "Activate": {
-   "rva": "0x90d7c0",
+   "rva": "0x90d7f0",
    "entry32": "405556574157488bec4883ec588b8178c40100450fb6f84863f2488bf983f804",
    "pattern": "40 55 56 57 41 57 48 8B EC",
    "matches": [
-    "0x90d7c0"
+    "0x90d7f0"
    ]
   }
  },
@@ -151,7 +152,7 @@
  },
  "builders": {
   "General": {
-   "rva": "0x6fdba0",
+   "rva": "0x6fdbf0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6fdbe2",
@@ -356,7 +357,7 @@
    ]
   },
   "Controls": {
-   "rva": "0x6f3230",
+   "rva": "0x6f3280",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f3294",
@@ -556,7 +557,7 @@
    ]
   },
   "Camera": {
-   "rva": "0x6f2270",
+   "rva": "0x6f22c0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f230f",
@@ -736,35 +737,35 @@
  "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
  "menu_index_instructions": [
   {
-   "rva": "0x6edbf6",
+   "rva": "0x6edc46",
    "instruction": "mov ecx, dword ptr [rip + 0x689ba38]"
   },
   {
-   "rva": "0x6edbfc",
+   "rva": "0x6edc4c",
    "instruction": "lea r15, [rip - 0x6edc03]"
   },
   {
-   "rva": "0x6edc03",
+   "rva": "0x6edc53",
    "instruction": "mov rax, qword ptr [rip + 0x689ba2e]"
   },
   {
-   "rva": "0x6edc0a",
+   "rva": "0x6edc5a",
    "instruction": "dec ecx"
   },
   {
-   "rva": "0x6edc0c",
+   "rva": "0x6edc5c",
    "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
   },
   {
-   "rva": "0x6edc13",
+   "rva": "0x6edc63",
    "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
   },
   {
-   "rva": "0x6edc1a",
+   "rva": "0x6edc6a",
    "instruction": "mov rcx, qword ptr [rax + rcx*8]"
   },
   {
-   "rva": "0x6edc1e",
+   "rva": "0x6edc6e",
    "instruction": "movsxd rax, dword ptr [rcx]"
   }
  ]

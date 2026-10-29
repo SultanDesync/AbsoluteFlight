@@ -1,6 +1,6 @@
 """T93 eject: the native quick-menu ship eject, callable whenever Sultan flies the ship.
 
-Build NMS.exe 183791 / Steam 26271400 (research/re-log/2026-10-19_claude_ditching.md, "Addendum: why the
+Build NMS.exe 183877 / Steam 26295378 (research/re-log/2026-10-19_claude_ditching.md, "Addendum: why the
 quick-menu Eject refuses", build 180836; re-checked on 183791 against the aligned code, 2026-10-28). The quick
 menu greys ShipEject (0x41) out in "critical flight phases"; on 183791 that test is 0x15520D0(ship), which returns
 the refusal text (UI_SHIP_EJECT_ERROR, UI_SHIP_EJECT_PULSE_ERROR, UI_BIGGS_EJECT_ERROR) or null, called by the menu
@@ -24,13 +24,13 @@ import struct
 
 import capstone as cs
 
-BLOCK_RVA = 0x1562A73
-BLOCK_END = 0x1562C7D  # just after `call 0x17872D0` (Eject)
-BLOCK_SHA256 = 'ee5e766c6d57e408effac5ce0f196f87c9b93ea5e880ed3b78743353cfaaf641'
-FAIL_RVA = 0x15673F4   # the handler's common exit: the block's `je` (no player ship) and `jmp` (refused)
-EJECT_RVA = 0x17872D0
-EJECT_CALL = 0x1562C78  # the block's `call EJECT_RVA`
-REFUSAL_RVA = 0x15520D0  # eject refusal text, or null when allowed (the quick menu's own test)
+BLOCK_RVA = 0x1562983
+BLOCK_END = 0x1562B8D  # just after `call 0x17870F0` (Eject)
+BLOCK_SHA256 = '04fdc24797f72d9a2e036d2645919dc5a089d03d318c38ae2abbb648056f8c3a'
+FAIL_RVA = 0x1567304   # the handler's common exit: the block's `je` (no player ship) and `jmp` (refused)
+EJECT_RVA = 0x17870F0
+EJECT_CALL = 0x1562B88  # the block's `call EJECT_RVA`
+REFUSAL_RVA = 0x1551FE0  # eject refusal text, or null when allowed (the quick menu's own test)
 ALLOWED = bytes.fromhex('31 c0 0f 1f 00')  # xor eax, eax; nop: in place of the block's `call REFUSAL_RVA`
 ACTION = 0x41          # cGcQuickMenuActions.ShipEject
 FRAME_SIZE = 0x5000    # the block's RBP locals reach rbp+0x4000
@@ -44,7 +44,7 @@ def _rel32(out, at, value, address):
     struct.pack_into('<i', out, at, value)
 
 
-def allocate_after_image(handle, base, read=C.string_at, tries=4096):
+def allocate_after_image(handle, base, read=C.string_at, tries=4096, length=0x1000):
     """First free 64 KiB block just past the module image. Every target the block reaches lies inside the
     image, so all its rel32 operands fit (2026-10-20: allocate_near picked a block 2 GiB below the eject
     site, out of reach of the data the block reads, and the build failed with 'argument out of range')."""
@@ -53,7 +53,7 @@ def allocate_after_image(handle, base, read=C.string_at, tries=4096):
     size = struct.unpack('<I', read(base+header+0x50, 4))[0]  # OptionalHeader.SizeOfImage
     candidate = (base+size+0xFFFF) & ~0xFFFF
     for _ in range(tries):
-        address = K.VirtualAllocEx(handle, candidate, 0x1000, 0x3000, 0x40)
+        address = K.VirtualAllocEx(handle, candidate, length, 0x3000, 0x40)
         if address:return address
         candidate += 0x10000
     raise RuntimeError('No free block after the game image for the eject stub')

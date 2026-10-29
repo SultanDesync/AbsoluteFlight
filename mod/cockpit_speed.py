@@ -1,4 +1,4 @@
-"""Unscaled native cockpit forward-speed readout, NMS 183791 / Steam 26271400.
+"""Unscaled native cockpit forward-speed readout, NMS 183877 / Steam 26295378.
 
 Only four display scalars change. Native HUD code still measures signed forward
 speed; physics, thrust, speed caps and boost authority are untouched. Exact HUD
@@ -11,17 +11,17 @@ import threading
 
 # name: (direct data RVA, stock value, unscaled value)
 FIELDS = {
-    'SpaceSpeedReadoutMultiplier': (0x53325C8, 2., 1.),
-    'SpeedReadoutMultiplier': (0x53325F4, 1., 1.),
-    'CombatSpeedReadoutMultiplier': (0x5332048, 1.5, 1.),
-    'HUDBoostUpgradeMultiplier': (0x52F7434, 10., 0.),
+    'SpaceSpeedReadoutMultiplier': (0x5331608, 2., 1.),
+    'SpeedReadoutMultiplier': (0x5331634, 1., 1.),
+    'CombatSpeedReadoutMultiplier': (0x5331088, 1.5, 1.),
+    'HUDBoostUpgradeMultiplier': (0x52F6474, 10., 0.),
 }
 PINS = {
-    0x9E8EB5: bytes.fromhex('f30f10350b979404'),
-    0x9E8EBD: bytes.fromhex('f30f5c352f979404'),
-    0x9E8ED5: bytes.fromhex('f30f583517979404'),
-    0x9E8EF8: bytes.fromhex('f30f593548919404'),
-    0x9E8F7F: bytes.fromhex('f30f5905ade49004'),
+    0x9E8EE5: bytes.fromhex('f30f10351b879404'),
+    0x9E8EED: bytes.fromhex('f30f5c353f879404'),
+    0x9E8F05: bytes.fromhex('f30f583527879404'),
+    0x9E8F28: bytes.fromhex('f30f593558819404'),
+    0x9E8FAF: bytes.fromhex('f30f5905bdd49004'),
 }
 
 

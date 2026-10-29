@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 import runtime_config
 from rotation_sustained_envelope import ENVELOPE as SUSTAINED_ENVELOPE, freeze_windows, manifest as sustained_manifest
 
-EXE_SHA256 = 'd1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87'
+EXE_SHA256 = 'd393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37'
 CONFIG_NAME = 'rotation-validation.local.json'
 RETAINED = []
 
@@ -177,8 +177,8 @@ class RotationValidation:
         if not K.QueryPerformanceFrequency(C.byref(frequency)) or frequency.value <= 0:
             raise RuntimeError('T66 native high-resolution clock unavailable')
         self.frequency = frequency.value
-        self.metadata = {'schema_version': 1, 'file_version': '183791',
-                         'steam_buildid': '26271400', 'exe_sha256': EXE_SHA256,
+        self.metadata = {'schema_version': 1, 'file_version': '183877',
+                         'steam_buildid': '26295378', 'exe_sha256': EXE_SHA256,
                          'evidence_kind': 'native_receipt', 'session_id': self.plan['session_id'],
                          'process_id': str(os.getpid()), 'ship_id': str(bridge.fixture['ship']),
                          'body_id': str(bridge.fixture['body']), 'ship_class': str(bridge.fixture['ship_class']),

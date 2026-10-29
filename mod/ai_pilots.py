@@ -1,4 +1,4 @@
-"""Readable enemy pilots: Newtonian-compatible space combat AI tuning, NMS 183791 / Steam 26271400.
+"""Readable enemy pilots: Newtonian-compatible space combat AI tuning, NMS 183877 / Steam 26295378.
 
 NPC ships fly by force (research/23-combat-ai-newtonian.md). Each frame the shared AI follower
 0x17BE2F0 reads one cGcSpaceshipTravelData engine row and applies, as mass * acceleration:
@@ -17,19 +17,19 @@ import math
 import struct
 import threading
 
-APP_GLOBAL = 0x6F60828
+APP_GLOBAL = 0x6F5F868
 TABLE_FROM_DATA = 0x4CD580 + 0x200990 + 0x60
 PINS = {
     # mov rcx,[NMS+0x6F60828]; add rcx,0x4CD580; call cGcSimulation::Construct
-    0x1B4067: bytes.fromhex('488b0dbac7da064881c180d54c00e816942201'),
+    0x1B4067: bytes.fromhex('488b0dfab7da064881c180d54c00e826932201'),
     # lea rcx,[rdi+0x200990]; call cGcAISpaceshipManager::Construct
-    0x13DD82A: bytes.fromhex('488d8f90092000e8dafd3600'),
+    0x13DD73A: bytes.fromhex('488d8f90092000e8eafc3600'),
     # call LoadAttackTable; xor r12d,r12d; mov [rbx+0x60],rax
-    0x174D63A: bytes.fromhex('e8b1ad00004533e448894360'),
+    0x174D45A: bytes.fromhex('e8b1ad00004533e448894360'),
     # follower reads MaxSpeed +0x24, MaxSpeedBrake +0x28, DirectionBrake +0x18
-    0x17BE384: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
-    0x17BE3D5: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
-    0x17BE44E: bytes.fromhex('f3410f596620'),  # Force +0x20
+    0x17BE174: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
+    0x17BE1C5: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
+    0x17BE23E: bytes.fromhex('f3410f596620'),  # Force +0x20
 }
 # cGcShipAIAttackDataTable dynamic arrays: (pointer offset, element stride). Count is i32 at +8.
 ARRAYS = {'behaviour': (0x40, 0xD0), 'engine': (0x60, 0x48)}

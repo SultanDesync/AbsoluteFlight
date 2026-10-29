@@ -31,11 +31,11 @@ import time
 from head_math import PHYSICAL_LIMITS,compose_basis
 from head_pose_source import fade_weight,semantic_angles
 
-CALLER=0x661A29
-APP_GLOBAL=0x6F60828
+CALLER=0x661A79
+APP_GLOBAL=0x6F5F868
 FRONTEND=0x89BD98  # 0x875498 on 180836
 BEHAVIOUR=0x72CF30  # 0x72C840 on 180836; this is still behaviour+0x20 at caller 0x661A24
-FIRST_PERSON_VTABLE=0x4B0F6C8
+FIRST_PERSON_VTABLE=0x4B0E690
 CONFIG_OFFSET=0x20
 PILOT_ACTIVE=0x60C8
 COMMAND_MS=400   # D9 hard clear

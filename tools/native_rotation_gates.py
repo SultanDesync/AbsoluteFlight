@@ -1,6 +1,6 @@
 """T66 strict late-rotation gates; source fork of the qualified F13 checks.
 
-Build 183791/Steam 26271400 only (remapped from 180836). These are emitted at the actual target seam,
+Build 183877/Steam 26295378 only (remapped from 180836). These are emitted at the actual target seam,
 not inferred from a Python boolean or the later translation application receipt.
 No process attachment, allocation, or game mutation occurs in this module.
 """
@@ -32,7 +32,7 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     ne(b'\x83\x3d', data, b'\x01'); ne(b'\x83\x3d', data + 4, b'\x01')
     ne(b'\x48\x3b\x35', data + 8); ne(b'\x48\x3b\x2d', data + 40)
     c.emit(bytes.fromhex('65 8b 04 25 48 00 00 00')); ne(b'\x3b\x05', data + 56)
-    c.emit(b'\x48\xb8' + struct.pack('<Q', base + 0x1784121)); ins('48 39 85 68 41 00 00')
+    c.emit(b'\x48\xb8' + struct.pack('<Q', base + 0x1783F41)); ins('48 39 85 68 41 00 00')
     if check_clock:
         c.emit(b'\x48\xb8' + struct.pack('<Q', tick) + b'\xff\xd0')
         c.relative(b'\x48\x3b\x05', data + 72); c.relative(b'\x0f\x83', reject)
@@ -43,7 +43,7 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     c.emit(bytes.fromhex('48 89 c2 48 8b 42 08')); ne(b'\x48\x3b\x05', data + 32)
     c.emit(bytes.fromhex('49 8b 85 28 03 00 00')); ne(b'\x48\x3b\x05', data + 32)
     c.emit(bytes.fromhex('49 89 c0 48 8b 82 88 00 00 00')); ne(b'\x48\x3b\x05', data + 112)
-    c.relative(b'\x48\x8b\x05', base + 0x6f60828); ne(b'\x48\x3b\x05', data + 80)
+    c.relative(b'\x48\x8b\x05', base + 0x6f5f868); ne(b'\x48\x3b\x05', data + 80)
     c.emit(bytes.fromhex('48 8b 80 48 cf 72 00')); ne(b'\x48\x3b\x05', data + 304)
     c.emit(bytes.fromhex('48 8b 86 c0 60 00 00')); ne(b'\x48\x3b\x05', data + 168)
     c.emit(bytes.fromhex('48 8b 00')); ne(b'\x48\x3b\x05', data + 176)
@@ -57,7 +57,7 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
         else: ins(raw)
     c.emit(bytes.fromhex('f6 42 01 18')); c.relative(b'\x0f\x85', reject)
     ins('49 83 b8 38 0a 00 00 01')
-    c.relative(b'\x48\x8b\x05', base + 0x6f60828)
+    c.relative(b'\x48\x8b\x05', base + 0x6f5f868)
     for raw in ('83 b8 98 bd 89 00 00', '80 b8 6d aa 57 00 00', '83 b8 dc b6 72 00 00', '83 b8 cc b6 72 00 00'):
         ins(raw)
     # A native camera-look condition changes pitch formation. Do not override it.
@@ -93,14 +93,14 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     zero(13, 0x27c); ins('66 83 79 78 00'); ins('41 83 bd 38 03 00 00 00')
     c.emit(bytes.fromhex('41 8b 85 60 02 00 00 85 c0')); c.relative(b'\x0f\x8e', reject)
     c.emit(bytes.fromhex('3d 00 00 80 7f')); c.relative(b'\x0f\x83', reject)
-    for address in (base + 0x7233e58 + 0x18, base + 0x7233e58 + 0x24):
+    for address in (base + 0x7232e78 + 0x18, base + 0x7232e78 + 0x24):
         c.relative(b'\x8b\x05', address); c.emit(bytes.fromhex('85 c0')); c.relative(b'\x0f\x8e', reject)
         c.emit(bytes.fromhex('3d 00 00 80 7f')); c.relative(b'\x0f\x83', reject)
-    c.relative(b'\xf3\x0f\x10\x05', base + 0x7233e58 + 0x18)
-    c.relative(b'\xf3\x0f\x59\x05', base + 0x7233e58 + 0x24)
+    c.relative(b'\xf3\x0f\x10\x05', base + 0x7232e78 + 0x18)
+    c.relative(b'\xf3\x0f\x59\x05', base + 0x7232e78 + 0x24)
     c.emit(bytes.fromhex('66 0f 7e c0 85 c0')); c.relative(b'\x0f\x8e', reject)
     c.emit(bytes.fromhex('3d 00 00 80 7f')); c.relative(b'\x0f\x83', reject)
-    c.relative(b'\x8b\x05', base + 0x7233e58 + 0x30)
+    c.relative(b'\x8b\x05', base + 0x7232e78 + 0x30)
     c.emit(bytes.fromhex('f7 c0 00 ff 00 00')); c.relative(b'\x0f\x84', prefix + 'clock_running')
     c.emit(bytes.fromhex('f7 c0 00 00 ff 00')); c.relative(b'\x0f\x84', reject)
     c.label(prefix + 'clock_running')

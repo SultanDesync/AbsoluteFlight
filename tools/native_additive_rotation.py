@@ -1,6 +1,6 @@
 """OFFLINE T66 kernel prototype; no installer, allocation, or game access.
 
-Exact static candidate: NMS 183791 / Steam 26271400, RVA 0x17918FF (0x175E4F2 on 180836).
+Exact static candidate: NMS 183877 / Steam 26295378, RVA 0x17918FF (0x175E4F2 on 180836).
 Source: research/re-log/2026-10-16_codex_rotation-additive.{md,json}.
 Only XMM6.low (pitch) and XMM7.low (yaw) are replaced, in the native
 PRE-sign-flip angular-rate convention. XMM13/roll and subsequent feedback,
@@ -49,9 +49,9 @@ import math
 import struct
 
 
-BUILD = (183791, 26271400)
-SITE_RVA = 0x17918FF
-GLOBAL_RVA = 0x4BF6920
+BUILD = (183877, 26295378)
+SITE_RVA = 0x179171F
+GLOBAL_RVA = 0x4BF5900
 ORIGINAL = bytes.fromhex('f3 44 0f 10 0d 18 50 46 03 48 8d 9e d0 6c 00 00')
 SCHEMA = 1
 QUALIFIED = 1

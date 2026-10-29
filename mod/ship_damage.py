@@ -1,7 +1,7 @@
 """T93: leave the essentials of an abandoned ditched ship damaged, repaired the vanilla way (user 2026-10-20:
 "only the essentials: launch thruster, pulse engine and shields, saved with the game").
 
-Build 183791 / Steam 26271400 (research/re-log/2026-10-19_claude_ditching.md, "damaged ship technology", build
+Build 183877 / Steam 26295378 (research/re-log/2026-10-19_claude_ditching.md, "damaged ship technology", build
 180836; re-checked on 183791 against the aligned code, 2026-10-28: only SMOKE_REFRESH moved):
 - player state = [module+0x6F60828] + 0xB940 (game state +0xE70, player state +0xAAD0): CONFIRMED static, the
   quick menu and the launcher-damaged check both use it;
@@ -15,7 +15,7 @@ The edit is in the live inventory, so the game saves it.
 import ctypes as C
 import struct
 
-APP_GLOBAL = 0x6F60828
+APP_GLOBAL = 0x6F5F868
 PLAYER_STATE = 0xB940
 PRIMARY_SHIP = 0x182A0
 TECH_INVENTORIES = 0xAB28

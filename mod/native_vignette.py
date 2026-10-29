@@ -1,4 +1,4 @@
-"""Native tunnel vignette and greyout lanes for the G-load mechanic (T77 seam), build 183791 / Steam 26271400.
+"""Native tunnel vignette and greyout lanes for the G-load mechanic (T77 seam), build 183877 / Steam 26295378.
 
 Ported from codex's T77 probe (research/re-log/2026-10-16_codex_native-vignette.md; scratch job
 research-jobs/t77/native_probe.py, 36/36 local x64 harness checks and a user-accepted live proof).
@@ -29,8 +29,8 @@ import struct
 
 from native_roll_patch import Code
 
-SETTER = 0x1878300
-APP_GLOBAL = 0x6F60828
+SETTER = 0x18780C0
+APP_GLOBAL = 0x6F5F868
 OWNER_OFFSET = 0x733180  # application + this == publisher identity (RDI): HUD manager app+0x7330E0, +0xA0
 ATTACHMENT_OFFSET = 0x72CF48  # application: attachment handle (qword)
 FRONTEND_OFFSET = 0x89BD98  # application: frontend state (dword), 0 in game
@@ -38,8 +38,8 @@ COMBAT_OFFSET = 0x57AA6D  # application: combat flag (byte)
 ALTERNATE_OFFSET = 0xFEC9C  # publisher: alternate upload destination (byte)
 SHIP_ACTIVE_OFFSET = 0x60C8  # ship component: active (byte, 1)
 SHIP_ZERO_OFFSETS = (0x6730, 0x675C, 0x6430, 0x7318)  # ship component: planetary (byte), power, follow, landing
-VR_MODE_GLOBAL = 0x6EE4720  # nonzero: VR display; the seam is qualified for flat play only
-SITES = {'vignette': 0x9A270D, 'greyout': 0x9A1E38}
+VR_MODE_GLOBAL = 0x6EE3760  # nonzero: VR display; the seam is qualified for flat play only
+SITES = {'vignette': 0x9A273D, 'greyout': 0x9A1E68}
 BLOCK = 0x400
 DATA_SIZE = 128
 COMMAND_MS = 100

@@ -1,4 +1,4 @@
-"""HOTAS button on the pause Options root (E-pause), build 183791 / Steam 26271400.
+"""HOTAS button on the pause Options root (E-pause), build 183877 / Steam 26295378.
 
 The pause root is DoGameSwitcher (0x6EE990) drawing UI/SWITCHERPAGENEW.MBIN. Its category buttons
 are named NGui layers; tools/build_pause_root_ui.py adds BUTTON_HOTAS after BUTTON_CTR. For each
@@ -21,7 +21,7 @@ CHILD_ID='WHITE'
 ANCHOR_ID='BUTTON_CTR'  # native button; finding it proves the hash and root before we trust a miss
 ROOT_LAYER=0x14478       # DoGameSwitcher this -> root NGui layer
 INDEX_MAP=0x150          # layer -> descendant index map
-BUSY_FLAG=0x87FD5A       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
+BUSY_FLAG=0x87FD7A       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
 SOUND_HASH=0x18AECCF6    # native 5th arg {0, 0x18AECCF6, 1}: the click sound key
 
 

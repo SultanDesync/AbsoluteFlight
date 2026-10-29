@@ -1,4 +1,4 @@
-"""Terrain look-ahead (Visuals page, default Off), NMS 183791 / Steam 26271400. T107.
+"""Terrain look-ahead (Visuals page, default Off), NMS 183877 / Steam 26295378. T107.
 
 The hazards a low pilot meets are rocks and trees (user, 2026-10-25), and they are real, collidable objects
 only within 3 regions of the terrain focus (MaxRegionRadius 3 for every collidable rock, tree and cactus
@@ -17,10 +17,10 @@ import math
 import struct
 import threading
 
-TERRAIN_GLOBALS = 0x5006C80   # cGcTerrainGlobals
+TERRAIN_GLOBALS = 0x5005C80   # cGcTerrainGlobals
 BUDGETS = 0x264               # NumGeneratorCalls, NumPolygoniseCalls, NumPostPolygoniseCalls (int each)
 VANILLA_BUDGETS = (8, 8, 8)
-ENVIRONMENT_GLOBALS = 0x53327E0
+ENVIRONMENT_GLOBALS = 0x5331820
 FADE = 0x5C4                  # FloraFadeTimeMax, FloraFadeTimeMin (float each)
 VANILLA_FADE = (2.25, 0.6)
 MAP_CELL = 0x10               # region map: focus grid cell, int[3]
@@ -35,13 +35,13 @@ PLANET_SLOTS = 6
 
 PINS = {
     # SetupRegionMap stores pointers to the three terrain budgets (read live).
-    0x16A95CB: bytes.fromhex('837b5000488d050ed99503488983b03c0000488d0504d99503488983b83c0000488d05fad89503488983c03c0000'),
+    0x16A93EB: bytes.fromhex('837b5000488d05eeca9503488983b03c0000488d05e4ca9503488983b83c0000488d05daca9503488983c03c0000'),
     # Region map update: its observer position read and its 32-unit grid snap. Not its prologue: our own
     # hook patches a jump there (0.2.1-dev.2 live check read that as a mismatch); BUILD_HASH covers it.
-    0x12A47EB: bytes.fromhex('410f105f300f5c9bc0340d00'),
-    0x12A4994: bytes.fromhex('f30f1035a46194030f28c1f30f59c60f28f90f11'),
+    0x12A46FB: bytes.fromhex('410f105f300f5c9bc0340d00'),
+    0x12A48A4: bytes.fromhex('f30f10357c5294030f28c1f30f59c60f28f90f11'),
     # Planet update: map update called with the stack observer copy (rdx = rsp+0x80), result unused.
-    0x16A23EF: bytes.fromhex('4d8bc6488d942480000000488d8f703c0000e81a23c0ff'),
+    0x16A220F: bytes.fromhex('4d8bc6488d942480000000488d8f703c0000e80a24c0ff'),
 }
 
 

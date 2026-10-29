@@ -3,7 +3,7 @@ essentials damaged. Without this the ejected ship stays in flight mode, so board
 the broken launch thruster never stops it (user 2026-10-21, logs 20261021T0202/0226Z: re-boarded 10 s after each
 ditch eject and flew on; 20261021T0303Z: the same after a disabling crash).
 
-Build 183791 / Steam 26271400 (research/re-log/2026-10-20_claude_ditch-salvage.md, build 180836; re-checked on
+Build 183877 / Steam 26295378 (research/re-log/2026-10-20_claude_ditch-salvage.md, build 180836; re-checked on
 183791 against the aligned code, 2026-10-28):
 - Native landed respawn 0x5B9750 (per frame, from 0x5B9460 on game state +0xAAD0): when dword
   player_state+0xA8C34 == 1 it SpawnNewShip(ownership, stored matrix, 1, -1, 1)s the primary ship, sets
@@ -23,13 +23,13 @@ import struct
 import ship_damage
 
 PINS = {  # rva -> bytes at that rva (exe on disk, build 183791)
-    0x5B9750: ('488bc4534881ecf000000083b9348c0a0001488bd90f855502000048897808488b3db2709a060f2970e80f2978d8660f6f3d'
-               '4ab86304440f2940c8440f108770cc0d00440f2948b866440f6f0d7fbd6304440f2950a8440f1097a0cc0d00440f295898'
+    0x5B97A0: ('488bc4534881ecf000000083b9348c0a0001488bd90f855502000048897808488b3da2609a060f2970e80f2978d8660f6f3d'
+               'daa76304440f2940c8440f108770cc0d00440f2948b866440f6f0d0fad6304440f2950a8440f1097a0cc0d00440f295898'
                '440f109f90cc0d00410f59fa440f296088440f10a780cc0d00'),
-    0x5B991C: ('488d8fc05f0d00c64424200141b9ffffffff488d54243041b801000000e8d2a0faff488b0de36e9a06baffffffff4881c1'
-               'c05f0d00e83ad5faff4885c07459488bc8c6803874000001e866e81d01c783348c0a000000000084c07507c683'),
-    0x56E140: '0f28020f284a100f1181b06c00000f2842200f1189c06c00000f284a300f1181d06c00000f1189e06c0000c3',
-    0x5C0DE0: 'c781348c0a0001000000c3',
+    0x5B996C: ('488d8fc05f0d00c64424200141b9ffffffff488d54243041b801000000e8d2a0faff488b0dd35e9a06baffffffff4881c1'
+               'c05f0d00e83ad5faff4885c07459488bc8c6803874000001e836e61d01c783348c0a000000000084c07507c683'),
+    0x56E190: '0f28020f284a100f1181b06c00000f2842200f1189c06c00000f284a300f1181d06c00000f1189e06c0000c3',
+    0x5C0E30: 'c781348c0a0001000000c3',
 }
 OWNERSHIP = 0xD5FC0          # app+: cGcPlayerShipOwnership (183791: 0x5B991C, caller 0x8FC9B0 game state+0xD5150)
 RESPAWN_MATRIX = 0x6CB0      # ownership+: 4 rows read by 0x5B9750 (app+0xDCC70..)

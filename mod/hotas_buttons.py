@@ -2,7 +2,7 @@
 
 Follows docs/INPUT-ARCHITECTURE.md. Users bind *actions*, never raw devices to keys. The router
 turns bus digital state into per-action down/edge state, and delivery lanes consume that state:
-- native action substitution (T59);
+- the game's own actions for the shared game-control rows (T59, NATIVE_FOR, tools/native_actions.py);
 - SendInput keys and mouse (T60);
 - the mod's own state, such as the parking brake.
 Nothing here touches the game, the OS or a device, so it is tested with plain values.
@@ -33,21 +33,24 @@ LONG_PRESS=.5  # seconds
 MAX_EDGES=8  # per token per step; more than this is treated as noise and only the level is used
 BEHAVIOURS=('press','tap','toggle','long')
 LAYERS=('normal','shift')
-CONTEXTS=('any',)  # only 'any' has a qualified signal (INPUT-ARCHITECTURE §2, §5)
+CONTEXTS=('any','exocraft')  # exocraft: the game's VehicleMode action set is current (live 2026-10-28, INPUT-ARCHITECTURE §5)
 
 
 @dataclass(frozen=True)
 class Action:
     id:str
     label:str
-    group:str  # flight | ship | custom
+    group:str  # flight | ship | exocraft | custom
     lane:str  # mod | native | key | mouse
     behaviours:tuple=BEHAVIOURS
-    native:int=None  # cGcInputActions value, NMSpy 181442.0 (LIKELY for build 180836; T59 qualifies)
+    native:int=None  # cGcInputActions value (NMSpy 181442.0; unchanged on 183791 up to 0x98, tools/native_actions.py)
     help:str=''
 
 
 def _ship(id_,label,native,help_=''):return Action(f'ship.{id_}',label,'ship','native',('press','tap','toggle','long'),native,help_)
+
+
+def _exo(id_,label,native,help_=''):return Action(f'exo.{id_}',label,'exocraft','native',('press','tap','toggle','long'),native,help_)
 
 
 ACTIONS=(
@@ -71,11 +74,19 @@ ACTIONS=(
     _ship('boost','Boost',0x1D),_ship('land','Land',0x21),
     _ship('takeoff','Take off',0x1B,'Native thrust action: launches when landed or docked at an outpost.'),_ship('exit','Exit ship',0x20),
     _ship('shoot','Fire weapon',0x22),_ship('change-weapon','Change weapon',0x23),_ship('scan','Scan',0x24),
-    _ship('pulse','Pulse drive',0x25),_ship('galactic-map','Galactic map',0x26),_ship('free-look','Free look',0x29),
+    _ship('pulse','Pulse drive / warp to star',0x25,"The game's Space key in the ship (Ship_PulseJump): pulse drive, and on NMS 7.10 the warp to a selected star."),_ship('galactic-map','Galactic map',0x26),_ship('free-look','Free look',0x29),
     _ship('auto-follow-toggle','Combat follow (toggle)',0x2A),_ship('auto-follow-hold','Combat follow (hold)',0x2B),
     _ship('cycle-power','Cycle power',0x2C),_ship('next-target','Next target',0x81),_ship('previous-target','Previous target',0x82),
     _ship('closest-target','Closest target',0x83),
+    _ship('interact','Interact / hold prompts',0x07,'The game\'s Interact: talk, pick up, and the hold-to-confirm prompts.'),
+    # Exocraft page (user 2026-10-28): the game's Vehicle_* actions (cGcInputActions 0x31-0x3A, unchanged on 183791),
+    # live only while you drive. They may share a button with a flight binding: while you drive, the exocraft one wins.
+    _exo('exit','Exit exocraft',0x31),_exo('shoot','Fire weapon',0x32),_exo('change-weapon','Change weapon',0x33),
+    _exo('scan','Scan',0x34),_exo('boost','Boost',0x35),_exo('jump','Jump',0x36),
+    _exo('dive','Dive (Nautilon)',0x37,'Nautilon: dive. The game reads it like an axis; held is full dive.'),_exo('horn','Horn',0x38),
+    _exo('add-checkpoint','Add race checkpoint',0x39),_exo('delete-checkpoint','Delete race checkpoint',0x3A),
 )
+EXO_ACTIONS=tuple(a.id for a in ACTIONS if a.group=='exocraft')
 BY_ID={a.id:a for a in ACTIONS}
 
 KEY_NAMES={**{0x41+i:chr(0x41+i) for i in range(26)},**{0x30+i:str(i) for i in range(10)},**{0x70+i:f'F{i+1}' for i in range(24)},
@@ -99,20 +110,40 @@ MOUSE_ACTION=re.compile(r'mouse\.([a-z0-9-]+)'+FUNCTION)
 # Key bindings act whenever NMS has focus, so it works while the flight controls are not armed (landed is native);
 # in flight a synthetic W thrusts natively, so bind it apart from flight buttons. Boost (Left Shift) is native boost until the mod's own
 # boost exists (docs/FLIGHT-ENERGY-MODEL.md); Sultan flight falls back to native while it is held.
-KEY_PRESETS=(
+# Game controls (T59, user 2026-10-28: "make them universal with only an input path toggle"): each row is one function
+# with both outputs, the game's default key and the game's own action. Button output (Buttons page) picks the path for
+# every row; without the game-action patch the rows send keys. Rows with no game action always send their key.
+GAME_GROUPS=(
     ('COMBAT',(('mouse.left','Fire weapon (left click)'),('key.0x47','Change weapon (G)'),('key.0x54','Closest target (T)'),
                ('key.0xBE','Next target (.)'),('key.0xBC','Previous target (,)'))),
     ('SHIP',(('key.0x57','Launch: take off when landed (hold W)'),('key.0x45:land','Land (E)'),('key.0x45:exit','Exit ship (hold E)'),
-             ('key.0x45','Interact / hold prompts (E)'),('key.0xA0','Boost (Left Shift)'),('key.0x43','Scan (C)'),('key.0x20','Pulse drive (Space)'),
-             ('mouse.right:zoom','Zoom (right click)'),('key.0xA4','Free look (Left Alt)'),('key.0x4D','Galactic map (M)'),('key.0xBF','Cycle power (/)'),
-             ('key.0x09','Inventory (Tab)'),('key.0x1B','Options / back (Esc)'))),
+             ('key.0x45','Interact / hold prompts (E)'),('key.0xA0','Boost (Left Shift)'),('key.0x43','Scan (C)'),
+             ('key.0x20','Pulse drive / warp to star (Space)'),('key.0xA4','Free look (Left Alt)'),('key.0x4D','Galactic map (M)'),
+             ('key.0xBF','Cycle power (/)'))),
     ('QUICK MENU',(('key.0x58','Open quick menu (X)'),('key.0x25','Quick menu left (Left arrow)'),('key.0x27','Quick menu right (Right arrow)'),
                    ('key.0x26','Quick menu up (Up arrow)'),('key.0x28','Quick menu down (Down arrow)'),('key.0x46','Quick menu select (F)'))),
+)
+# Each row's game action (cGcInputActions, read on 183791 through tools/native_actions.py). Land, Exit ship and Interact
+# share E as keys but are three actions here. Launch is Ship_Thrust (T59 static: native launch reads it, not Ship_Land).
+NATIVE_FOR={'mouse.left':0x22,'key.0x47':0x23,'key.0x54':0x83,'key.0xBE':0x81,'key.0xBC':0x82,
+            'key.0x57':0x1B,'key.0x45:land':0x21,'key.0x45:exit':0x20,'key.0x45':0x07,'key.0xA0':0x1D,'key.0x43':0x24,
+            'key.0x20':0x25,'key.0xA4':0x29,'key.0x4D':0x26,'key.0xBF':0x2C,
+            'key.0x58':0x17,'key.0x25':0x51,'key.0x27':0x52,'key.0x26':0x55,'key.0x28':0x56,'key.0x46':0x53}
+KEY_PRESETS=(
+    ('VIEWS & MENUS',(('mouse.right:zoom','Zoom (right click)'),('key.0x09','Inventory (Tab)'),('key.0x1B','Options / back (Esc)'))),
     # Frontend pages (dialogs, menus): the stick moves the cursor (mod/stick_cursor.py), left click selects, right
     # click is Fe_Back. In flight the same clicks are Fire and ShipZoom: separate rows for separate buttons.
     ('DIALOGS & MENUS',(('mouse.left:select','Select (left click)'),('mouse.right','Back (right click)'))),
 )
-PRESET_LABELS={a:label for _,group in KEY_PRESETS for a,label in group}
+# 0.2.3 dev builds bound game actions on rows of their own; a saved one moves onto its shared row (a binding already
+# on that row wins).
+DEV_ROWS={'ship.shoot':'mouse.left','ship.change-weapon':'key.0x47','ship.closest-target':'key.0x54','ship.next-target':'key.0xBE',
+          'ship.previous-target':'key.0xBC','ship.takeoff':'key.0x57','ship.land':'key.0x45:land','ship.exit':'key.0x45:exit',
+          'ship.interact':'key.0x45','ship.boost':'key.0xA0','ship.scan':'key.0x43','ship.pulse':'key.0x20','ship.free-look':'key.0xA4',
+          'ship.galactic-map':'key.0x4D','ship.cycle-power':'key.0xBF','game.quick-menu':'key.0x58','game.quick-left':'key.0x25',
+          'game.quick-right':'key.0x27','game.quick-up':'key.0x26','game.quick-down':'key.0x28','game.quick-select':'key.0x46'}
+PRESET_ROWS=frozenset(a for _,group in GAME_GROUPS+KEY_PRESETS for a,_ in group)
+PRESET_LABELS={a:label for _,group in GAME_GROUPS+KEY_PRESETS for a,label in group}
 
 
 def action(action_id):
@@ -185,10 +216,17 @@ def coerce_binding(raw):
     if a is None:raise ValueError(f"unknown action {raw.get('action')!r}")
     behaviour=raw.get('behaviour') or a.behaviours[0]
     if behaviour not in a.behaviours:raise ValueError(f'{a.id}: behaviour {behaviour!r} not allowed (allowed: {", ".join(a.behaviours)})')
-    layer=raw.get('layer','normal');context=raw.get('context','any')
+    layer=raw.get('layer','normal');context=raw.get('context',context_for(a.id))
     if layer not in LAYERS:raise ValueError(f'{a.id}: unknown layer {layer!r}')
     if context not in CONTEXTS:raise ValueError(f'{a.id}: context {context!r} has no qualified signal')
+    if context!=context_for(a.id):raise ValueError(f'{a.id}: context {context!r} does not fit this action')
     return Binding(a.id,canonical(raw.get('token')),behaviour,layer,context)
+
+
+def context_for(action_id):
+    """An action's context: exocraft actions act only while you drive, everything else in any context."""
+    a=BY_ID.get(action_id)
+    return 'exocraft' if a is not None and a.group=='exocraft' else 'any'
 
 
 def find_conflict(bindings,candidate,modifier=None):
@@ -249,6 +287,10 @@ class ButtonRouter:
         self.by_slot={}
         for b in self.bindings:self.by_slot.setdefault((b.token,b.layer),[]).append(b)
         self._release_all(keep_mod=True)
+
+    def bindings_actions(self):
+        """The actions this router has bindings for."""
+        return {b.action for b in self.bindings}
 
     def watched(self):
         """Tokens the router needs each step (bindings plus the modifier)."""

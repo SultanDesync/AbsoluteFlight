@@ -31,7 +31,7 @@ REASON_IDENTITY = 3  # identity gates failed: this frame's state was not capture
 REASON_APPLIED = 9  # the helper's acceleration was written this frame
 
 # T86 R3: M=[module+0x6E8D708], solar=[M+0x72AFB0], planets at solar+0x2E30, stride 0xD9170.
-APP_GLOBAL, SOLAR = 0x6F60828, 0x72B610  # solar 0x72AFB0 on 180836; planet layout unchanged
+APP_GLOBAL, SOLAR = 0x6F5F868, 0x72B610  # solar 0x72AFB0 on 180836; planet layout unchanged
 PLANET_ARRAY, PLANET_STRIDE, PLANET_COUNT = 0x2E30, 0xD9170, 0x2544
 P_CENTRE, P_RADIUS, P_SEA, P_ATMOSPHERE = 0xD74D0, 0x3CA0, 0x31D8, 0x1E90
 MAX_PLANETS = 6

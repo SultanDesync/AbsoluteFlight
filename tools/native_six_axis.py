@@ -1,4 +1,4 @@
-"""D12 native frame latch/provenance, exact build 183791/26271400 (remapped from 180836).
+"""D12 native frame latch/provenance, exact build 183877/26295378 (remapped from 180836).
 
 The external publisher never writes legacy channel blocks. One native pinned
 mailbox copy at the start of each invocation supplies every consumer. Native
@@ -13,9 +13,9 @@ from command_mailbox import reader_code, STRICT_ROTATION
 SIZE = 512
 PAYLOAD = 64
 DEADLINE, MASK, VALUES, GENERATION = 64, 72, 80, 104
-SITES = {0x178b12d:bytes.fromhex('0f118690760000'),
-         0x178c41a:bytes.fromhex('488d8ec0600000'),
-         0x178d96b:THROTTLE_ORIGINAL, 0x17910c8:ROLL_ORIGINAL}
+SITES = {0x178af4d:bytes.fromhex('0f118690760000'),
+         0x178c23a:bytes.fromhex('488d8ec0600000'),
+         0x178d78b:THROTTLE_ORIGINAL, 0x1790ee8:ROLL_ORIGINAL}
 
 
 def save(c):
@@ -117,7 +117,7 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
-    rva={'latch':0x178b12d,'processed':0x178c41a,'throttle':0x178d96b,'roll':0x17910c8}[kind]
+    rva={'latch':0x178af4d,'processed':0x178c23a,'throttle':0x178d78b,'roll':0x1790ee8}[kind]
     original=SITES[rva]
     if kind=='latch':c.emit(original)
     save(c)
@@ -219,7 +219,7 @@ class SixAxisPatches:
             site=base+rva;original=SITES[rva]
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
-            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f60828,steering_limit,throttle_limit,turn_scale,
+            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f5f868,steering_limit,throttle_limit,turn_scale,
                             allow_planetary_input,allow_combat_input,allow_power_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')

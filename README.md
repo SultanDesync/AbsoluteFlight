@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.2.2-alpha)
+# Absolute Flight for No Man's Sky (alpha 0.2.3-alpha)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -16,7 +16,7 @@ new builds and tester chat. See "Reporting a problem" below.
 
 ## What you need
 
-- No Man's Sky on **Steam, build 183791** (Steam build id 26271400). On any other build the mod
+- No Man's Sky on **Steam, build 183877** (Steam build id 26295378). On any other build the mod
   stays off and the game plays as normal. If the pause menu's Options list looks wrong after a game update,
   delete `GAMEDATA\MODS\AbsoluteFlight\UI` until a new release catches up.
 - Windows 10 or 11, 64-bit.
@@ -46,6 +46,8 @@ list; if another mod changes that same file, only one of them wins.
 2. Open the Absolute Flight menu. In game: pause, then **Options > Absolute Flight**. From the main menu,
    before loading a save: **Options > Controls > Absolute Flight Setup** (at the bottom of the Controls page).
 3. Bind your stick axes and throttle under **Flight Axes**: select a binding, then move the axis.
+4. Optional: bind ship, combat and quick-menu buttons under **Buttons** (they press the game's own actions),
+   and exocraft steering, throttle, camera and buttons under **Exocraft**.
 
 If **Absolute Flight Setup** isn't at the bottom of the main menu's Controls page, the mod didn't load: see
 "Reporting a problem". If only the pause menu's **Absolute Flight** button is missing, check that
@@ -93,10 +95,6 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
 
 ## Known issues and coming soon
 
-- **After a warp, your HOTAS can take up to a minute to take over again.** When you arrive in a new system the
-  game hands your ship to a new thread, and Absolute Flight waits too long for it before it re-arms. Your stick,
-  throttle and buttons come back on their own; until then the ship flies on the game's own controls. Fixed in the
-  next build.
 - **Take-off from your throttle is coming soon.** For now, take off with the game's own take-off control:
   bind a stick or throttle button to that key on the **Buttons** page (add a custom key) and hold it while
   landed. Check **Options > Controls** in game for which key that is.

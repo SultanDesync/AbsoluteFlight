@@ -1,75 +1,75 @@
 {
   "build": {
     "exe": "Binaries\\NMS.exe",
-    "file_version": "183791",
-    "sha256": "d1c7155764271eff0733c37d1849e685a11da3d54a41d685d7898fc0aad83a87",
-    "steam_buildid": "26271400",
+    "file_version": "183877",
+    "sha256": "d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37",
+    "steam_buildid": "26295378",
     "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin"
   },
   "sites": {
     "latch": {
-      "rva": 24682142,
+      "rva": 24681662,
       "size": 5,
       "original": "440f294d50",
       "signature": "440f294d50488b88e00200004885c975260f29add0060000",
       "instructions": [
-        "0x1789e9e: movaps xmmword ptr [rbp + 0x50], xmm9"
+        "0x1789cbe: movaps xmmword ptr [rbp + 0x50], xmm9"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x1789e9e: movaps xmmword ptr [rbp + 0x50], xmm9"
+        "0x1789cbe: movaps xmmword ptr [rbp + 0x50], xmm9"
       ]
     },
     "gravity": {
-      "rva": 24705473,
+      "rva": 24704993,
       "size": 7,
       "original": "0f298550220000",
-      "signature": "0f298550220000f30f10058c79b603440f58c9f30f100d98",
+      "signature": "0f298550220000f30f1005ac6bb603440f58c9f30f100d98",
       "instructions": [
-        "0x178f9c1: movaps xmmword ptr [rbp + 0x2250], xmm0"
+        "0x178f7e1: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x178f9c1: movaps xmmword ptr [rbp + 0x2250], xmm0"
+        "0x178f7e1: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ]
     },
     "height": {
-      "rva": 24706072,
+      "rva": 24705592,
       "size": 7,
       "original": "0f588520050000",
       "signature": "0f588520050000480f45f80f2945504839beb07000007435",
       "instructions": [
-        "0x178fc18: addps xmm0, xmmword ptr [rbp + 0x520]"
+        "0x178fa38: addps xmm0, xmmword ptr [rbp + 0x520]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x178fc18: addps xmm0, xmmword ptr [rbp + 0x520]"
+        "0x178fa38: addps xmm0, xmmword ptr [rbp + 0x520]"
       ]
     },
     "final": {
-      "rva": 24721455,
+      "rva": 24720975,
       "size": 9,
       "original": "f3410f108560020000",
       "signature": "f3410f108560020000488d9530150000f30f109650660000",
       "instructions": [
-        "0x179382f: movss xmm0, dword ptr [r13 + 0x260]"
+        "0x179364f: movss xmm0, dword ptr [r13 + 0x260]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x179382f: movss xmm0, dword ptr [r13 + 0x260]"
+        "0x179364f: movss xmm0, dword ptr [r13 + 0x260]"
       ]
     },
     "after_integrator": {
-      "rva": 24721515,
+      "rva": 24721035,
       "size": 7,
-      "original": "488b0db6cf7c05",
-      "signature": "488b0db6cf7c05ba070000004881c148bd9500e80d6fb3fe",
+      "original": "488b0dd6c17c05",
+      "signature": "488b0dd6c17c05ba070000004881c138bd9500e8ed70b3fe",
       "instructions": [
-        "0x179386b: mov rcx, qword ptr [rip + 0x57ccfb6]"
+        "0x179368b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x179386b: mov rcx, qword ptr [rip + 0x57ccfb6]"
+        "0x179368b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ]
     }
   },

@@ -1,4 +1,4 @@
-"""Copied manual-aim solutions and input friction, NMS 183791 / Steam 26271400.
+"""Copied manual-aim solutions and input friction, NMS 183877 / Steam 26295378.
 
 Observers never change native prediction, target selection or game memory. The
 release hooks own admission and native calling conventions. Prediction observes
@@ -18,12 +18,12 @@ from weapon_lead import APP_GLOBAL, OWNERS
 
 
 MAX_AGE_MS = 50
-SOLVER_CALLER = 0x15B9966
+SOLVER_CALLER = 0x15B9846
 # Internal sites remain verifiable after the observed function entries detour.
 PINS = {
-    0x15B9959: bytes.fromhex('0f2975ff0f294defe84a000000'),
-    0x15B9966: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
-    0x141B694: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
+    0x15B9839: bytes.fromhex('0f2975ff0f294defe84a000000'),
+    0x15B9846: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
+    0x141B5A4: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
 }
 
 

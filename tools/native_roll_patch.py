@@ -18,7 +18,7 @@ K.FlushInstructionCache.argtypes=[C.c_void_p,C.c_void_p,C.c_size_t];K.FlushInstr
 K.GetCurrentProcess.argtypes=[];K.GetCurrentProcess.restype=C.c_void_p
 K.VirtualAllocEx.argtypes=[C.c_void_p,C.c_void_p,C.c_size_t,C.c_uint32,C.c_uint32];K.VirtualAllocEx.restype=C.c_void_p
 ORIGINAL=bytes.fromhex("44 0F 28 EF F3 44 0F 59 AE 98 66 00 00")
-SITE_RVA=0x17910C8
+SITE_RVA=0x1790EE8
 
 
 class Code:

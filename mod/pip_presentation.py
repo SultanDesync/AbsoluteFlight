@@ -1,4 +1,4 @@
-"""Owned ship pip presentation, NMS 183791 / Steam 26271400.
+"""Owned ship pip presentation, NMS 183877 / Steam 26295378.
 
 Native prediction/smoothing/selection keep running. Lag changes only the owned
 HUD's two projected coordinates, and render suppression targets its pip widget.
@@ -9,25 +9,25 @@ import math
 import struct
 import threading
 
-APP_GLOBAL = 0x6F60828
+APP_GLOBAL = 0x6F5F868
 HUD = 0x733180
 WIDGET = 0xFE7E0
 PIP_XY = 0xFEC00
 PIP_VISIBLE = 0xFEC15
-CAMERA = 0x92CC50
-PROJECT = 0x6A0480
-EXTENT = 0x2DF5020
-EXTENT_OBJECT = 0x930C10
+CAMERA = 0x92CC40
+PROJECT = 0x6A04D0
+EXTENT = 0x2DF4DE0
+EXTENT_OBJECT = 0x930C40
 MAX_AGE_MS = 50
 # Below hooked entries; valid with normal startup hooks and after hot reload.
 PINS = {
-    0x9A6911: bytes.fromhex('e8ba5d4902'),
-    0x2E3C6F0: bytes.fromhex('8d80000000e886dda3fe488945604885c0750a483945680f'),
-    0x6A04C0: bytes.fromhex('0f1040200f294424600f1048300f294c24700f104040488b'),
-    0x6A05B6: bytes.fromhex('e895ef7402'),
-    0x9968A5: bytes.fromhex('e876e74502'),
-    0x2DF502A: bytes.fromhex('488bda488bf9e81b6d3dfd837810050f84dd000000'),
-    0x2DD810: bytes.fromhex('488b41384805100c9300c3'),
+    0x9A6941: bytes.fromhex('e8fa534902'),
+    0x2E3BD60: bytes.fromhex('8d80000000e8d6e4a3fe488945604885c0750a483945680f'),
+    0x6A0510: bytes.fromhex('0f1040200f294424600f1048300f294c24700f104040488b'),
+    0x6A0606: bytes.fromhex('e805ed7402'),
+    0x9968D5: bytes.fromhex('e806e54502'),
+    0x2DF4DEA: bytes.fromhex('488bda488bf9e85b6f3dfd837810050f84dd000000'),
+    0x2DD800: bytes.fromhex('488b41384805000c9300c3'),
 }
 
 

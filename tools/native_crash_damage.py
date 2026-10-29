@@ -1,4 +1,4 @@
-"""T94 crash damage: four small caves in the game's own collision damage, build 183791 / Steam 26271400.
+"""T94 crash damage: four small caves in the game's own collision damage, build 183877 / Steam 26295378.
 
 Static research: research/re-log/2026-10-19_claude_collision-damage.md (build 180836; every site, register, stack
 slot and field used here re-checked on 183791 against the aligned code, 2026-10-28). The native collision handler
@@ -36,20 +36,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F60828
+APP_GLOBAL = 0x6F5F868
 HULL = 0xB940+0x898  # PlayerState hull (int), application+0xC1D8; 0x591980 reads [PlayerState+0x898]
-ROUTE = 0xB1ED80      # player damage route (player, id, source, direction, multiplier)
-COLLISION_RETURN = 0x17963B5
-HULL_GETTER = 0x591980
+ROUTE = 0xB1EDB0      # player damage route (player, id, source, direction, multiplier)
+COLLISION_RETURN = 0x17961D5
+HULL_GETTER = 0x5919D0
 SITES = {  # name: (rva, original bytes)
-    'multiplier': (0x1797D1F, bytes.fromhex('e85c7038ff')),
-    'hull_first': (0x14902D6, bytes.fromhex('4885db7509')),
-    'break_chance': (0x1490C5F, bytes.fromhex('f30f10a608010000')),
-    'never_kill': (0x1490574, bytes.fromhex('4180bf0e01000000')),
+    'multiplier': (0x1797B3F, bytes.fromhex('e86c7238ff')),
+    'hull_first': (0x14901E6, bytes.fromhex('4885db7509')),
+    'break_chance': (0x1490B6F, bytes.fromhex('f30f10a608010000')),
+    'never_kill': (0x1490484, bytes.fromhex('4180bf0e01000000')),
 }
-PIN_RANGES = ((0x1795214, 121), (0x1796399, 33), (0x1797960, 19), (0x17979B9, 61), (0x1797D0D, 29),
-              (0x1490287, 174), (0x14904DB, 229), (0x1490C08, 120), (0x591980, 45))
-PIN_SHA256 = 'a0368ba7c588196528ee494473c489586671f3818bfd83bd3f9b3b0aee2a21d5'
+PIN_RANGES = ((0x1795034, 121), (0x17961B9, 33), (0x1797780, 19), (0x17977D9, 61), (0x1797B2D, 29),
+              (0x1490197, 174), (0x14903EB, 229), (0x1490B18, 120), (0x5919D0, 45))
+PIN_SHA256 = '706462eb88f35e49918ce66bd946d7f961e1692ae2552c023b70394fa9c7d3d5'
 IDS = {1: b'IMPACTGROUND', 2: b'IMPACTINSTANCE'}
 KINDS = {1: 'ground', 2: 'object'}
 
@@ -239,9 +239,9 @@ def hull_first_code(cave, base, data):
     c.relative(b'\x4c\x89\x3d', data+ACTIVE_DEF)            # r15 = damage definition, for C
     c.relative(b'\x83\x0d', data+APPLIED, bytes([HULL_APPLIED]))
     c.emit(bytes.fromhex('45 31 ed'))                       # r13d = 0: shields already down
-    c.relative(b'\xe9', base+0x149054C)
+    c.relative(b'\xe9', base+0x149045C)
     c.label('orig')
-    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x14902E4)
+    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x14901F4)
     c.relative(b'\xe9', base+rva+5)
     return c.finish()
 
@@ -272,10 +272,10 @@ def never_kill_code(cave, base, data):
     c.label('capped')
     c.relative(b'\x83\x0d', data+APPLIED, bytes([CAPPED]))
     c.label('done')
-    c.relative(b'\xe9', base+0x14905A0)
+    c.relative(b'\xe9', base+0x14904B0)
     c.label('orig')
-    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x14905A0)
-    c.relative(b'\xe9', base+0x149057E)
+    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x14904B0)
+    c.relative(b'\xe9', base+0x149048E)
     return c.finish()
 
 
