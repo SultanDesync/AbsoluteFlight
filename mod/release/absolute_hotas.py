@@ -52,6 +52,7 @@ from hotas_settings import SettingsStore
 from hotas_settings import lever_zone_settings
 from newtonian_control import TranslationPublisher
 from keyboard_source import KeyboardSource,lane_keys
+import keyboard_layout
 from pilot_boundary import PilotBoundary,local_player_ship
 from weapon_lead import ShipLeadCorrection
 from combat_aiming import CombatAiming,slowdown_gain
@@ -99,6 +100,7 @@ TICK_SECONDS=.004
 CODE_WRITE_SECONDS=1.  # flight thread must take a queued code write within this, else fall back
 FRAME_SIZE=512
 MAV_FORCE=256
+MINOR_NOTICE=10.  # seconds a minor key-overlap notice stays on the cockpit (user 2026-10-31: time it out)
 SHIP_ACTION_SETS=(10,13)  # cGcActionSetType ShipControls, ShipQuickMenu (logs: 10 in the cockpit, flying or landed)
 THIRD_PERSON_VTABLE=0x4B0EA78  # cGcCameraBehaviourThirdPerson (RTTI, 183877; 0x4B0FAB0 on 183791)
 CAMERA_PROFILE=0x4E8  # its active settings profile name: VEHICLE in exocraft first person (LIKELY)
@@ -2627,7 +2629,14 @@ class AbsoluteHOTAS(Mod):
         try:
             if self.hud_errors>=3 or self.hud_painter is None or not self.active:return
             v=self.store.values
-            if v['flight-model']!='sultan' or not v['flight-controls-enabled']:return
+            conflict=getattr(self,'keyboard_conflict',None) if v.get('keyboard-flight-enabled') else None
+            # Minor overlaps (keyboard_layout.CRITICAL): a notice for MINOR_NOTICE seconds after they change, if wanted.
+            minor=(getattr(self,'keyboard_minor',None) if v.get('keyboard-flight-enabled') and v.get('keyboard-minor-warning')
+                   and not conflict and time.monotonic()-getattr(self,'keyboard_minor_since',-1e9)<MINOR_NOTICE else None)
+            if minor:conflict=None
+            if v['flight-model']!='sultan' or not v['flight-controls-enabled']:
+                if conflict or minor:self._draw_hud_conflict(ctx,conflict,minor)  # every flight model, not only Sultan
+                return
             geffects=getattr(self,'geffects',None)
             g=getattr(geffects,'last',None)
             # G-load vision: our dark periphery and fade to black over everything the mod draws.
@@ -2667,7 +2676,7 @@ class AbsoluteHOTAS(Mod):
                     camera=self.hud_reader.camera() if marker or tsample else None
                     plan=flight_hud.layout(sample[1],camera if marker else None,size[0],size[1],readout,marker)
                     target=flight_hud.target_readout(tsample,camera,size[0],size[1])
-            if plan is None and not layers and not red>0.:return
+            if plan is None and not layers and not red>0. and not conflict and not minor:return
             n=C.c_int32.from_address(ctx+0x42a8).value
             if not 1<=n<64:return
             state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108);font=C.c_int32.from_address(state+0x104).value
@@ -2679,6 +2688,8 @@ class AbsoluteHOTAS(Mod):
                 self.hud_painter.draw(ctx,plan,size[0],size[1],v['hud-scale'],fonts.get(choice,font),
                                       fonts if choice=='compare' else None,gauge,gmeter,target,planet,mode,purge,landing)
                 if layers or red>0.:self.hud_painter.tunnel(ctx,layers,size[0],size[1],red=red)
+                if conflict:self.hud_painter.conflict(ctx,keyboard_layout.conflict_lines(conflict),size[0],size[1],v['hud-scale'])
+                elif minor:self.hud_painter.conflict(ctx,keyboard_layout.minor_lines(minor),size[0],size[1],v['hud-scale'],minor=True)
             finally:
                 api['nvgRestore'](ctx)
                 if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
@@ -2688,6 +2699,24 @@ class AbsoluteHOTAS(Mod):
         except BaseException as error:
             self.hud_errors+=1;self.log('flight HUD error: '+''.join(traceback.format_exception(error)))
             if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
+
+    def _draw_hud_conflict(self,ctx,conflict,minor=None):
+        """T112: the keyboard conflict warning alone, outside Sultan (the rest of the HUD is Sultan's). Same frame and the
+        same NanoVG state rule as _draw_hud."""
+        size=getattr(self.ui,'hud_size',None)
+        if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
+        n=C.c_int32.from_address(ctx+0x42a8).value
+        if not 1<=n<64:return
+        state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108);font=C.c_int32.from_address(state+0x104).value
+        if not 0<=font<64:return
+        api=self.ui_api;api['nvgSave'](ctx)
+        try:
+            api['nvgReset'](ctx);api['nvgFontFaceId'](ctx,font)
+            lines=keyboard_layout.conflict_lines(conflict) if conflict else keyboard_layout.minor_lines(minor)
+            self.hud_painter.conflict(ctx,lines,size[0],size[1],self.store.values['hud-scale'],font,minor=not conflict)
+        finally:
+            api['nvgRestore'](ctx)
+            if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
 
     @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199BC00,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
     def nvg_begin(self,ctx,w,h,ratio):
@@ -2778,6 +2807,8 @@ class AbsoluteHOTAS(Mod):
         source=getattr(self,'keyboard_source',None);buttons=getattr(self,'buttons',None)
         if source is None or buttons is None:return self.table.digital
         values=self.store.values;enabled=bool(values.get('keyboard-flight-enabled'))
+        conflict=self._keyboard_conflict() if enabled else None
+        if conflict:live=False  # paused until the game's ship keys are moved off ours (user 2026-10-31)
         vks=({int(b['token'][-2:],16) for b in getattr(self.store,'keyboard',())} if enabled else set())
         source.poll(lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000),vks,enabled and live,lane_keys(buttons.key_lane))
         newtonian=getattr(self,'newtonian',None)
@@ -2832,6 +2863,30 @@ class AbsoluteHOTAS(Mod):
         self.log('staged game keys: '+', '.join(f'{a}->{k}' for _,a,k in MOVES)+(f'; missing: {", ".join(m[1] for m in left)}' if left else '; all staged'))
         self.game_keys_moved=(f"READY TO MOVE {len(MOVES)-len(left)} OF THE GAME'S KEYS"+(f"; {len(left)} DIDN'T TAKE (SEE LOG)" if left else '')
                               +": PRESS APPLY IN THE GAME'S OPTIONS (FOR EXAMPLE GENERAL) TO SAVE")
+
+    def _keyboard_conflict(self):
+        """T112: our keyboard keys still bound to another game ship action, re-checked once a second from the game's
+        live remaps (else its saved file); None when there are none or the game's bindings can't be read. Logged when it
+        starts and when it clears."""
+        now=time.monotonic()
+        if now<getattr(self,'keyboard_conflict_at',0.):return getattr(self,'keyboard_conflict',None)
+        self.keyboard_conflict_at=now+1.
+        try:
+            from native_rebind import read_custom
+            import keyboard_layout
+            remaps=read_custom(C.string_at,int(_internal.BASE_ADDRESS))
+            if remaps is None and getattr(self,'game_bindings',None):remaps=self.game_bindings.remaps()
+            keys=keyboard_layout.clashes(getattr(self.store,'keyboard',()),remaps) if remaps is not None else []
+            minor=keyboard_layout.minor_overlaps(getattr(self.store,'keyboard',()),remaps) if remaps is not None else []
+            if minor!=getattr(self,'keyboard_minor',[]):self.keyboard_minor=minor;self.keyboard_minor_since=now
+        except BaseException as error:
+            keys=[]
+            if not getattr(self,'keyboard_conflict_failed',False):self.keyboard_conflict_failed=True;self.log('keyboard conflict check failed: '+repr(error))
+        conflict=keys or None
+        if conflict!=getattr(self,'keyboard_conflict',None):
+            self.log('keyboard flight paused: keys still the game\'s: '+', '.join(conflict) if conflict else 'keyboard flight resumed: no key overlap')
+        self.keyboard_conflict=conflict
+        return conflict
 
     def _menu_action(self,action):
         if action=='keyboard-move-game-keys':self._move_game_keys()

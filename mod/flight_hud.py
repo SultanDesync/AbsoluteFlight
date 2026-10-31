@@ -380,6 +380,13 @@ class HudPainter:
         for c,o in (('shadow',max(1.,size*.05)),(color,0.)):
             a['nvgFillColor'](ctx,self._paint(c));a['nvgText'](ctx,x+o,y+o,C.addressof(self.text),None)
 
+    def conflict(self,ctx,lines,width,height,scale=1.,font=None,minor=False):
+        """T112: keyboard key overlap, a ship-computer notice above the reticle: red while flight keys are paused,
+        amber for a minor overlap (it times out in the runtime)."""
+        h=height*max(.5,min(2.,scale));size=.022*h;gap=1.35*size;x=width/2-.3*h;y=height*.22
+        self._rect(ctx,x-.5*size,y-1.2*size,.6*h+size,gap*len(lines)+.6*size,'shadow')
+        for i,line in enumerate(lines):self.label(ctx,x,y+i*gap,line,size*(1.1 if i==0 else .9),('heat' if minor else 'overheat') if i==0 else 'text',font)
+
     def _rect(self,ctx,x,y,w,h,color):
         a=self.api;a['nvgBeginPath'](ctx);a['nvgFillColor'](ctx,self._paint(color));a['nvgRect'](ctx,x,y,w,h);a['nvgFill'](ctx)
 

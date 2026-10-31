@@ -20,7 +20,7 @@ COLORS={'panel':(.04,.05,.07,.92),'dim':(.23,.24,.26,1),'mid':(.55,.54,.52,1),'b
         'accent':(.95,.69,.20,1),'text':(.91,.90,.88,1),'shadow':(0,0,0,1),
         # Keyboard layout (T112, mod/keyboard_layout.py categories); tools/render_keyboard_layout.py uses the same as hex.
         'key-ours':(.95,.69,.20,1),'key-press':(.25,.72,.66,1),'key-moved':(.36,.55,.94,1),'key-game':(.54,.53,.52,1),
-        'key-clash':(.89,.33,.30,1),'key-none':(.16,.17,.19,1),'key-ink':(.08,.09,.10,1),'key-faint':(.60,.60,.56,1)}
+        'key-clash':(.89,.33,.30,1),'key-overlap':(.80,.47,.78,1),'key-none':(.16,.17,.19,1),'key-ink':(.08,.09,.10,1),'key-faint':(.60,.60,.56,1)}
 ZONE_TONE={'DEAD':'dim','STOP':'dim','IDLE':'dim','HOLD':'dim','ACTIVE':'mid','THRUST':'mid','FORWARD':'mid','FASTER':'mid',
            'SLOWER':'mid','BRAKE':'mid','FULL BRAKE':'bright','SAT':'bright','FULL':'bright','CRUISE':'bright'}
 

@@ -26,8 +26,8 @@ this way. Players have also run the same author's Starfield HOTAS mod under Prot
 
   Without the `winmm` part, Proton uses its own winmm.dll, so the mod doesn't load and the game plays as
   normal. `PROTON_ENABLE_HIDRAW=1` lets the game read your stick and throttle directly.
-- Copy `AbsoluteFlight-Proton.asi` (the Linux compatibility patch) into `No Man's Sky/Binaries/`, next to
-  `winmm.dll`. Under Proton the game takes the memory next to NMS.exe early, and without the patch the mod
+- Copy `AbsoluteFlight-Proton.asi` (the Linux compatibility patch, in the zip at
+  `GAMEDATA/MODS/AbsoluteFlight/linux/`) into `No Man's Sky/Binaries/`, next to `winmm.dll`. Under Proton the game takes the memory next to NMS.exe early, and without the patch the mod
   often can't install its hooks or its flight features (they fall back to the game's own). The patch holds
   that room for Absolute Flight. It does nothing on Windows; delete the file to remove it.
 - If Absolute Flight is still missing from the Options menu, quit and start the game again, and send the

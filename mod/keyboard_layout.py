@@ -47,7 +47,12 @@ FUNCTIONS={'mod.thrust-forward':'Thrust','mod.thrust-back':'Reverse','mod.strafe
            'Inventory':'Inventory','Fe_Options':'Options','SolarSystemMap_ToggleMap':'System','Player_ShowHUD':'HUD',
            'TextChatOpenClose':'Chat'}
 CATEGORIES=(('ours','Absolute Flight'),('press',"Presses the game's action"),('moved',"Game's key, moved here"),
-            ('game',"Game's key"),('clash','Clash: still the game\'s'))
+            ('game',"Game's key"),('overlap','Minor overlap (allowed)'),('clash','Clash: still the game\'s'))
+# Game actions that move the ship or take it over (user 2026-10-31: "overlapping movement is critical"). A keyboard flight
+# key on one of these pauses keyboard flight; any other overlap (the quick menu, scan, menus, HUD, chat) is minor: allowed,
+# with a cockpit notice that times out ("if you roll a bit when navigating the quick menu it's no real harm").
+CRITICAL=frozenset(('Ship_Thrust','Ship_Brake','Ship_RollLeft','Ship_RollRight','Ship_Boost','Ship_PulseJump','Ship_Land',
+                    'Ship_Exit','Ship_AutoFollow_Toggle','Ship_AutoFollow_Hold'))
 
 
 # Experimental, and why the game's keys are moved rather than removed (user 2026-10-30). Shown on the Keyboard page and
@@ -70,6 +75,34 @@ def fit(text,width,size,char=.58,smallest=.8):
         lines=[' '.join(words[:cut]),' '.join(words[cut:])]
         return lines,min(size,width/(char*max(map(len,lines))))
     return [text],width/(char*len(text))
+
+
+def clashes(keyboard,remaps):
+    """Key names of our keyboard keys that are still the game's key for an action that moves the ship (CRITICAL).
+    Keyboard flight is paused while any is left (user 2026-10-31)."""
+    return [key_name(vk) for vk,(category,_) in sorted(classify(keyboard,remaps).items()) if category=='clash']
+
+
+def minor_overlaps(keyboard,remaps):
+    """Key names of our keys that are also a game key for an action that doesn't move the ship: allowed."""
+    return [key_name(vk) for vk,(category,_) in sorted(classify(keyboard,remaps).items()) if category=='overlap']
+
+
+def minor_lines(keys):
+    shown=' '.join(keys[:8])+(' ...' if len(keys)>8 else '')
+    return ('MINOR INPUT OVERLAP - FLIGHT CONTROL UNAFFECTED',
+            f'KEYS SHARED WITH SHIP SYSTEMS: {shown}'[:63],
+            'TO SILENCE: KEYBOARD PAGE > WARN ABOUT MINOR OVERLAPS')
+
+
+# The cockpit warning while keyboard flight is paused (user 2026-10-31: "input overlap, controls disabled ... in an
+# in-world kind of way"). ASCII, at most 63 characters a line (the HUD's text buffer).
+def conflict_lines(keys):
+    shown=' '.join(keys[:8])+(' ...' if len(keys)>8 else '')
+    return ('FLIGHT INPUT CONFLICT - KEYBOARD CONTROL OFFLINE',
+            f'KEYS STILL ROUTED TO SHIP SYSTEMS: {shown}'[:63],
+            'RE-ROUTE: OPTIONS > ABSOLUTE FLIGHT > KEYBOARD',
+            "> MOVE THE GAME'S SHIP KEYS, THEN APPLY")
 
 
 def wrap(text,width,size,char=.55):
@@ -107,13 +140,15 @@ def classify(keyboard,remaps):
     for vk,actions in game_keys(remaps).items():
         name,moved=actions[0]
         out[vk]=('moved' if moved else 'game',FUNCTIONS.get(name,name))
+    game=game_keys(remaps)
     for b in keyboard:
         vk=int(b['token'][-2:],16);a=action(b['action'])
         if a is None:continue
         function=FUNCTIONS.get(b['action'],a.label)
         category='ours' if a.lane=='mod' else 'press'
-        if vk in out:  # pressing the game's own action on the game's own key for it is fine; anything else clashes
-            category='press' if category=='press' and out[vk][1]==function else 'clash'
+        if vk in out:  # pressing the game's own action on the game's own key for it is fine; anything else overlaps
+            if not (category=='press' and out[vk][1]==function):
+                category='clash' if any(name in CRITICAL for name,_ in game.get(vk,())) else 'overlap'
         out[vk]=(category,function)
     return out
 

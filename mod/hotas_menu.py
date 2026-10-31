@@ -280,7 +280,7 @@ def keyboard_rows(keyboard,values,live=None):
     """Keyboard page (T112). keyboard: the stored keyboard bindings; live['game-keys']: {vk: labels} the game uses
     while you fly, with the player's own remaps (keys on it are marked), or None when the game's file is unreadable."""
     live=live or {};bound={b['action']:b for b in keyboard};game=live.get('game-keys')
-    rows=[control_row(BY_ID['keyboard-flight-enabled'],values)]
+    rows=[control_row(BY_ID['keyboard-flight-enabled'],values),control_row(BY_ID['keyboard-minor-warning'],values)]
     # The layout diagram (user 2026-10-30: a two-panel page): drawn beside the list by hotas_draw.MeterPainter.keyboard_panel,
     # anchored on this row, which shows a caption.
     remaps=live.get('game-remaps')
@@ -292,6 +292,11 @@ def keyboard_rows(keyboard,values,live=None):
     def vk(action_id):
         b=bound.get(action_id);return int(b['token'][-2:],16) if b else None
     clashes={vk(a) for a,_ in KEYBOARD_ALL if bindable(a) and game and vk(a) in game}
+    remaps_now=live.get('game-remaps')
+    paused=keyboard_layout.clashes(keyboard,remaps_now) if values.get('keyboard-flight-enabled') and remaps_now is not None else []
+    if paused:rows.append(Row('header','keyboard-paused',f"KEYBOARD FLIGHT PAUSED: {len(paused)} KEYS ARE STILL THE GAME'S FLIGHT KEYS. MOVE THE GAME'S SHIP KEYS"))
+    minor=keyboard_layout.minor_overlaps(keyboard,remaps_now) if values.get('keyboard-flight-enabled') and remaps_now is not None else []
+    if minor:rows.append(Row('header','keyboard-minor',f"MINOR OVERLAPS, ALLOWED: {' '.join(minor)}"))
     if game is None:rows.append(Row('header','keyboard-collisions',"COULDN'T READ THE GAME'S KEY BINDINGS"))
     elif clashes:
         rows.append(Row('header','keyboard-collisions',f'THE GAME STILL USES {len(clashes)} OF THESE KEYS IN THE SHIP: '
@@ -433,7 +438,7 @@ def route_controls(route):
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
     if route=='combat':return list(AIMING_CONTROLS+AI_CONTROLS)
-    if route=='keyboard':return ['keyboard-flight-enabled']
+    if route=='keyboard':return ['keyboard-flight-enabled','keyboard-minor-warning']
     if route=='buttons':return ['button-output','key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
     if route=='flight-tuning':return [c.id for c in PROFILE_CONTROLS if c.id[len('tuning-'):] not in AIR_STYLE_KEYS]
     if route=='atmosphere':return ['atmosphere-model']+['tuning-'+k for k in AIR_STYLE_KEYS]+[c.id for c in AIR_CONTROLS+LANDING_CONTROLS]
