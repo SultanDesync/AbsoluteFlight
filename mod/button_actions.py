@@ -12,13 +12,16 @@ Settings changes requested by buttons are returned by take_changes() so the runt
 outside its own lock: the settings listener takes that lock again.
 """
 from dataclasses import replace
+import math
 
 from hotas_buttons import BY_ID, NATIVE_FOR, ButtonRouter, ButtonState
 from hotas_settings import FLIGHT_MODELS
 from stick_cursor import StickCursor, cursor_mode, cursor_reason
 
 # Mod actions the release runtime acts on today (same list as hotas_menu.LIVE_MOD_ACTIONS).
-LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost', 'mod.trim-up', 'mod.trim-down', 'mod.trim-hover', 'mod.trim-reset',
+LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost',
+                    'mod.strafe-left', 'mod.strafe-right', 'mod.strafe-up', 'mod.strafe-down',
+                    'mod.thrust-forward', 'mod.thrust-back', 'mod.vanilla-mode', 'mod.trim-up', 'mod.trim-down', 'mod.trim-hover', 'mod.trim-reset',
                     'mod.flight-model-next', 'mod.flight-model-toggle', 'mod.lever-mode-toggle',
                     'mod.pip-toggle',
                     'mod.head-tracking-toggle', 'mod.head-recentre', 'mod.head-tracking-on', 'mod.head-tracking-off',
@@ -33,6 +36,32 @@ BUTTONS_LIVE_REASONS = (None, 'native receipts stale')
 def flight_buttons_live(reason):
     return reason in BUTTONS_LIVE_REASONS
 EMPTY = ButtonState(frozenset(), (), frozenset())
+# T112: whenever Sultan isn't flying the ship (pulse, the game's boost, landing, another flight model), the thrust keys
+# press the game's own Thrust and Brake, so a key keeps one meaning (D26).
+GAME_THRUST = {'mod.thrust-forward': 0x1B, 'mod.thrust-back': 0x1C}
+STRAFE_RAMP = .2  # seconds from 0 to full strafe (and back) on a strafe button, so a hat eases in rather than snapping
+
+
+class StrafeButtons:
+    """T111: Strafe left/right/up/down held -> (lateral, vertical) in stick terms, -1..1, rate-limited.
+
+    Lateral is + for right and vertical + for up, as a stick pushed that way before shaping. Opposite
+    directions held together cancel."""
+    def __init__(self):
+        self.value = (0., 0.)
+        self.last = None
+
+    def step(self, held, now):
+        dt = 0. if self.last is None else min(max(now-self.last, 0.), .25)
+        self.last = now
+        wanted = (('mod.strafe-right' in held)-('mod.strafe-left' in held), ('mod.strafe-up' in held)-('mod.strafe-down' in held))
+        move = dt/STRAFE_RAMP
+        self.value = tuple(w if abs(w-v) <= move else v+math.copysign(move, w-v) for v, w in zip(self.value, map(float, wanted)))
+        return self.value
+
+    def reset(self):
+        self.value = (0., 0.)
+        self.last = None
 
 
 def is_key_action(action_id):
@@ -64,8 +93,12 @@ class ButtonActions:
         self.key_state = EMPTY
         self.changes = []
         self.cursor = StickCursor()
+        self.strafe_buttons = StrafeButtons()
         self.frontend = None  # last frontend flag the runtime passed to step_cursor
         self.other_model = 'vanilla-strafe'  # what flight-model-toggle returns to from Sultan
+        self.before_vanilla = None  # what Vanilla mode returns to (T112)
+        self.sultan_owns = False  # set by the runtime each tick: Sultan is flying the ship this frame (T112)
+        self.throttle_brake = False  # set by the runtime each tick: the HOSAS throttle is pulled back (FlightControl.brake)
         self.on_head_recentre = None  # HeadTracker.recentre; takes only the tracker's own lock
         self.synthetic_keys = frozenset()  # key actions the mod holds itself (T101 touchdown: the game's Land key)
         self.reload()
@@ -75,8 +108,10 @@ class ButtonActions:
         unless the brake was switched to Hold to brake."""
         hold = self.store.values.get('parking-brake-mode') == 'hold'
         # Parking brake mode (Buttons page, T106) decides the brake's behaviour, not the stored binding.
+        # T112: keyboard flight keys join the HOTAS buttons; their tokens are read from the keyboard source.
+        keyboard = (getattr(self.store, 'keyboard_bindings', list)() if self.store.values.get('keyboard-flight-enabled') else [])
         bindings = [replace(b, behaviour='press' if hold else 'toggle') if b.action == 'mod.parking-brake' else b
-                    for b in self.store.button_bindings()]
+                    for b in list(self.store.button_bindings())+list(keyboard)]
         modifier = self.store.button_modifier
         exo = [b for b in bindings if b.context == 'exocraft']
         bindings = [b for b in bindings if b.context != 'exocraft']
@@ -107,6 +142,28 @@ class ButtonActions:
     @property
     def boost(self):
         return 'mod.boost' in self.state.held
+
+    @property
+    def strafe(self):
+        """T111: (lateral, vertical) from the strafe buttons this tick, ramped; (0, 0) when none is held."""
+        return self.strafe_buttons.value
+
+    @property
+    def thrust(self):
+        """T112: +1 thrust forward, -1 back, 0 from the thrust keys (Sultan)."""
+        held = self.state.held
+        return float(('mod.thrust-forward' in held)-('mod.thrust-back' in held))
+
+    @property
+    def flight_natives(self):
+        """Game actions the flight bindings hold this tick: the game's own roll, and its Thrust/Brake whenever Sultan
+        isn't flying the ship (T112), with the HOSAS throttle's back half as Brake."""
+        held = self.state.held
+        out = {BY_ID[a].native for a in held if a in BY_ID and BY_ID[a].group == 'ship' and BY_ID[a].native is not None}
+        if not self.sultan_owns:
+            out |= {GAME_THRUST[a] for a in held if a in GAME_THRUST}
+            if self.throttle_brake:out.add(GAME_THRUST['mod.thrust-back'])
+        return frozenset(out)
 
     @property
     def trim_up(self):
@@ -140,6 +197,7 @@ class ButtonActions:
             taken = set(self.exo.watched()) - ({self.exo.modifier} if self.exo.modifier else set())
             read = (lambda token, read=read: None if token in taken else read(token)) if taken else read
         self.state = self.flight.step(read, now, flight_eligible)
+        self.strafe_buttons.step(self.state.held, now)
         self.key_state = self.keys.step(read, now, keys_eligible)
         direct = self.store.values.get('button-output', 'direct') == 'direct'
         native = self.native_lane if direct else None
@@ -154,7 +212,8 @@ class ButtonActions:
         if self.native_lane is not None:
             # Exocraft buttons have only the game's action, whichever Button output is chosen.
             self.native_lane.step(({NATIVE_FOR[a] for a in self.key_state.held if a in NATIVE_FOR} if native is not None and keys_eligible
-                                   else set()) | set(self.exo_natives) | (set(self.axis_natives) if driving else set()), int(now*1000))
+                                   else set()) | set(self.exo_natives) | (set(self.axis_natives) if driving else set())
+                                  | (set(self.flight_natives) if native is not None else set()), int(now*1000))
         values = self.store.values
         for action in self.state.pressed:
             if action == 'mod.flight-model-next':
@@ -166,6 +225,13 @@ class ButtonActions:
                 if current != 'sultan':
                     self.other_model = current
                 self.changes.append(('flight-model', self.other_model if current == 'sultan' else 'sultan'))
+            elif action == 'mod.vanilla-mode':
+                current = self._pending('flight-model', values)
+                if current != 'vanilla':
+                    self.before_vanilla = current
+                    self.changes.append(('flight-model', 'vanilla'))
+                else:
+                    self.changes.append(('flight-model', self.before_vanilla or self.other_model))
             elif action == 'mod.lever-mode-toggle':
                 current = self._pending('lever-controls', values)
                 self.changes.append(('lever-controls', 'thrust' if current == 'speed' else 'speed'))
@@ -218,6 +284,7 @@ class ButtonActions:
         """Release transient holds on shutdown/recovery; router latches survive."""
         self.flight.disarm()
         self.state=EMPTY
+        self.strafe_buttons.reset()
         self.keys.disarm()
         self.exo.disarm()
         self.exo_state=EMPTY

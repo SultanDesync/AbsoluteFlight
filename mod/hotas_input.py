@@ -66,7 +66,9 @@ class DeviceTable:
 
 
 class AxisCapture:
-    """Bind by movement: the first axis to move CAPTURE_THRESHOLD from where it rested wins."""
+    """Bind by movement: the first axis to move CAPTURE_THRESHOLD from where it rested wins. The token comes back as
+    '<token>+down' when the axis moved toward its minimum, so the menu can set a pedal's Invert (Olorin's G923 pedals,
+    bug report 2026-10-29: they read full at rest)."""
     def __init__(self,table,now=time.monotonic):
         self.table=table;self.now=now;self.baseline=table.snapshot_raw();self.started=now();self.streak={}
 
@@ -78,11 +80,11 @@ class AxisCapture:
             base=self.baseline.setdefault(guid,list(raw))
             for index,value in enumerate(raw):
                 delta=abs(value-base[index])
-                if delta>=CAPTURE_THRESHOLD and (best is None or delta>best[0]):best=(delta,guid,index)
+                if delta>=CAPTURE_THRESHOLD and (best is None or delta>best[0]):best=(delta,guid,index,value<base[index])
         if best is None:
             self.streak={};return None
         key=(best[1],best[2]);self.streak={key:self.streak.get(key,0)+1}
-        if self.streak[key]>=CAPTURE_FRAMES:return f'{best[1]}@axis:0x{0x30+best[2]:02X}'
+        if self.streak[key]>=CAPTURE_FRAMES:return f'{best[1]}@axis:0x{0x30+best[2]:02X}'+('+down' if best[3] else '')
         return None
 
 
@@ -150,6 +152,18 @@ class KeyCapture:
                 if not down:self.held.discard(vk)
             elif down:return f'key.0x{vk:02X}'
         return None
+
+
+class KeyboardCapture(KeyCapture):
+    """Bind a keyboard flight key (T112): like KeyCapture, but left and right Shift/Ctrl/Alt are separate keys and
+    the result is a keyboard token. Clearing is the prompt's Clear button: Delete and Backspace are bindable here."""
+    def __init__(self,key_down,now=time.monotonic):
+        super().__init__(key_down,now)
+        self.vks=list(hotas_buttons.KEYBOARD_VKS);self.held={vk for vk in self.vks if key_down(vk)}
+
+    def poll(self):
+        result=super().poll()
+        return hotas_buttons.keyboard_token(int(result[6:],16)) if result and result.startswith('key.') else result
 
 
 CLEAR_KEYS=(0x2E,0x08)  # Delete, Backspace

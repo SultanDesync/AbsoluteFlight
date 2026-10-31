@@ -11,7 +11,7 @@ player-ship reacquire. The throttle yields to the game while native throttle is 
 "leave this axis to the game", so one missing device never takes the others down.
 """
 import math
-from flight_shaping import LATERAL_COMMAND_SIGN,ThrottleChannel,shape_axis
+from flight_shaping import LATERAL_COMMAND_SIGN,ThrottleChannel,shape_axis,strafe_sum
 from hotas_settings import strafe_enabled
 
 MAILBOX_ORDER=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical')
@@ -81,6 +81,7 @@ class FlightControl:
         self.values=dict(values);self.armed={c:False for c in MAILBOX_ORDER}
         self.throttle=ThrottleChannel(self.values);self.reasons={};self.throttle_u=0.
         self.ramp={}  # channel -> ramp-in progress 0..1 after arming off-centre
+        self.brake=False  # HOSAS direct stick pulled back past its deadzone: the runtime holds the game's Brake
 
     def reconfigure(self,values,changed=()):
         if 'flight-model' in changed:self.disarm_all('flight model changed')
@@ -89,14 +90,17 @@ class FlightControl:
         for c in rebound:self._disarm(c,'binding changed')
 
     def _disarm(self,channel,reason):
-        if channel=='throttle':self.throttle.disarm();self.throttle_u=0.
+        if channel=='throttle':self.throttle.disarm();self.throttle_u=0.;self.brake=False
         self.armed[channel]=False;self.reasons[channel]=reason;self.ramp.pop(channel,None)
 
     def disarm_all(self,reason):
         for c in MAILBOX_ORDER:self._disarm(c,reason)
 
-    def step(self,table,eligible,dt,native_u=None,reason='not eligible'):
+    def step(self,table,eligible,dt,native_u=None,reason='not eligible',strafe_buttons=(0.,0.)):
         """Returns the six mailbox values in MAILBOX_ORDER.
+
+        strafe_buttons: (lateral, vertical) from the strafe buttons (T111), in stick terms; added to the
+        shaped strafe axes, and enough on its own to drive a strafe channel that has no axis bound.
 
         native_u: the game's own throttle demand this frame (receipt, before substitution). While it
         is nonzero the game owns throttle (auto-boost on launch or station exit, keyboard thrust):
@@ -112,9 +116,10 @@ class FlightControl:
             if channel in STRAFE and not strafing:
                 self._disarm(channel,'vanilla flight model');continue
             unit=table.unit(v[f'bind-{channel}-axis'])
-            if unit is None:
+            button=strafe_buttons[STRAFE.index(channel)] if channel in STRAFE else 0.
+            if unit is None and not button:
                 self._disarm(channel,'unbound' if v[f'bind-{channel}-axis'] is None else 'device missing or stale');continue
-            shaped=shape_axis(v,channel,unit)
+            shaped=strafe_sum(shape_axis(v,channel,unit) if unit is not None else 0.,button)
             if not self.armed[channel]:
                 self.armed[channel]=True
                 if abs(shaped)>NEUTRAL:self.ramp[channel]=0.;self.reasons[channel]='arming'
@@ -128,18 +133,25 @@ class FlightControl:
         if norm>v['strafe-authority']:
             for c in STRAFE:out[c]*=v['strafe-authority']/norm
         unit=table.unit(v['bind-throttle-axis'])
+        self.brake=False
         if native_u is not None and math.isfinite(native_u) and abs(native_u)>NATIVE_THROTTLE:
             # Hand over without disarming; resume from the game's u so release_limited eases the
             # fall from the auto-boost's u=1 instead of dropping into a slack smoothing spring.
             self.armed['throttle']=False;self.reasons['throttle']='game throttle active'
             self.throttle_u=min(THROTTLE_MAX_U,max(0.,native_u))
+            # T116: the game's u goes negative as soon as our Brake press takes, which lands here. Keep holding Brake while
+            # the stick is still pulled back; dropping it made the brake flicker on and off (0.2.4-dev.12 Vanilla: game u
+            # median -0.03 with the stick fully back, against -0.73 to -1.00 with a real S key).
+            if native_u<0:self.brake=self.throttle.brake_demand(unit)>NEUTRAL
             return self._finish(out)
         cmd=self.throttle.step(unit,dt,native_u)
         if cmd is None:
             self.armed['throttle']=False;self.throttle_u=0.;self.ramp.pop('throttle',None)
             self.reasons['throttle']='unbound' if v['bind-throttle-axis'] is None else 'device missing or stale'
         else:
-            wanted=min(THROTTLE_MAX_U,max(0.,cmd.thrust))  # brake lane not qualified: back half holds idle
+            # The back half has no analog brake lane: it holds idle thrust and presses the game's own Brake
+            # (the Thrust back button's lane), so pulling back slows the ship whichever flight model is current.
+            wanted=min(THROTTLE_MAX_U,max(0.,cmd.thrust));self.brake=cmd.brake>NEUTRAL
             if not self.armed['throttle']:
                 self.armed['throttle']=True
                 if wanted>NEUTRAL:self.ramp['throttle']=0.

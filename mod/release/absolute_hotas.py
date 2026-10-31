@@ -43,14 +43,15 @@ from pymhf.core.hooking import NOOP,get_caller,hook_manager,manual_hook
 
 from command_mailbox import CommandMailbox,PAYLOAD,STRICT_ROTATION
 from hotas_control import FlightControl,MAILBOX_ORDER,NATIVE_LIMITS,StallMonitor
-from hotas_input import AxisCapture,BusReader,ButtonCapture,ClearableCapture,DeviceTable,KeyCapture
+from hotas_input import AxisCapture,BusReader,ButtonCapture,ClearableCapture,DeviceTable,KeyboardCapture,KeyCapture
 from key_lane import win32_lane
 from button_actions import ButtonActions,flight_buttons_live
 from g_effects import GEffects
-from flight_telemetry import SHIP_FIELDS,TelemetryWriter,build_row,decode_receipt
+from flight_telemetry import APP_GATES,GATE_FIELDS,SHIP_FIELDS,TelemetryWriter,build_row,decode_receipt
 from hotas_settings import SettingsStore
 from hotas_settings import lever_zone_settings
 from newtonian_control import TranslationPublisher
+from keyboard_source import KeyboardSource,lane_keys
 from pilot_boundary import PilotBoundary,local_player_ship
 from weapon_lead import ShipLeadCorrection
 from combat_aiming import CombatAiming,slowdown_gain
@@ -98,7 +99,8 @@ TICK_SECONDS=.004
 CODE_WRITE_SECONDS=1.  # flight thread must take a queued code write within this, else fall back
 FRAME_SIZE=512
 MAV_FORCE=256
-THIRD_PERSON_VTABLE=0x4B0EA78  # cGcCameraBehaviourThirdPerson (RTTI, 183791)
+SHIP_ACTION_SETS=(10,13)  # cGcActionSetType ShipControls, ShipQuickMenu (logs: 10 in the cockpit, flying or landed)
+THIRD_PERSON_VTABLE=0x4B0EA78  # cGcCameraBehaviourThirdPerson (RTTI, 183877; 0x4B0FAB0 on 183791)
 CAMERA_PROFILE=0x4E8  # its active settings profile name: VEHICLE in exocraft first person (LIKELY)
 FIRST_PERSON_PROFILE='VEHICLE'
 EXO_INSTALL_ATTEMPTS,EXO_INSTALL_RETRY_MS=5,2000  # a failed exocraft install is retried (thread suspension can fail at startup)
@@ -186,7 +188,7 @@ class AbsoluteHOTAS(Mod):
         self.store=SettingsStore(SETTINGS);report=self.store.load()
         for issue in report.issues:self.log('settings: '+issue)
         self.store.tuning_files=flight_tunings.FlightTunings(TUNINGS,build=GAME_BUILD)
-        self.control=FlightControl(self.store.values);self.stall=StallMonitor();self.geffects=GEffects(log=self.log);self.buttons=ButtonActions(self.store,win32_lane(trace_path=self.log_path.with_name(self.log_path.name.replace('-runtime.log','-keys.log'))))
+        self.control=FlightControl(self.store.values);self.stall=StallMonitor();self.geffects=GEffects(log=self.log);self.keyboard_source=KeyboardSource();self.buttons=ButtonActions(self.store,win32_lane(trace_path=self.log_path.with_name(self.log_path.name.replace('-runtime.log','-keys.log'))))
         self.translation=TranslationPublisher();self.translation_command=None;self.lift_trim=LiftTrim()
         self.translation_profiles={c:self.store.profile(c) for c in SUPPORTED_CLASSES}
         self.flight_consumer=FlightConsumer();self.newtonian=None;self.newtonian_retry=0.
@@ -207,6 +209,7 @@ class AbsoluteHOTAS(Mod):
             self.head=HeadTracker(int(_internal.BASE_ADDRESS),self.store.values,log=self.log)
             self.store.listeners.append(self.head.settings_changed)
             self.buttons.on_head_recentre=self.head.recentre
+            self.head.action_set=self._head_action_set
         except BaseException as error:self.log('head tracking disabled: '+repr(error))
         self.box=CommandMailbox(limits=NATIVE_LIMITS)
         self.aiming=CombatAiming(int(_internal.BASE_ADDRESS),self.weapon_lead,clock=K.GetTickCount64)
@@ -266,7 +269,8 @@ class AbsoluteHOTAS(Mod):
             self.control.reconfigure(values,changed)
             if any(k in changed for k in ('tuning-additive-pitch-yaw','tuning-pitch-rate','tuning-yaw-rate','tuning-roll-rate','tuning-turn-response')):
                 for axis in ('pitch','yaw'):self.control._disarm(axis,'rotation tuning changed')  # re-arms with the ramp
-            if 'buttons' in changed or 'parking-brake-mode' in changed:self.buttons.reload()
+            # keyboard-flight-enabled adds or removes the keyboard keys (T112: 0.2.4-dev.3 never reloaded, so switching it on did nothing)
+            if any(k in changed for k in ('buttons','parking-brake-mode','keyboard-flight-enabled')):self.buttons.reload()
             self.translation_profiles={c:self.store.profile(c) for c in SUPPORTED_CLASSES}
             if any(key.startswith('ai-') or key in ('flight-model','flight-controls-enabled') for key in changed):
                 aim=getattr(self,'ai_aim',None)
@@ -540,6 +544,21 @@ class AbsoluteHOTAS(Mod):
                         0 if recovering else self.block.ship,self.block.pilot_until)
         except BaseException:self.hook_errors+=1
         return None
+
+    # Exocraft first person (183877): the first-person update skips the helper above without a spaceship component,
+    # so its own output is composed after it returns (HeadTracker.vehicle_camera gates on action set VehicleMode).
+    @manual_hook('AbsoluteHOTASHeadFirstPerson',offset=0x65E320,  # FIRST_PERSON_UPDATE, 183877 (vtable slot +0x20)
+                 func_def=FUNCDEF(None,[C.c_void_p,C.c_float,C.c_void_p]),detour_time='after')
+    def head_first_person(self,this,dt,output):
+        head=getattr(self,'head',None)
+        if head is None or not head.enabled or not self.active:return None
+        try:head.vehicle_camera(this,output)
+        except BaseException:self.hook_errors+=1
+        return None
+
+    def _head_action_set(self):
+        from native_analog_actions import current_set
+        return current_set(self._process_read,int(_internal.BASE_ADDRESS))
 
     def _player_context(self,ship):
         """Fresh positive player identity; never dereference the discarded ship."""
@@ -1087,11 +1106,13 @@ class AbsoluteHOTAS(Mod):
             from native_crash_damage import CrashDamagePatch
             from native_eject import allocate_after_image
             base=int(_internal.BASE_ADDRESS)
-            allocation=getattr(sys,'_absolute_hotas_crash_allocation',0)
-            if not allocation:
-                allocation=allocate_after_image(self.pm.process_handle,base)
-                sys._absolute_hotas_crash_allocation=allocation
             try:
+                # Inside the try: under Proton the heap can fill the space after the image, and a failed allocation
+                # out here was retried every tick (deck, 2026-10-29: 58 tracebacks in 24 s of flight).
+                allocation=getattr(sys,'_absolute_hotas_crash_allocation',0)
+                if not allocation:
+                    allocation=allocate_after_image(self.pm.process_handle,base)
+                    sys._absolute_hotas_crash_allocation=allocation
                 patch=CrashDamagePatch(base,allocation)
                 self.crash_damage=patch
                 patch.install(self._external_write_code,self.pm,os.getpid())
@@ -1509,9 +1530,13 @@ class AbsoluteHOTAS(Mod):
         if self.newtonian is not None:
             # The worker only requests work. Metadata may change only after the
             # pinned flight thread returns from Controlled, never under this lock.
+            # Checked every tick (two reads): a moved physics body is requalified within a few frames, not on a
+            # 2 s poll (seams note 2026-10-30: median 0.66 s of native flight per move). Only a failed
+            # requalification backs off (_refresh_newtonian_fixture).
             if self.store.values['flight-model']!='sultan':return
             if getattr(self,'newtonian_refresh_requested',None) is not None:return
-            self.newtonian_retry=now+2.
+            if getattr(self,'newtonian_refresh_failed',False):
+                self.newtonian_refresh_failed=False;self.newtonian_retry=now+2.;return
             if self.newtonian.fixture['ship']!=self.block.ship:return
             if not self._eligible_native(K.GetTickCount64(),allow_combat_flight=True,allow_low_height=getattr(self,'planetary_on',False)):return
             if self.newtonian.sample().get('reason_name')!='identity_changed':return
@@ -1565,14 +1590,14 @@ class AbsoluteHOTAS(Mod):
                 fixture=fixture_from_ship(self.pm,self.pm.process_base.lpBaseOfDll,ship)
                 changed=[name for name in fixture if fixture.get(name)!=bridge.fixture.get(name)]
                 bridge.refresh_fixture(fixture)
-                # A requalified same ship keeps its boost heat and ship condition (T93: still ditched).
-                self.flight_consumer=FlightConsumer(boost=self.flight_consumer.boost,condition=self.flight_consumer.condition);self.translation_command=None
+                # The same ship keeps its consumer and command: thrust carries on from its last acceleration
+                # instead of ramping in from zero. The consumer resets itself if the ship or body record changed.
                 self.newtonian_refresh_count+=1;self.newtonian_failure='';self.newtonian_transition=None
                 self.log('Newtonian physics requalified; class '+str(fixture['ship_class'])+'; changed '+','.join(changed))
             except BaseException as error:
                 reason='physics requalification: '+str(error)
                 if self.newtonian_failure!=reason:self.log('Newtonian native fallback: '+reason)
-                self.newtonian_failure=reason
+                self.newtonian_failure=reason;self.newtonian_refresh_failed=True  # the worker backs off 2 s on its clock
 
     def _translation_status(self):
         status=dict(self.flight_consumer.latest)
@@ -1736,7 +1761,7 @@ class AbsoluteHOTAS(Mod):
 
     def _record(self,reason,values):
         v=self.store.values;ship=self.block.ship
-        fields={name:struct.unpack(fmt,C.string_at(ship+offset,struct.calcsize(fmt)))[0] for name,offset,fmt in SHIP_FIELDS}
+        fields={name:struct.unpack(fmt,C.string_at(ship+offset,struct.calcsize(fmt)))[0] for name,offset,fmt in SHIP_FIELDS+GATE_FIELDS}
         receipt=self._receipt_raw() if self.patches is not None else None
         mav=self.mav.sample() if self.mav is not None else None
         state={'piloting':1,'reason':reason or 'armed','style':v['throttle-style'],'hosas_mode':v['hosas-stick-mode'],
@@ -1771,6 +1796,7 @@ class AbsoluteHOTAS(Mod):
                 if manager:
                     state['combat_active']=pm.read_bytes(manager+0x57aa6d,1)[0]
                     state['frontend_state']=struct.unpack('<I',pm.read_bytes(manager+0x89bd98,4))[0]
+                    for name,offset,fmt in APP_GATES:state[name]=struct.unpack(fmt,pm.read_bytes(manager+offset,struct.calcsize(fmt)))[0]
             except BaseException:pass # Missing diagnostic reads never affect controls.
         state['newtonian_requalifications']=getattr(self,'newtonian_refresh_count',0)
         state['parking_brake_requested']=int(bool(getattr(getattr(self,'buttons',None),'parking',False)))
@@ -1888,10 +1914,15 @@ class AbsoluteHOTAS(Mod):
         pid=C.c_ulong();U.GetWindowThreadProcessId(U.GetForegroundWindow(),C.byref(pid));return pid.value==os.getpid()
 
     def _run(self):
-        last=time.monotonic();bus_retry=0.;fault_until=0.;last_status=0.;last_seq=None;seq_time=last
+        last=time.monotonic();bus_retry=0.;fault_until=0.;last_status=0.;last_seq=None;seq_time=last;hooks_due=last+5
         while not self.stopping.is_set():
             now=time.monotonic();dt=now-last;last=now
             try:
+                if hooks_due and now>=hooks_due:
+                    # pyMHF only logs a hook it couldn't install (MinHook found no trampoline memory, seen under Proton).
+                    hooks_due=None
+                    failed=sorted({h._name for h in hook_manager.hooks.values() if getattr(h,'state',None)=='failed'})
+                    self.log('hooks failed to install: '+(', '.join(failed) if failed else 'none'))
                 if self.bus is None and now>=bus_retry:
                     try:self._start_bus()
                     except BaseException as e:
@@ -1948,7 +1979,9 @@ class AbsoluteHOTAS(Mod):
                     if getattr(self,'pilot_recovery',None) is not None:
                         recovering=True;reason='reacquiring player ship'
                     elif self.stopping.is_set():reason='stopping'
-                    values=self.control.step(self.table,reason is None,dt,native_u,reason or '')
+                    values=self.control.step(self.table,reason is None,dt,native_u,reason or '',
+                                             getattr(getattr(self,'buttons',None),'strafe',(0.,0.)))  # T111: last tick's strafe buttons
+                    if getattr(self,'buttons',None) is not None:self.buttons.throttle_brake=self.control.brake  # on the game-action lane below
                     handed=self.control.reasons.get('throttle')=='game throttle active'
                     if handed!=getattr(self,'game_throttle',False):
                         self.game_throttle=handed
@@ -2024,7 +2057,8 @@ class AbsoluteHOTAS(Mod):
                     self._log_axis_states()
                     keys_live=self.capture is None and not self.menu_open and self._focused()
                     driving=self._driving()
-                    self.buttons.step(self.table.digital,now,flight_buttons_live(reason),keys_live,driving)
+                    read=self._keyboard_step(keys_live and not driving and self._in_ship(piloting))
+                    self.buttons.step(read,now,flight_buttons_live(reason),keys_live,driving)
                     self._step_exocraft(driving and keys_live)
                     self._eject_hold(now,tick,reason is None)
                     # Dialogs and menus: the free stick drives the cursor (the frontend flag also releases flight axes).
@@ -2033,7 +2067,8 @@ class AbsoluteHOTAS(Mod):
                                              self._focused(),self.menu_open or self.capture is not None,self._frontend())
                     with self.newtonian_lock:
                         self.translation_command=self.translation.step(self.table,self.store.values,reason is None,tick,
-                                                                       lever_zone_settings(self.store.values),self.buttons.parking,boost=self.buttons.boost)
+                                                                       lever_zone_settings(self.store.values),self.buttons.parking,boost=self.buttons.boost,
+                                                                       strafe_buttons=self.buttons.strafe,thrust_buttons=self.buttons.thrust)
                         # T93: raw controls for the thruster purge, before any engines-out scaling.
                         raw=self.translation_command
                         self.purge_inputs={'throttle':raw.throttle.value,'vertical':raw.vertical,'lateral':raw.lateral,'boost':self.buttons.boost}
@@ -2328,6 +2363,7 @@ class AbsoluteHOTAS(Mod):
         if getattr(self,'touchdown',None) is not None:live['touchdown']=self.touchdown.last
         live['additive-rotation']=additive_rotation.status(self)
         live['key-output']=self.buttons.key_status()
+        live.update(self._game_keys_live())
         if getattr(self,'geffects',None) is not None:live['g']=self.geffects.status()
         if getattr(self,'ai_pilots',None) is not None:live['ai-pilots']=self.ai_pilots.status()
         if getattr(self,'ai_aim',None) is not None:live['ai-aim']=self.ai_aim.status()
@@ -2655,7 +2691,7 @@ class AbsoluteHOTAS(Mod):
 
     @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199BC00,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
     def nvg_begin(self,ctx,w,h,ratio):
-        if getattr(self.ui,'manager',0):self.ui.ctx=ctx
+        if getattr(self.ui,'manager',0):self.ui.ctx=ctx;self.ui.size=(w,h)  # the Keyboard page's side panel sizes from it
         try:
             if self._in_hud_frame() and not getattr(self.ui,'hud_ctx',0):self.ui.hud_ctx=ctx;self.ui.hud_size=(w,h)
         except BaseException:self.hud_errors+=1
@@ -2686,6 +2722,9 @@ class AbsoluteHOTAS(Mod):
                 for label,meter in list(self.menu.meters.items()):
                     root=self.roots.get(label)
                     geo=row_geometry(root,self.ui_layout,q,C.string_at) if root else None
+                    if meter.get('kind')=='keyboard-panel':  # T112: beside the list, not in its row
+                        if geo and self.painter.keyboard_panel(ctx,geo,getattr(self.ui,'size',None),meter):drawn+=1
+                        continue
                     g=panel_geometry(*geo) if geo else None
                     if g:self.painter.meter(ctx,g,meter);drawn+=1
                 self.counters['draws']+=drawn
@@ -2717,13 +2756,85 @@ class AbsoluteHOTAS(Mod):
         with self.lock:
             key_down=lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000)
             if kind=='key':self.capture=KeyCapture(key_down)
+            elif kind=='keyboard':self.capture=KeyboardCapture(key_down)
             elif kind=='button':self.capture=ClearableCapture(ButtonCapture(self.table,modifier=self.store.button_modifier),key_down)
             elif kind=='modifier':self.capture=ClearableCapture(ButtonCapture(self.table),key_down)
             else:self.capture=ClearableCapture(AxisCapture(self.table),key_down)
             self.capture_done=done
         self.trace(f'capture start: {kind}')
 
+    def _in_ship(self,piloting):
+        """T112: the keyboard keys are live in the ship's action sets (ShipControls, its quick menu), landed included.
+        0.2.4-dev.12 (DADS 2026-10-30): gated on piloting, Exit on Y did nothing landed, where the flight update (and so
+        piloting) goes stale. Falls back to piloting when the action set can't be read."""
+        from native_analog_actions import current_set
+        try:current=current_set(self._process_read,int(_internal.BASE_ADDRESS))
+        except BaseException:current=None
+        return piloting if current is None else current in SHIP_ACTION_SETS
+
+    def _keyboard_step(self,live):
+        """T112: poll the keyboard flight keys and return the router's read(token), keyboard tokens included.
+        The keys answer only while you fly with NMS focused and no HOTAS menu or capture open."""
+        source=getattr(self,'keyboard_source',None);buttons=getattr(self,'buttons',None)
+        if source is None or buttons is None:return self.table.digital
+        values=self.store.values;enabled=bool(values.get('keyboard-flight-enabled'))
+        vks=({int(b['token'][-2:],16) for b in getattr(self.store,'keyboard',())} if enabled else set())
+        source.poll(lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000),vks,enabled and live,lane_keys(buttons.key_lane))
+        newtonian=getattr(self,'newtonian',None)
+        try:owns=bool(values.get('flight-model')=='sultan' and newtonian is not None
+                      and newtonian.sample().get('reason_name') in ('applied','helper_coast'))
+        except BaseException:owns=False
+        buttons.sultan_owns=owns
+        digital=self.table.digital
+        return lambda token:source.read(token) if token.startswith('keyboard@') else digital(token)
+
+    def _game_rebinder(self):
+        rebinder=getattr(self,'game_rebinder',None)
+        if rebinder is None:
+            from native_rebind import Rebinder
+            try:rebinder=Rebinder(int(_internal.BASE_ADDRESS))
+            except BaseException as error:rebinder=False;self.log('game rebind unavailable: '+repr(error))
+            self.game_rebinder=rebinder
+        return rebinder
+
+    def _game_keys_live(self):
+        """T112 Keyboard page: the keys the game uses while you fly (its saved remaps, else its saved file), whether its
+        bindings are usable on this build, and where the move stands: ready, staged (press the game's Apply) or done."""
+        from hotas_buttons import game_ship_keys
+        from native_rebind import WORKING,pending,read_custom
+        out={'game-keys-moved':getattr(self,'game_keys_moved',None)}
+        rebinder=self._game_rebinder()
+        out['game-rebind']='ready' if rebinder and rebinder.verified else 'unavailable'
+        try:remaps=read_custom(C.string_at,int(_internal.BASE_ADDRESS));working=read_custom(C.string_at,int(_internal.BASE_ADDRESS),WORKING)
+        except BaseException:remaps=working=None
+        if remaps is None:
+            if getattr(self,'game_bindings',None) is None:
+                from keyboard_source import GameBindings,game_settings_path
+                path=game_settings_path();self.game_bindings=GameBindings(path) if path is not None else False
+            out['game-keys']=self.game_bindings.ship_keys() if self.game_bindings else None
+            out['game-remaps']=self.game_bindings.remaps() if self.game_bindings else None
+        else:
+            out['game-keys']=game_ship_keys(remaps);out['game-remaps']=remaps
+            if out['game-rebind']=='ready':
+                out['game-rebind']='done' if not pending(remaps) else 'staged' if working is not None and not pending(working) else 'ready'
+        return out
+
+    def _move_game_keys(self):
+        """T112: the Keyboard page's Move button, on the game's menu thread inside the options menu. It stages the moves
+        in the options' working copy, as a page edit does; the game's own Apply saves and applies them."""
+        rebinder=self._game_rebinder()
+        if not rebinder or not rebinder.verified:
+            self.game_keys_moved="THE GAME'S BINDINGS AREN'T AVAILABLE ON THIS BUILD";return
+        try:left=rebinder.stage()
+        except BaseException as error:
+            self.game_keys_moved="COULDN'T MOVE THE GAME'S KEYS (SEE LOG)";self.log('move game keys failed: '+repr(error));return
+        from native_rebind import MOVES
+        self.log('staged game keys: '+', '.join(f'{a}->{k}' for _,a,k in MOVES)+(f'; missing: {", ".join(m[1] for m in left)}' if left else '; all staged'))
+        self.game_keys_moved=(f"READY TO MOVE {len(MOVES)-len(left)} OF THE GAME'S KEYS"+(f"; {len(left)} DIDN'T TAKE (SEE LOG)" if left else '')
+                              +": PRESS APPLY IN THE GAME'S OPTIONS (FOR EXAMPLE GENERAL) TO SAVE")
+
     def _menu_action(self,action):
+        if action=='keyboard-move-game-keys':self._move_game_keys()
         if action=='head-recentre' and getattr(self,'head',None) is not None:self.head.recentre()
         if action=='support-bundle':threading.Thread(target=self._save_support_bundle,name='AbsoluteHOTAS support bundle',daemon=True).start()
 

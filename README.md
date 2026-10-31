@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.2.3-alpha)
+# Absolute Flight for No Man's Sky (alpha 0.2.4-dev.16)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,

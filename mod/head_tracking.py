@@ -17,6 +17,13 @@ publishes an immutable command with a 400 ms deadline only while the FreeTrack c
 advancing. The camera fades to native from 150 ms source/pilot age over 200 ms (D9) and is
 refused outright past the deadline, so a stalled pump, a stopped OpenTrack or a lost pilot
 all return the native camera. After any hand-back the pose ramps in over RAMP_MS.
+Exocraft first person (build 183791, research/re-log/2026-10-28_claude_exocraft-head-tracking-183791.md): the same
+cGcCameraBehaviourFirstPerson update (0x65E320 on 183877) skips the free-look helper unless the player has a spaceship component,
+so the helper hook never runs while driving. A post-hook on that update composes the same rotation into the camera
+output it wrote (RSI = R8: rows +0x00 and the copy at +0x50), admitted only while the game's action set is VehicleMode,
+the behaviour is not in its third-person mode (+0x1A8 and app+0x282E5 clear, 0x1824180's test) and both copies agree.
+The ship keeps the H3 path above; action set 16 never runs there.
+
 Centre: first fresh frame after enable, an explicit recentre, or a new producer (counter
 restart / reconnect). Never on a stall: the harness re-centred after any 100 ms output gap,
 which would have silently moved straight-ahead to wherever the pilot was looking.
@@ -38,6 +45,11 @@ BEHAVIOUR=0x72CF30  # 0x72C840 on 180836; this is still behaviour+0x20 at caller
 FIRST_PERSON_VTABLE=0x4B0E690
 CONFIG_OFFSET=0x20
 PILOT_ACTIVE=0x60C8
+FIRST_PERSON_UPDATE=0x65E320  # cGcCameraBehaviourFirstPerson vtable slot +0x20 (this, float dt, output); 183877 (0x65E2D0 on 183791)
+VEHICLE_MODE=16      # cGcActionSetType.VehicleMode (tools/native_analog_actions.current_set)
+THIRD_PERSON=0x1A8   # behaviour+0x1A8 nonzero, or the byte app+0x282E5: 0x1824180's third-person test
+THIRD_PERSON_BYTE=0x282E5
+CURRENT=0x00;TARGET=0x50   # the update writes the same transform to both (target always, current unless frozen)
 COMMAND_MS=400   # D9 hard clear
 PILOT_MS=400     # release flight clock lease (flight_clock: pilot_until = tick + 400)
 WARMUP_MS=250    # advancing counter required before (re)use
@@ -163,6 +175,8 @@ class HeadTracker:
         self.filters=[OneEuro() for _ in AXES];self.filter_time=None;self.perf=time.perf_counter  # camera thread only
         self.prev=None;self.latest=None;self.interval=.016  # interpolation: two newest (stamp, angles), camera thread only
         self.stamped_id=None  # pump thread: data id of the last stamped sample
+        self.action_set=lambda:None  # the release supplies the game's current action set (exocraft path)
+        self.last_context=None
 
     # ----- control (any thread; never the runtime lock) -----
     def settings_changed(self,values,changed):
@@ -259,10 +273,22 @@ class HeadTracker:
         if this!=behaviour+CONFIG_OFFSET:return 'config'
         return 'ready'
 
-    def weight(self,command,now,pilot_until):
+    def vehicle_gate(self,this):
+        """Exocraft first person: action set VehicleMode, no frontend, this is the first-person behaviour, not third person."""
+        if self.action_set()!=VEHICLE_MODE:return 'not_driving'
+        manager=self.mem.u64(self.base+APP_GLOBAL)
+        if not manager or self.mem.u32(manager+FRONTEND)!=0:return 'frontend'
+        behaviour=self.mem.u64(manager+BEHAVIOUR)
+        if not behaviour or self.mem.u64(behaviour)!=self.base+FIRST_PERSON_VTABLE:return 'behaviour'
+        if this!=behaviour:return 'config'
+        if self.mem.u32(behaviour+THIRD_PERSON)!=0 or self.mem.u8(manager+THIRD_PERSON_BYTE)!=0:return 'third_person'
+        return 'ready'
+
+    def weight(self,command,now,pilot_until=None):
         if command is None:return 0.,'no_pose'
         if now>=command.deadline or command.deadline-now>COMMAND_MS:return 0.,'expired'
-        age=max(now-command.last_change,now-(pilot_until-PILOT_MS))
+        age=now-command.last_change
+        if pilot_until is not None:age=max(age,now-(pilot_until-PILOT_MS))
         w=fade_weight(age)*max(0.,min(1.,(now-command.ready_since)/RAMP_MS))
         return (w,'ready') if w>0 else (0.,'stale' if age>150 else 'ramp')
 
@@ -289,16 +315,53 @@ class HeadTracker:
                 attempted=True;self.mem.write(output,composed)
                 if self.mem.read(output,48)!=composed:raise OSError('camera readback mismatch')
             self.counts['applied']+=1;self.last_gate='applied';self.last_applied=check;self.last_weight=w
+            self.last_context='ship'
             return 'applied'
         except BaseException as error:
-            self.errors+=1;self.command=None;self.counts['error']+=1;self.last_gate='error'
-            if attempted and original is not None:
-                try:self.mem.write(output,original)
+            return self._fault(error,attempted,original,((output,original),))
+
+    def _fault(self,error,attempted,original,rollback):
+        """Any camera fault: drop the command, restore what was written, disable after MAX_ERRORS."""
+        self.errors+=1;self.command=None;self.counts['error']+=1;self.last_gate='error'
+        if attempted and original is not None:
+            for address,raw in rollback:
+                try:self.mem.write(address,raw)
                 except BaseException:self.counts['rollback_error']+=1
-            if self.errors>=MAX_ERRORS and not self.faulted:
-                self.faulted='disabled after repeated camera errors: '+repr(error)
-                self.log('head tracking '+self.faulted)
-            return 'error'
+        if self.errors>=MAX_ERRORS and not self.faulted:
+            self.faulted='disabled after repeated camera errors: '+repr(error)
+            self.log('head tracking '+self.faulted)
+        return 'error'
+
+    def vehicle_camera(self,this,output):
+        """Post-hook body for the first-person update FIRST_PERSON_UPDATE (exocraft). Native bytes stay unless 'applied'."""
+        if not self.enabled or self.stopped or self.faulted:return 'off'
+        original=None;attempted=False
+        try:
+            now=self.clock()
+            outcome=self.vehicle_gate(this)
+            if outcome=='ready':
+                command=self.command;w,outcome=self.weight(command,now)
+            if outcome=='ready' and not output:outcome='output_alias'
+            if outcome!='ready':
+                self.counts['exo_'+outcome]+=1;self.last_gate='exo_'+outcome;return outcome
+            original=self.mem.read(output+CURRENT,48);target=self.mem.read(output+TARGET,48)
+            if target!=original:  # frozen camera (current not written this frame) or a foreign writer
+                self.counts['exo_diverged']+=1;self.last_gate='exo_diverged';return 'diverged'
+            composed=compose_basis(original,self.smoothed(command.angles,command.stamp),w,PHYSICAL_LIMITS)
+            check=self.clock()
+            if (self.command is not command or not self.enabled or self.stopped
+                    or check>=command.deadline or self.vehicle_gate(this)!='ready'):
+                self.counts['exo_changed']+=1;self.last_gate='exo_changed';return 'changed'
+            if composed!=original:
+                attempted=True
+                for offset in (TARGET,CURRENT):
+                    self.mem.write(output+offset,composed)
+                    if self.mem.read(output+offset,48)!=composed:raise OSError('camera readback mismatch')
+            self.counts['applied']+=1;self.last_gate='applied';self.last_applied=check;self.last_weight=w
+            self.last_context='exocraft'
+            return 'applied'
+        except BaseException as error:
+            return self._fault(error,attempted,original,((output+TARGET,original),(output+CURRENT,original)))
 
     # ----- status -----
     def status(self):
@@ -314,7 +377,7 @@ class HeadTracker:
                 'pose':None if source.relative is None else [round(v,2) for v in source.relative],
                 'command':None if command is None else [round(v,2) for v in command.angles],
                 'command_age_ms':None if command is None else now-command.last_change,
-                'camera':camera,'weight':round(self.last_weight,3),'applied':self.counts['applied'],
+                'camera':camera,'context':self.last_context,'weight':round(self.last_weight,3),'applied':self.counts['applied'],
                 'recentres':self.counts['recentres'],'errors':self.errors,
                 'rejections':{k:v for k,v in self.counts.items() if k not in ('applied','recentres')}}
 

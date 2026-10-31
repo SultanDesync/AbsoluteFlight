@@ -52,7 +52,7 @@ import struct
 BUILD = (183877, 26295378)
 SITE_RVA = 0x179171F
 GLOBAL_RVA = 0x4BF5900
-ORIGINAL = bytes.fromhex('f3 44 0f 10 0d 18 50 46 03 48 8d 9e d0 6c 00 00')
+ORIGINAL = bytes.fromhex('f3 44 0f 10 0d d8 41 46 03 48 8d 9e d0 6c 00 00')
 SCHEMA = 1
 QUALIFIED = 1
 MAX_LEASE_MS = 50

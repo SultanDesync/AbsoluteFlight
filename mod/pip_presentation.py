@@ -17,7 +17,7 @@ PIP_VISIBLE = 0xFEC15
 CAMERA = 0x92CC40
 PROJECT = 0x6A04D0
 EXTENT = 0x2DF4DE0
-EXTENT_OBJECT = 0x930C40
+EXTENT_OBJECT = 0x930C00
 MAX_AGE_MS = 50
 # Below hooked entries; valid with normal startup hooks and after hot reload.
 PINS = {

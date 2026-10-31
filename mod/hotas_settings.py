@@ -140,7 +140,7 @@ CONTROLS=(
     Control('hosas-stick-mode','choice','Stick behaviour','Direct: centre is stop, push for thrust, pull to brake. Rate: push to change speed; it holds when you let go.','direct',choices=(('direct','Direct'),('rate','Rate')),visible=NATIVE_HOSAS,new=True),
     Control('throttle-deadzone','float','Centre deadzone','Stick travel around centre that does nothing.',.05,0.,.5,visible=HOSAS_ONLY),
     Control('hosas-saturation','float','Saturation','Deflection that reaches full signed thrust under Sultan; full thrust or brake in native Direct mode.',.95,.05,1.,visible=HOSAS_ONLY,new=True),
-    Control('hosas-brake-authority','float','Brake strength','Brake demand at full back deflection. Until the brake lane is qualified, pulling back holds idle thrust.',1.,0.,1.,visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),),new=True),
+    Control('hosas-brake-authority','float','Brake strength','Pulling back past the deadzone presses the game\'s own Brake (on or off, not analog). 0 turns the brake off.',1.,0.,1.,visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),),new=True),
     Control('rate-throttle-ramp','float','Ramp rate','Speed setting change per second at full deflection.',1.,.1,3.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('rate-throttle-decay','float','Return to idle','Speed setting lost per second while centred. 0 holds speed.',0.,0.,1.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('lever-controls','choice','Lever controls','Speed holds a forward speed along the nose, without braking lateral drift. Thrust commands acceleration. Coast disables either controller.','speed',choices=(('speed','Speed'),('thrust','Thrust')),visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
@@ -151,11 +151,13 @@ CONTROLS=(
     Control('lever-cruise-enabled','bool','Cruise zone','Hold the cruise level in the cruise zone. Off joins this range to the forward ramp.',True,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
     Control('lever-cruise-level','float','Cruise level','Forward demand while in the cruise zone, as a fraction of the speed cap or full thrust.',.5,0.,1.,.01,visible=HOTAS_ONLY+SULTAN_ONLY+(('lever-cruise-enabled',True),),new=True),
     Control('button-output','choice','Button output',"How the game-control rows (Combat, Ship, Quick menu) reach the game. Game actions: the button presses the game's own action, whatever keys you use in the game's settings, and without Keyboard & mouse output on. Simulated keyboard & mouse: the button sends the row's default key. Without game actions (for example right after a game update) the rows send keys.",'direct',choices=(('direct','Game actions (direct)'),('keys','Simulated keyboard & mouse')),new=True),
-    Control('key-output-enabled','bool','Keyboard & mouse output','Send bound keyboard keys and mouse buttons to NMS (D20). First live test: off until you turn it on. Keys go out only while NMS has focus and are always released.',False,new=True),
+    Control('keyboard-flight-enabled','bool','Keyboard flight (experimental)',"Experimental. Fly with the keyboard: the keys below drive Absolute Flight's flight models and press the game's actions, with the mouse steering. Move the game's own ship keys out of the way first (Move the game's ship keys, then the game's Apply). They are moved, not removed: they stay on the right as a fallback that still works with the mod off or faulted, and the game's prompts show them. Reset to Default in the game's Controls puts them back. Needs Button output: game actions.",False,new=True),
+    # T109 (user 2026-10-26): on by default; with it off, bound key buttons did nothing for the first Discord tester.
+    Control('key-output-enabled','bool','Keyboard & mouse output','Send bound keyboard keys and mouse buttons to NMS (D20). Keys go out only while NMS has focus and are always released.',True,new=True),
     Control('cursor-stick-enabled','bool','Stick moves cursor','While a dialog or menu is open, pitch and yaw move the mouse cursor; bind left click (Fire) to select. Needs Keyboard & mouse output. Never active in flight.',True,new=True),
     Control('cursor-speed','float','Cursor speed','Cursor speed at full stick deflection. Small deflections move much slower, for fine aiming.',1400.,200.,4000.,50.,'pixels',visible=(('cursor-stick-enabled',True),),new=True),
     Control('cursor-invert-y','bool','Invert cursor vertical','Reverse the cursor direction for pitch, without changing flight.',False,visible=(('cursor-stick-enabled',True),),new=True),
-    Control('parking-brake-mode','choice','Parking brake mode',"Latched: press the Parking brake button once to stop the ship and hold it there, press again to release. Hold to brake: the brake works only while you hold the button. Either way, translation input is ignored while it brakes; boost still gets through.",'toggle',choices=(('toggle','Latched'),('hold','Hold to brake')),new=True),
+    Control('parking-brake-mode','choice','Parking brake mode',"Latched: press the Parking brake button once to stop the ship and hold it there, press again to release. Hold to brake: the brake works only while you hold the button. Either way, translation input is ignored while it brakes; boost still gets through.",'hold',choices=(('toggle','Latched'),('hold','Hold to brake')),new=True),
     Control('eject-hold-time','float','Eject hold time','How long the Eject button must be held before you leave the ship. The HUD counts down while you hold it.',3.,1.,10.,.5,'seconds',new=True),
     Control('lever-boost-enabled','bool','Boost zone','Request Sultan boost above the boost boundary. Enable boost for the flown class in Flight Tuning; boost adds acceleration while leaving the speed cap unchanged.',False,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
 )
@@ -198,7 +200,7 @@ DAMAGE_CONTROLS=(
     Control('air-ditch-speed','float','Ditch speed','Touching the water faster than this, in any direction, wipes you out.',120.,20.,600.,10.,'speed',visible=AIR_ONLY+(('air-ditch',True),),new=True),
     Control('air-ditch-sink-rate','float','Ditch sink rate','Touching the water while descending faster than this wipes you out, even below the ditch speed.',30.,5.,200.,5.,'speed',visible=AIR_ONLY+(('air-ditch',True),),new=True),
     Control('air-sink-speed','float','Sink speed','How fast a ditched ship sinks toward the sea floor.',10.,2.,40.,1.,'speed',visible=AIR_ONLY+(('air-ditch',True),),new=True),
-    Control('air-purge-style','choice','Purge style',"How the emergency purge after a ditch plays. Telemetry: a readout of each thruster's required level; hold the throttle at idle through the countdown, bring it up into the band as the ignition window opens, then hold the band. Gates: a side view where throttle forward sets your speed and strafe up lifts against the water's pull; fly through the gates and keep off the sea floor.",'telemetry',choices=(('telemetry','Telemetry'),('gates','Gates')),visible=AIR_ONLY+(('air-ditch',True),),new=True),
+    Control('air-purge-style','choice','Purge style',"How the emergency purge after a ditch plays. Telemetry: a readout of each thruster's required level; hold the throttle at idle through the countdown, bring it up into the band as the ignition window opens, then hold the band. Gates: a side view where throttle forward sets your speed and strafe up lifts against the water's pull; fly through the gates and keep off the sea floor. With keyboard flight, choose Gates: Telemetry asks you to hold the throttle inside a band, which on/off keys can't do.",'telemetry',choices=(('telemetry','Telemetry'),('gates','Gates')),visible=AIR_ONLY+(('air-ditch',True),),new=True),
     Control('air-purge-length','choice','Purge length',"Telemetry purge only. Short: purge the main thrusters, then the launch thrusters. Full: every translational thruster in turn: mains, retro, up, down, starboard and port. A full purge takes about twice as long under the same water pressure.",'short',choices=(('short','Short (mains, launch)'),('full','Full (all six)')),visible=AIR_ONLY+(('air-ditch',True),('air-purge-style','telemetry')),new=True),
     Control('air-purge-difficulty','choice','Thruster purge','How hard the emergency purge after a ditch is: how wide the band is to hold (Telemetry) or how wide the gate openings are (Gates). Leaving the band or hitting a gate costs hull.','normal',choices=(('easy','Easy (wide)'),('normal','Normal'),('hard','Hard (narrow)')),visible=AIR_ONLY+(('air-ditch',True),),new=True),
     Control('crash-damage','bool','Crash damage','On: terrain and planet-object hits scale with impact speed into the surface instead of dealing flat damage. Above the safe speed, hits go straight to the hull, the launch-thruster break chance rises with speed, and a crash never kills: a disabling hit blacks you out, ejects you and leaves the ship essentials damaged until repaired. Off: native collision damage.',True,visible=SULTAN_ONLY,new=True),
@@ -231,11 +233,11 @@ EXO_LOOK=(('exo-look-x','Camera pan left / right'),('exo-look-y','Camera pan up 
 EXO_CONTROLS=(
     Control('exo-enabled','bool','Exocraft controls',"Drive exocraft with the axes and buttons on this page, through the game's own exocraft controls: steering, throttle and braking feel as they do on a gamepad. Works only while you drive, so they can share devices and buttons with your flight bindings. The keyboard keeps working. Off: the game's own input.",False,new=True),
     *[replace(c,visible=EXO_ON,new=True) for c in _axis_controls('exo-steer','Steering')],
-    Control('bind-exo-throttle-axis','axis-binding','Binding','Physical axis that drives the exocraft forward: a throttle lever, a gas pedal or a stick axis. Select to rebind, then move the axis.',visible=EXO_ON,new=True),
-    Control('exo-throttle-style','choice','Throttle style','Lever or pedal: one end is idle, the other full throttle. Centre stop: the centre is stop, forward drives and back brakes and reverses, for a centred stick axis.','lever',choices=(('lever','Lever or pedal'),('split','Centre stop')),visible=EXO_ON,new=True),
+    Control('bind-exo-throttle-axis','axis-binding','Binding','Physical axis that drives the exocraft forward: a throttle lever, a gas pedal or a stick axis. Select to rebind, then press the pedal or push the lever from idle toward full: Invert is set from the way it moves.',visible=EXO_ON,new=True),
+    Control('exo-throttle-style','choice','Throttle style','Lever or pedal: one end is idle, the other full throttle. Centre stop: the centre is stop, forward drives and back brakes and reverses, for a centred stick axis or two toe brakes that share one axis.','lever',choices=(('lever','Lever or pedal'),('split','Centre stop')),visible=EXO_ON,new=True),
     Control('exo-throttle-inverted','bool','Invert','Reverse the direction of the throttle axis.',False,visible=EXO_ON,new=True),
     Control('exo-throttle-deadzone','float','Deadzone','Travel at idle (or around the centre) that produces no throttle.',.03,0.,.5,visible=EXO_ON,new=True),
-    Control('bind-exo-brake-axis','axis-binding','Binding','Physical axis that brakes and, once stopped, reverses: a brake pedal or a second lever. Optional with the Centre stop throttle. Select to rebind, then move the axis.',visible=EXO_ON,new=True),
+    Control('bind-exo-brake-axis','axis-binding','Binding','Physical axis that brakes and, once stopped, reverses: a brake pedal or a second lever. Optional with the Centre stop throttle. Select to rebind, then press the pedal or push the lever from rest: Invert is set from the way it moves.',visible=EXO_ON,new=True),
     Control('exo-brake-inverted','bool','Invert','Reverse the direction of the brake axis.',False,visible=EXO_ON,new=True),
     Control('exo-brake-deadzone','float','Deadzone','Brake travel at rest that produces no braking.',.03,0.,.5,visible=EXO_ON,new=True),
     # Camera pan (user 2026-10-28): the game's own CameraLookX/Y while you drive, as a gamepad's right stick.
@@ -255,7 +257,7 @@ PROFILE_CONTROLS=(
     Control('tuning-brake-floor','float','Brake floor','Minimum share of inward thrust at high speed. 100% keeps braking unchanged; lower values ease braking above one quarter of the cap. Parking brake is unchanged.',1.,0.,1.,.05,new=True),
     Control('tuning-momentum','float','Momentum','How much slowing down and turning inherit the cost of building your speed. At 100%, braking mirrors the acceleration fade (so a flip-and-burn reversal takes twice the build-up) and sideways thrust is capped at the average acceleration it took to reach your speed (no stacking strafe and nose-across burns at speed). Low speed keeps full agility. 0 turns it off.',0.,0.,1.,.05,new=True),
     Control('tuning-overspeed-bleed-time','float','Overspeed bleed time','Automatically ease speed above the cap back towards it, while steering and retro remain available. 0 turns this off; after about three times this interval most excess speed is gone.',0.,0.,30.,.25,'seconds',new=True),
-    Control('tuning-boost-enabled','bool','Sultan boost','Enable the bound Sultan boost button and the optional lever boost zone for this class. Boost multiplies acceleration, keeps the same speed cap, and locks out when overheated.',False,new=True),
+    Control('tuning-boost-enabled','bool','Sultan boost','Enable the bound Sultan boost button and the optional lever boost zone for this class. Boost multiplies acceleration, keeps the same speed cap, and locks out when overheated.',False,new=True),  # off in neutral_profile(); every class profile turns it on (_SHARED, T109)
     Control('tuning-boost-source','choice','Boost multiplier source','Use the ship effective native boost-to-thrust ratio, including upgrades, or a fixed multiplier. Only Sultan acceleration is boosted.','native',choices=(('native','Native class ratio'),('fixed','Fixed override')),visible=(('tuning-boost-enabled',True),),new=True),
     Control('tuning-boost-multiplier','float','Boost multiplier','Fixed acceleration multiplier while Sultan boost is active.',2.,1.,10.,.1,'multiplier',visible=(('tuning-boost-enabled',True),('tuning-boost-source','fixed')),new=True),
     Control('tuning-boost-heat-time','float','Time to overheat','Seconds of continuous Sultan boost from cold to overheat. Overheating locks out boost until the relight level is reached.',4.,.1,30.,.1,'seconds',visible=(('tuning-boost-enabled',True),),new=True),
@@ -461,6 +463,12 @@ def is_visible(control,values):
     return all(values.get(k) in v if isinstance(v,tuple) else values.get(k)==v for k,v in control.visible)
 
 
+def keyboard_defaults():
+    """The default keyboard flight layout (T112, docs/KEYBOARD-FLIGHT.md) as stored binding dicts."""
+    return [hotas_buttons.coerce_binding({'action':a,'token':hotas_buttons.keyboard_token(vk)}).to_json()
+            for a,vk in hotas_buttons.KEYBOARD_DEFAULTS]
+
+
 def strafe_enabled(values):return values['flight-model'] in STRAFE_MODELS
 
 
@@ -534,6 +542,7 @@ class SettingsStore:
         self._sync_profile();self.saved=dict(self.values)
         self.buttons=[];self.saved_buttons=[]  # canonical Binding.to_json() dicts (T61)
         self.button_modifier=None;self.saved_modifier=None  # shift-layer button token
+        self.keyboard=keyboard_defaults();self.saved_keyboard=[dict(b) for b in self.keyboard]  # T112 keyboard flight keys
         # Named flight tunings (2026-10-22): the runtime attaches flight_tunings.FlightTunings; each class
         # remembers which tuning it uses (absent = Sultan's), and Reset class returns to that tuning.
         self.tuning_files=None;self.tunings={};self.saved_tunings={};self.tuning_error=None
@@ -542,7 +551,7 @@ class SettingsStore:
     def dirty(self):
         return (any(self.values[k]!=self.saved[k] for k in self.values if k not in PROFILE_KEYS)
                 or self.profiles!=self.saved_profiles or self.buttons!=self.saved_buttons or self.button_modifier!=self.saved_modifier
-                or self.tunings!=self.saved_tunings)
+                or self.tunings!=self.saved_tunings or self.keyboard!=self.saved_keyboard)
 
     def _notify(self,changed):
         for listener in list(self.listeners):listener(dict(self.values),changed)
@@ -605,14 +614,23 @@ class SettingsStore:
                 seen.add(b.action);buttons.append(b.to_json())
             report.issues.extend('buttons: '+i for i in issues)
             # A file from before Parking brake mode (T106) keeps a brake saved as held: Hold to brake.
-            if 'parking-brake-mode' not in data['values'] and any(b['action']=='mod.parking-brake' and b['behaviour']=='press' for b in buttons):
-                values['parking-brake-mode']='hold'
+            # (Hold to brake is the default since 2026-10-30, so a file whose brake was latched keeps Latched.)
+            brake=next((b['behaviour'] for b in buttons if b['action']=='mod.parking-brake'),None)
+            if 'parking-brake-mode' not in data['values'] and brake is not None:
+                values['parking-brake-mode']='hold' if brake=='press' else 'toggle'
         tunings={}
         raw_tunings=data.get('tunings',{}) if isinstance(data,dict) else {}
         if isinstance(raw_tunings,dict):
             for class_key,name in raw_tunings.items():
                 if class_key in profiles and isinstance(name,str) and name and name!=SULTAN_TUNING:tunings[class_key]=name
                 else:report.issues.append(f'ignored invalid tuning selection {class_key}')
+        keyboard=keyboard_defaults()
+        raw_keyboard=data.get('keyboard') if isinstance(data,dict) else None
+        if isinstance(raw_keyboard,dict):  # absent: the default layout (T112)
+            loaded,_,issues=hotas_buttons.load_bindings(raw_keyboard.get('bindings'))
+            keyboard=[b.to_json() for b in loaded if hotas_buttons.is_keyboard(b.token)]
+            report.issues.extend('keyboard: '+i for i in issues)
+        self.keyboard=keyboard;self.saved_keyboard=[dict(b) for b in keyboard]
         self.tunings=tunings;self.saved_tunings=dict(tunings)
         self.values=values;self.profiles=profiles;self.buttons=buttons;self.saved_buttons=[dict(b) for b in buttons]
         self.button_modifier=self.saved_modifier=modifier
@@ -771,6 +789,31 @@ class SettingsStore:
     def clear_modifier(self):
         if self.button_modifier is not None:self.button_modifier=None;self._notify({'buttons'})
 
+    # ----- keyboard flight keys (T112): one key per action, kept apart from the HOTAS buttons -----
+    def keyboard_bindings(self):
+        return hotas_buttons.load_bindings(self.keyboard)[0]
+
+    def key_for(self,action_id):
+        return next((b for b in self.keyboard if b['action']==action_id),None)
+
+    def key_conflict(self,action_id,token):
+        """The action already on this key, or None."""
+        token=hotas_buttons.canonical(token)
+        return next((b['action'] for b in self.keyboard if b['token']==token and b['action']!=action_id),None)
+
+    def assign_key(self,action_id,token,steal_from=None):
+        binding=hotas_buttons.coerce_binding({'action':action_id,'token':token})
+        self.keyboard=[b for b in self.keyboard if b['action'] not in (action_id,steal_from)]
+        self.keyboard.append(binding.to_json());self._notify({'buttons'})
+
+    def clear_key(self,action_id):
+        kept=[b for b in self.keyboard if b['action']!=action_id]
+        if kept!=self.keyboard:self.keyboard=kept;self._notify({'buttons'})
+
+    def reset_keyboard(self):
+        layout=keyboard_defaults()
+        if layout!=self.keyboard:self.keyboard=layout;self._notify({'buttons'})
+
     def clear_buttons(self):
         if self.buttons or self.button_modifier:self.buttons=[];self.button_modifier=None;self._notify({'buttons'})
 
@@ -779,6 +822,7 @@ class SettingsStore:
         if self.profiles!=self.saved_profiles:changed.update(PROFILE_KEYS)
         if self.buttons!=self.saved_buttons or self.button_modifier!=self.saved_modifier:
             changed.add('buttons');self.buttons=[dict(b) for b in self.saved_buttons];self.button_modifier=self.saved_modifier
+        if self.keyboard!=self.saved_keyboard:changed.add('buttons');self.keyboard=[dict(b) for b in self.saved_keyboard]
         self.values=dict(self.saved)
         self.profiles={i:dict(p) for i,p in self.saved_profiles.items()};self._sync_profile()
         self.tunings=dict(self.saved_tunings)
@@ -789,8 +833,10 @@ class SettingsStore:
         self.path.parent.mkdir(parents=True,exist_ok=True)
         tmp=self.path.with_name(self.path.name+'.tmp')
         base={k:v for k,v in self.values.items() if k not in PROFILE_KEYS}
-        tmp.write_text(json.dumps({'schema':SCHEMA_VERSION,'values':base,'profiles':self.profiles,'tunings':self.tunings,'buttons':{'bindings':self.buttons,'modifier':self.button_modifier}},indent=1,sort_keys=True),encoding='utf-8')
+        tmp.write_text(json.dumps({'schema':SCHEMA_VERSION,'values':base,'profiles':self.profiles,'tunings':self.tunings,'buttons':{'bindings':self.buttons,'modifier':self.button_modifier},
+                                   'keyboard':{'bindings':self.keyboard}},indent=1,sort_keys=True),encoding='utf-8')
         os.replace(tmp,self.path)
         self.saved=dict(self.values);self.saved_buttons=[dict(b) for b in self.buttons];self.saved_modifier=self.button_modifier
+        self.saved_keyboard=[dict(b) for b in self.keyboard]
         self.saved_profiles={i:dict(p) for i,p in self.profiles.items()};self.saved_tunings=dict(self.tunings)
         return True

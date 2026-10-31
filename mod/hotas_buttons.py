@@ -57,6 +57,15 @@ ACTIONS=(
     Action('mod.boost','Sultan boost','flight','mod',('press',),help='Hold for extra acceleration, limited by heat. Enable boost in the ship class tuning; the speed cap stays the same.'),
     Action('mod.parking-brake','Parking brake','flight','mod',('toggle','press'),help='Thrust the ship to a stop and hold it (Sultan\'s Flight Tuning).'),
     Action('mod.gear','Landing gear','flight','mod',('toggle','press'),help='Gear down: hover mode for landing in Sultan atmosphere flight (Manual landing on the Atmosphere Flight page). Low speed cap, gravity held, no boost, and the game no longer pushes you off the ground. A two-position switch can hold it down (Press).'),
+    # T111 (user 2026-10-29): strafe from a hat or trim switch. Added to the strafe axes, or alone where none is bound.
+    Action('mod.strafe-left','Strafe left','flight','mod',('press',),help='Hold to strafe left at full strength (Vanilla + strafe and Sultan\'s Flight Tuning). A 4-way hat carries all four directions. Adds to a strafe axis if you have one.'),
+    Action('mod.strafe-right','Strafe right','flight','mod',('press',),help='Hold to strafe right at full strength.'),
+    Action('mod.strafe-up','Strafe up','flight','mod',('press',),help='Hold to thrust straight up at full strength.'),
+    Action('mod.strafe-down','Strafe down','flight','mod',('press',),help='Hold to thrust straight down at full strength.'),
+    # T112 keyboard flight (D26): W/S thrust in Sultan; the game's own Thrust/Brake whenever the game owns flight.
+    Action('mod.thrust-forward','Thrust forward','flight','mod',('press',),help="Hold to thrust forward (Sultan). Whenever the game flies the ship (pulse, its boost, landing, Vanilla), it presses the game's own Thrust instead."),
+    Action('mod.thrust-back','Thrust back','flight','mod',('press',),help="Hold to thrust backward (Sultan), or the game's own Brake whenever the game flies the ship."),
+    Action('mod.vanilla-mode','Vanilla mode','flight','mod',('tap','long'),help='Switch to the Vanilla flight model and back to the one you were flying.'),
     Action('mod.trim-up','Trim up','flight','mod',('press',),help='Hold to add lift trim: a steady upward thrust that stays set after you let go (Sultan atmosphere flight). A tap nudges it.'),
     Action('mod.trim-down','Trim down','flight','mod',('press',),help='Hold to take lift trim away, or trim downward.'),
     Action('mod.trim-hover','Trim to hover','flight','mod',('tap','long'),help='Set the lift trim to exactly hold the ship against gravity at its current attitude.'),
@@ -78,6 +87,7 @@ ACTIONS=(
     _ship('auto-follow-toggle','Combat follow (toggle)',0x2A),_ship('auto-follow-hold','Combat follow (hold)',0x2B),
     _ship('cycle-power','Cycle power',0x2C),_ship('next-target','Next target',0x81),_ship('previous-target','Previous target',0x82),
     _ship('closest-target','Closest target',0x83),
+    _ship('roll-left','Roll left',0x1E,"The game's own roll (Ship_RollLeft)."),_ship('roll-right','Roll right',0x1F,"The game's own roll (Ship_RollRight)."),
     _ship('interact','Interact / hold prompts',0x07,'The game\'s Interact: talk, pick up, and the hold-to-confirm prompts.'),
     # Exocraft page (user 2026-10-28): the game's Vehicle_* actions (cGcInputActions 0x31-0x3A, unchanged on 183791),
     # live only while you drive. They may share a button with a flight binding: while you drive, the exocraft one wins.
@@ -146,6 +156,67 @@ PRESET_ROWS=frozenset(a for _,group in GAME_GROUPS+KEY_PRESETS for a,_ in group)
 PRESET_LABELS={a:label for _,group in GAME_GROUPS+KEY_PRESETS for a,label in group}
 
 
+# T112 keyboard flight (D26): keyboard keys are digital tokens like HOTAS buttons, read from the keyboard
+# source (mod/keyboard_source.py) only while you fly with NMS focused. VK codes, left/right modifiers kept apart.
+KEYBOARD_TOKEN=re.compile(r'keyboard@key:0x([0-9A-F]{2})',re.I)
+# Generic Shift/Ctrl/Alt never bind: the left and right keys are separate keys here.
+KEYBOARD_VKS=tuple(vk for vk in KEY_NAMES if vk not in (0x10,0x11,0x12,0x1B))
+
+
+def keyboard_token(vk):return f'keyboard@key:0x{vk:02X}'
+
+
+def is_keyboard(token):return isinstance(token,str) and KEYBOARD_TOKEN.fullmatch(token.strip()) is not None
+
+
+# The user's 6DOF layout (2026-10-30, docs/KEYBOARD-FLIGHT.md). Game-action rows press the game's own action
+# (Button output: game actions). Everything is rebindable on the Keyboard page.
+KEYBOARD_DEFAULTS=(('mod.thrust-forward',0x57),('mod.thrust-back',0x53),('mod.strafe-left',0x41),('mod.strafe-right',0x44),
+                   ('mod.strafe-up',0x20),('mod.strafe-down',0xA2),('ship.roll-left',0x51),('ship.roll-right',0x45),
+                   ('mod.boost',0xA0),('key.0x45:land',0x4C),('mod.parking-brake',0x42),('mod.vanilla-mode',0x71),
+                   ('key.0x20',0x4A),('key.0x43',0x52),('key.0x45:exit',0x59))
+# Quick menu left/right are on Z and C as the game's own keys once the Keyboard page moves them (tools/native_rebind.py),
+# so the layout doesn't press them too. F stays the game's quick menu select: Interact has no ship binding, so pressing
+# it in flight did nothing, and F would have meant two things with the quick menu open.
+# The game's stock keyboard bindings while you fly, per game action (research/20-nms-default-bindings.md, build
+# 180836; ship and quick-menu action sets). A Keyboard-page key on one of these collides with the game until the
+# player moves it. The player's own remaps (CustomBindingsPC, mod/keyboard_source.GameBindings) override them.
+GAME_SHIP_DEFAULTS=(('Ship_Thrust',0x57,'Thrust'),('Ship_Brake',0x53,'Brake'),('Ship_AutoFollow_Hold',0x53,'Combat follow (hold)'),
+                    ('Ship_RollLeft',0x41,'Roll left'),('Ship_RollRight',0x44,'Roll right'),('Ship_Boost',0xA0,'Boost'),
+                    ('Ship_PulseJump',0x20,'Pulse drive'),('Ship_Scan',0x43,'Scan'),('Ship_Land',0x45,'Land'),
+                    ('Ship_Exit',0x45,'Exit ship'),('Ship_AutoFollow_Toggle',0x45,'Combat follow'),('Player_TagMarker',0x45,'Tag marker'),
+                    ('Ship_ChangeWeapon',0x47,'Change weapon'),('Ship_ClosestTarget',0x54,'Closest target'),
+                    ('Ship_NextTarget',0xBE,'Next target'),('Ship_PreviousTarget',0xBC,'Previous target'),
+                    ('Ship_GalacticMap',0x4D,'Galactic map'),('Ship_FreeLook',0xA4,'Free look'),('Ship_CyclePower',0xBF,'Cycle power'),
+                    ('Quick_Menu',0x58,'Quick menu'),('Inventory',0x09,'Inventory'),('Fe_Options',0x50,'Options'),
+                    ('SolarSystemMap_ToggleMap',0x56,'System map'),('Player_ShowHUD',0x48,'Show HUD'),('TextChatOpenClose',0x0D,'Chat'),
+                    ('Quick_Left',0x51,'Quick menu left'),('Quick_Right',0x45,'Quick menu right'),('Quick_Action',0x46,'Quick menu select'))
+# The game's key names (cTkInputEnum) as written in CustomBindingsPC ("KeyU", seen on DADS 2026-10-30), to Windows VKs.
+# A name not listed here counts as moved off every key, since the player rebound it on purpose.
+GAME_KEY_NAMES={**{f'Key{chr(c)}':c for c in range(0x41,0x5B)},**{f'Key{d}':0x30+d for d in range(10)},
+                **{f'F{n}':0x6F+n for n in range(1,13)},
+                'Space':0x20,'LShift':0xA0,'RShift':0xA1,'LCtrl':0xA2,'RCtrl':0xA3,'LAlt':0xA4,'RAlt':0xA5,'Tab':0x09,
+                'Enter':0x0D,'Backspace':0x08,'Insert':0x2D,'Delete':0x2E,'Home':0x24,'End':0x23,'PageUp':0x21,
+                'PageDown':0x22,'Up':0x26,'Down':0x28,'Left':0x25,'Right':0x27,'Period':0xBE,'Comma':0xBC,'Slash':0xBF,
+                'Semicolon':0xBA,'Apostrophe':0xDE,'LeftSquare':0xDB,'RightSquare':0xDD,'BackSlash':0xDC,'Hyphen':0xBD,
+                'Equals':0xBB,'Grave':0xC0}
+
+
+def game_ship_keys(remaps=()):
+    """{vk: 'labels'} for the keys the game uses while you fly. remaps: (action set, action, key name) from the
+    player's CustomBindingsPC; each moves that action off its stock key."""
+    keys={action:(vk,label) for action,vk,label in GAME_SHIP_DEFAULTS}
+    for _,action_name,key in remaps:
+        if action_name in keys:keys[action_name]=(GAME_KEY_NAMES.get(key),keys[action_name][1])
+    out={}
+    for vk,label in keys.values():
+        if vk is not None:out[vk]=out[vk]+', '+label if vk in out else label
+    return out
+
+
+GAME_SHIP_KEYS=game_ship_keys()
+
+
 def action(action_id):
     """Catalog entry for action_id, including user-defined key.0xNN / mouse.<button> actions, or None."""
     if action_id in BY_ID:return BY_ID[action_id]
@@ -171,6 +242,11 @@ def parse_token(token):
     The channel is the bus DeviceSnapshotV1 digital index: buttons 1..128 -> 0..127, POV p
     direction d -> 128 + 4p + d (up, right, down, left).
     """
+    k=KEYBOARD_TOKEN.fullmatch(token.strip()) if isinstance(token,str) else None
+    if k:
+        vk=int(k[1],16)
+        if vk not in KEYBOARD_VKS:raise ValueError(f'not a bindable key: {token!r}')
+        return 'keyboard',vk
     m=DIGITAL_TOKEN.fullmatch(token.strip()) if isinstance(token,str) else None
     if not m:raise ValueError(f'not a button or hat token: {token!r}')
     device=m[1].upper() if m[1].startswith('{') else m[1].lower()
@@ -183,6 +259,7 @@ def parse_token(token):
 
 def canonical(token):
     device,channel=parse_token(token)
+    if device=='keyboard':return keyboard_token(channel)
     if channel<BUTTON_COUNT:return f'{device}@button:{channel+1}'
     p,d=divmod(channel-BUTTON_COUNT,4);return f'{device}@pov:{p}:{POV_DIRECTIONS[d]}'
 
@@ -190,6 +267,7 @@ def canonical(token):
 def describe_input(token,device_names=None):
     if token is None:return 'Unbound'
     device,channel=parse_token(token)
+    if device=='keyboard':return 'Key '+KEY_NAMES[channel]
     name=(device_names or {}).get(device) or ('Agent '+device[8:] if device.startswith('virtual:') else 'Missing device '+device[1:9])
     if channel<BUTTON_COUNT:return f'{name} - Button {channel+1}'
     p,d=divmod(channel-BUTTON_COUNT,4);return f'{name} - Hat {p+1} {POV_DIRECTIONS[d].title()}'

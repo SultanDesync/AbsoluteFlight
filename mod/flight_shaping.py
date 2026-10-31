@@ -128,6 +128,12 @@ class ThrottleChannel:
         if c['throttle-style']=='hotas':return unit<=c['throttle-idle-plateau']+NEUTRAL_TOLERANCE
         return abs(bipolar(unit))<=c['throttle-deadzone']+NEUTRAL_TOLERANCE
 
+    def brake_demand(self,unit):
+        """The back half of a HOSAS direct stick (0..1), without stepping the channel; 0 in any other mode or unbound."""
+        c=self.config
+        if unit is None or c['throttle-style']=='hotas' or c['hosas-stick-mode']!='direct':return 0.
+        return hosas_direct(bipolar(unit,c['throttle-inverted']),c['throttle-deadzone'],c['hosas-saturation'],c['hosas-brake-authority'])[1]
+
     def step(self,unit,dt,native_u=None):
         """unit: calibrated input or None when the device is missing/stale (disarms)."""
         if unit is None:
@@ -148,8 +154,23 @@ class ThrottleChannel:
         return ThrottleCommand(self.rate.step(request,dt,c['rate-throttle-ramp'],c['rate-throttle-decay']))
 
 
+def strafe_sum(shaped,button):
+    """A shaped strafe axis plus the strafe buttons (T111), held to -1..1."""
+    if not button or not math.isfinite(button):return shaped
+    return max(-1.,min(1.,shaped+button))
+
+
+# T112: with keyboard flight on, a stick resting this close to centre publishes exactly 0 on pitch, yaw and roll, which
+# leaves the axis to the game, so the mouse and the game's Q/E roll steer. A bound stick never rests at exactly 0, and
+# without a deadzone it overrode the mouse (0.2.4-dev.7, DADS 2026-10-30; a hand-set deadzone fixed it).
+MOUSE_YIELD=.03
+YIELD_CHANNELS=('pitch','yaw','roll')
+
+
 def shape_axis(config,channel,unit):
     """Signed shaped output for a flight channel from its calibrated unit, or None if missing."""
     if unit is None:return None
     sens_key='strafe-lateral-sensitivity' if channel=='strafe-vertical' else f'{channel}-sensitivity'
-    return shape(bipolar(unit,config[f'{channel}-inverted']),config[sens_key],config[f'{channel}-saturation'],config[f'{channel}-deadzone'])
+    deadzone=config[f'{channel}-deadzone']
+    if channel in YIELD_CHANNELS and config.get('keyboard-flight-enabled'):deadzone=max(deadzone,MOUSE_YIELD)
+    return shape(bipolar(unit,config[f'{channel}-inverted']),config[sens_key],config[f'{channel}-saturation'],deadzone)

@@ -17,6 +17,26 @@ import csv,math,struct,time
 SHIP_FIELDS=(('boost_max_speed',0x6650,'<f'),('falloff',0x6660,'<f'),('overspeed_brake',0x6690,'<f'),('thrust_force',0x66A4,'<f'),
              ('max_endpoint',0x6684,'<f'),('min_endpoint',0x6688,'<f'),('smooth_velocity',0x6710,'<f'),
              ('smooth_position',0x6714,'<f'),('shared_demand',0x76A8,'<f'),('gate_674c',0x675C,'<I'),('gate_6720',0x6730,'<B'))
+# The Sultan cave's protected-mode gates (tools/native_newtonian.py, 183791 offsets), so a native_mode run can be
+# told apart: deliberate game regimes (pulse, warp, landing, native boost, autopilot) from seams (seams note 2026-10-30).
+# Ship fields; the cave also checks power (gate_674c), low height (gate_6720), frontend and combat, recorded above.
+GATE_FIELDS=(('gate_active',0x60C8,'<B'),('gate_autopilot',0x6430,'<I'),('gate_landing',0x7318,'<I'),('gate_73e0',0x73E0,'<B'),
+             ('gate_velocity_override',0x76ED,'<B'),('gate_native_boost',0x6CE4,'<B'),('gate_7740',0x7740,'<B'))
+APP_GATES=(('gate_pulse',0x72B6DC,'<I'),('gate_warp',0x72B6CC,'<I'))  # app (manager) fields
+
+
+def gates_failed(row):
+    """The protected-mode gates that would hold Sultan native this row, joined with '+' ('' when all pass or unread).
+    Low height counts only while planetary flight is off, which the row doesn't know, so it is listed as low_height."""
+    failed=[]
+    if row.get('gate_active') not in ('',None) and row['gate_active']!=1:failed.append('inactive')
+    for name,_,_ in GATE_FIELDS[1:]+APP_GATES:
+        if row.get(name) not in ('',None,0):failed.append(name[5:])
+    for name,label in (('gate_674c','power'),('gate_6720','low_height'),('frontend_state','frontend'),('combat_active','combat')):
+        if row.get(name) not in ('',None,0):failed.append(label)
+    return '+'.join(failed)
+
+
 CHANNELS=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical')
 NEWTONIAN_COLUMNS=(['flight_model','newtonian_admitted','newtonian_reason','command_state','command_generation','command_age_ms',
                     'newtonian_native_reason','newtonian_invocation','newtonian_speed','newtonian_forward_speed',
@@ -33,7 +53,8 @@ COLUMNS=(['t','piloting','reason','style','hosas_mode','lever_unit','throttle_ar
            'mav_reason','mav_applied','force_before_x','force_before_y','force_before_z',
            'force_after_x','force_after_y','force_after_z','combat_active','frontend_state','newtonian_requalifications']
          +NEWTONIAN_COLUMNS+['parking_brake_requested']
-         +['landing_gear','ground_clearance','ground_tilt','touchdown','landing_state'])  # T101
+         +['landing_gear','ground_clearance','ground_tilt','touchdown','landing_state']  # T101
+         +[name for name,_,_ in GATE_FIELDS+APP_GATES]+['gates_failed'])
 
 
 def decode_receipt(raw):
@@ -46,7 +67,7 @@ def build_row(t,state,ship,receipt,mav):
     """One CSV row. state: runtime-side dict; ship: SHIP_FIELDS values; receipt: (seq, raw) or None;
     mav: MavPatch.sample() dict or None. Missing sources leave their columns blank."""
     row=dict.fromkeys(COLUMNS,'');row['t']=f'{t:.4f}';row.update(state)
-    row.update(ship)
+    row.update(ship);row['gates_failed']=gates_failed(row)
     if receipt:
         seq,raw=receipt;row['receipt_seq']=seq;row.update(decode_receipt(raw))
         if 'max_endpoint' in ship:

@@ -10,7 +10,7 @@ a lever held at full through a launch reinstall gave no thrust until pulled back
 from dataclasses import dataclass, replace
 import math
 
-from flight_shaping import LATERAL_COMMAND_SIGN, shape_axis
+from flight_shaping import LATERAL_COMMAND_SIGN, shape_axis, strafe_sum
 from newtonian_flight import LeverZones, ThrottleDemand, map_hosas, map_lever
 
 
@@ -38,8 +38,11 @@ class TranslationPublisher:
         self.armed = dict.fromkeys(self.armed, False)
         self.reasons = dict.fromkeys(self.armed, reason)
 
-    def step(self, table, values, eligible, now_tick, zone_values, parking_brake=False, boost=False):
-        """parking_brake: the bound parking-brake button (T61); it overrides throttle demand."""
+    def step(self, table, values, eligible, now_tick, zone_values, parking_brake=False, boost=False, strafe_buttons=(0., 0.),
+             thrust_buttons=0.):
+        """parking_brake: the bound parking-brake button (T61); it overrides throttle demand.
+        strafe_buttons: (lateral, vertical) from the strafe buttons (T111), added to the strafe axes.
+        thrust_buttons: -1..1 from the thrust keys (T112); while nonzero it is the thrust demand, over the lever."""
         self.generation += 1
         signature = tuple(values.get(k) for k in (
             'flight-model', 'throttle-style', 'throttle-inverted', 'lever-controls',
@@ -53,16 +56,17 @@ class TranslationPublisher:
             self.disarm('native fallback')
             return TranslationCommand(self.generation, now_tick + 100, False, reason='native fallback')
         out = []
-        for channel in ('strafe-lateral', 'strafe-vertical'):
+        for channel, button in zip(('strafe-lateral', 'strafe-vertical'), strafe_buttons):
             unit = table.unit(values[f'bind-{channel}-axis'])
-            if unit is None or not math.isfinite(unit):
+            axis = unit is not None and math.isfinite(unit)
+            if not axis and not button:
                 self.armed[channel] = False
                 self.reasons[channel] = 'device missing or stale'
                 out.append(0.)
                 continue
-            shaped = shape_axis(values, channel, unit)
+            shaped = strafe_sum(shape_axis(values, channel, unit) if axis else 0., button)
             self.armed[channel] = True
-            self.reasons[channel] = 'armed'
+            self.reasons[channel] = 'armed' if axis else 'buttons'
             out.append(shaped*LATERAL_COMMAND_SIGN if channel == 'strafe-lateral' else shaped)
         unit = table.unit(values['bind-throttle-axis'])
         demand = ThrottleDemand(0., 'coast')
@@ -78,6 +82,8 @@ class TranslationPublisher:
             self.armed['throttle'] = True
             demand = mapped
             self.reasons['throttle'] = 'armed'
+        if thrust_buttons and math.isfinite(thrust_buttons):
+            demand = ThrottleDemand(max(-1., min(1., float(thrust_buttons))), 'thrust')
         if parking_brake:
             demand = ThrottleDemand(zone='parking', parking=True)
         elif boost and not demand.parking:

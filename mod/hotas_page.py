@@ -66,7 +66,7 @@ class NativeMenu:
                 else:self.controller.capture_result(token)
         # Read by the runtime's capture start: which device kind to listen to.
         done.kind=('key' if binding_id=='button-add-key' else 'modifier' if binding_id=='button-modifier'
-                   else 'button' if binding_id.startswith('button-') else 'axis')
+                   else 'button' if binding_id.startswith('button-') else 'keyboard' if binding_id.startswith('key-bind:') else 'axis')
         self._capture_start(done)
 
     # ----- navigation -----

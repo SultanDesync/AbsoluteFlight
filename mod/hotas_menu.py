@@ -10,6 +10,7 @@ import math
 from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,EXO_CONTROLS,EXO_LOOK,LANDING_CONTROLS,DAMAGE_CONTROLS,VISUAL_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
+import keyboard_layout
 import crash_damage
 import manual_landing
 from planetary_flight import AIR_CLASSES
@@ -23,7 +24,7 @@ ROOT='root'
 # switch before its knobs, a binding beside what it acts on, live readouts last, then page actions.
 ROUTES=(('flight-model','Flight Model',None),('flight-tuning','Flight Tuning',None),
         ('atmosphere','Atmosphere Flight',None),
-        ('flight-axes','Flight Axes',None),('buttons','Buttons',None),('exocraft','Exocraft',None),
+        ('flight-axes','Flight Axes',None),('buttons','Buttons',None),('keyboard','Keyboard',None),('exocraft','Exocraft',None),
         ('head-tracking','Head Tracking',None),
         ('hud','HUD',None),('g-force','G-Force',None),('combat','Combat',None),('damage','Ship Damage',None),
         ('visuals','Visuals',None),
@@ -47,8 +48,11 @@ SUPPORT_HELP=('Save your settings and recent logs as one zip to attach to a bug 
 CAPTURE_PROMPT='Move an axis... (Delete clears, Back cancels)'
 BUTTON_PROMPT='Press a button or hat... (Delete clears, Back cancels)'
 KEY_PROMPT='Press a keyboard key... (Back to cancel)'
+PEDAL_INVERT={'bind-exo-throttle-axis':'exo-throttle-inverted','bind-exo-brake-axis':'exo-brake-inverted'}
 # Mod actions the release runtime acts on (same list as button_actions.LIVE_MOD_ACTIONS).
-LIVE_MOD_ACTIONS=('mod.parking-brake','mod.gear','mod.boost','mod.trim-up','mod.trim-down','mod.trim-hover','mod.trim-reset',
+LIVE_MOD_ACTIONS=('mod.parking-brake','mod.gear','mod.boost',
+                  'mod.strafe-left','mod.strafe-right','mod.strafe-up','mod.strafe-down',
+                  'mod.thrust-forward','mod.thrust-back','mod.vanilla-mode','mod.trim-up','mod.trim-down','mod.trim-hover','mod.trim-reset',
                   'mod.flight-model-next','mod.flight-model-toggle','mod.lever-mode-toggle',
                   'mod.pip-toggle',
                   'mod.head-tracking-toggle','mod.head-recentre','mod.head-tracking-on','mod.head-tracking-off','mod.eject')
@@ -249,6 +253,84 @@ def button_rows(buttons,values,device_names=None,live=None):
     return rows
 
 
+# T112 Keyboard page (D26): the flight keys, then the game actions they press. Labels name the function, not a key.
+KEYBOARD_FLIGHT=(('mod.thrust-forward','Thrust forward'),('mod.thrust-back','Thrust back'),('mod.strafe-left','Strafe left'),
+                 ('mod.strafe-right','Strafe right'),('mod.strafe-up','Strafe up'),('mod.strafe-down','Strafe down'),
+                 ('ship.roll-left','Roll left'),('ship.roll-right','Roll right'),('mod.boost','Sultan boost'),
+                 ('mod.parking-brake','Parking brake'),('key.0x45:land','Land'),('mod.gear','Landing gear'),('mod.vanilla-mode','Vanilla mode'))
+KEYBOARD_GAME=(('key.0x20','Pulse drive / warp to star'),('key.0x43','Scan'),('key.0x45','Interact / hold prompts'),
+               ('key.0x45:exit','Exit ship (hold)'),('key.0x25','Quick menu left'),('key.0x27','Quick menu right'))
+
+
+# The mod's other actions (user 2026-10-30: "bind our other specialized actions ... to the keyboard"), unbound by default.
+KEYBOARD_MORE=(('keyboard-trim-header','TRIM',(('mod.trim-up','Trim up'),('mod.trim-down','Trim down'),('mod.trim-hover','Trim to hover'),
+                                                ('mod.trim-reset','Trim reset'))),
+               ('keyboard-model-header','FLIGHT MODEL AND LEVER',(('mod.flight-model-next','Next flight model'),
+                                                                  ('mod.flight-model-toggle','Flight model toggle'),
+                                                                  ('mod.lever-mode-toggle','Lever: speed / thrust'))),
+               ('keyboard-head-header','HEAD TRACKING',(('mod.head-tracking-toggle','Head tracking on/off'),('mod.head-recentre','Recentre head tracking'),
+                                                        ('mod.head-tracking-on','Head tracking on'),('mod.head-tracking-off','Head tracking off'))),
+               ('keyboard-combat-header','COMBAT',(('mod.pip-toggle','Switch lead / lag pip'),)),
+               ('keyboard-ship-header','SHIP',(('mod.eject','Eject (hold)'),)))
+KEYBOARD_SECTIONS=(('keyboard-flight-header','FLIGHT',KEYBOARD_FLIGHT),('keyboard-game-header','GAME ACTIONS',KEYBOARD_GAME))+KEYBOARD_MORE
+KEYBOARD_ALL=tuple(row for _,_,actions in KEYBOARD_SECTIONS for row in actions)
+
+
+def keyboard_rows(keyboard,values,live=None):
+    """Keyboard page (T112). keyboard: the stored keyboard bindings; live['game-keys']: {vk: labels} the game uses
+    while you fly, with the player's own remaps (keys on it are marked), or None when the game's file is unreadable."""
+    live=live or {};bound={b['action']:b for b in keyboard};game=live.get('game-keys')
+    rows=[control_row(BY_ID['keyboard-flight-enabled'],values)]
+    # The layout diagram (user 2026-10-30: a two-panel page): drawn beside the list by hotas_draw.MeterPainter.keyboard_panel,
+    # anchored on this row, which shows a caption.
+    remaps=live.get('game-remaps')
+    if remaps is not None:
+        rows.append(Row('meter','keyboard-layout','',meter={'kind':'keyboard-panel','caption':'KEYBOARD LAYOUT: BESIDE THIS LIST',
+                                                           'rows':keyboard_layout.rows(keyboard,remaps)}))
+    if values.get('button-output')!='direct':
+        rows.append(Row('header','keyboard-output','GAME ACTIONS NEED BUTTON OUTPUT: GAME ACTIONS (BUTTONS PAGE)'))
+    def vk(action_id):
+        b=bound.get(action_id);return int(b['token'][-2:],16) if b else None
+    clashes={vk(a) for a,_ in KEYBOARD_ALL if bindable(a) and game and vk(a) in game}
+    if game is None:rows.append(Row('header','keyboard-collisions',"COULDN'T READ THE GAME'S KEY BINDINGS"))
+    elif clashes:
+        rows.append(Row('header','keyboard-collisions',f'THE GAME STILL USES {len(clashes)} OF THESE KEYS IN THE SHIP: '
+                        'MOVE ITS SHIP KEYS IN ITS CONTROLS (MARKED BELOW)'))
+    else:rows.append(Row('header','keyboard-collisions','NO CLASHES WITH THE GAME\'S SHIP KEYS'))
+    rows.append(Row('header','keyboard-experimental',"EXPERIMENTAL: THE GAME'S SHIP KEYS MOVE TO THE RIGHT AS A FALLBACK, NOT REMOVED"))
+    # Ditch at sea (T93) with keys (user 2026-10-30): the Telemetry purge holds the throttle in a band, which on/off keys
+    # can't; Gates suits taps. Pointed at, not switched: the setting stays the player's.
+    if values.get('keyboard-flight-enabled') and values.get('air-ditch') and values.get('air-purge-style')=='telemetry':
+        rows.append(Row('header','keyboard-purge',"DITCH AT SEA WITH KEYS: SET PURGE STYLE TO GATES (SHIP DAMAGE PAGE)"))
+    # Take-off is the game's own launch, read from its Thrust binding (user 2026-10-30): name the key it is on now.
+    remaps=live.get('game-remaps')
+    if remaps is not None:
+        thrust=keyboard_layout.thrust_key(remaps)
+        if thrust:rows.append(Row('header','keyboard-launch',f"TO LAUNCH WHEN LANDED, HOLD THE GAME'S THRUST KEY: {thrust.upper()}"))
+    moved=live.get('game-keys-moved')
+    rows.append(Row('button','keyboard-move-game-keys',"Move the game's ship keys",
+                    "Moves the game's own ship keys that sit on this layout to the right of the keyboard: Thrust I, Brake K, "
+                    "Roll U and O, Boost Right Shift, Pulse N, Land Home, Exit End, Combat follow Page Up and Page Down, Tag "
+                    "marker Insert, Scan Delete, quick menu left and right Z and C. Then press Apply in the game's options, as "
+                    "after changing a binding yourself, and the game saves them. To undo: Reset to Default in the game's Controls.",
+                    enabled=live.get('game-rebind')=='ready',
+                    suffix={'done':'done','staged':"press the game's Apply"}.get(live.get('game-rebind'))))
+    if moved:rows.append(Row('header','keyboard-moved',moved))
+    elif live.get('game-rebind')=='done':rows.append(Row('header','keyboard-moved',"THE GAME'S SHIP KEYS ARE ALREADY MOVED"))
+    elif live.get('game-rebind')=='staged':rows.append(Row('header','keyboard-moved',"READY: PRESS APPLY IN THE GAME'S OPTIONS TO SAVE"))
+    how=' Select, then press a key. Clear on the prompt unbinds it.'
+    for header,section,actions in KEYBOARD_SECTIONS:
+        rows.append(Row('header',header,section))
+        for action_id,label in actions:
+            if not bindable(action_id):continue
+            a=hotas_buttons.action(action_id);b=bound.get(action_id);k=vk(action_id)
+            value=hotas_buttons.describe_input(b['token'] if b else None)
+            if game and k in game:value+=f'  (game: {game[k]})'
+            help_text=a.help if a.lane=='mod' or action_id.startswith('ship.') else "Presses the game's own action (Button output: game actions)."
+            rows.append(Row('binding','key-bind:'+action_id,label,help_text+how,value=value))
+    return rows
+
+
 HEAD_SOURCE_STATES={'off':'OFF','waiting':'WAITING FOR OPENTRACK (FREETRACK 2.0 ENHANCED OUTPUT)','connected':'OPENTRACK CONNECTED',
                     'stale':'OPENTRACK STOPPED SENDING','invalid':'OPENTRACK DATA INVALID'}
 HEAD_CAMERA_STATES={'off':'NATIVE (HEAD TRACKING OFF)','applied':'HEAD TRACKING','frontend':'NATIVE WHILE A MENU OR MAP IS OPEN',
@@ -351,6 +433,7 @@ def route_controls(route):
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
     if route=='combat':return list(AIMING_CONTROLS+AI_CONTROLS)
+    if route=='keyboard':return ['keyboard-flight-enabled']
     if route=='buttons':return ['button-output','key-output-enabled','cursor-stick-enabled','cursor-speed','cursor-invert-y','parking-brake-mode','eject-hold-time']
     if route=='flight-tuning':return [c.id for c in PROFILE_CONTROLS if c.id[len('tuning-'):] not in AIR_STYLE_KEYS]
     if route=='atmosphere':return ['atmosphere-model']+['tuning-'+k for k in AIR_STYLE_KEYS]+[c.id for c in AIR_CONTROLS+LANDING_CONTROLS]
@@ -582,6 +665,8 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         rows+=terrain_rows(values,(live or {}).get('terrain-lookahead') or {})
     elif route=='buttons':
         rows+=button_rows(buttons or {},values,device_names,live)
+    elif route=='keyboard':
+        rows+=keyboard_rows((buttons or {}).get('keyboard',()),values,live)
     elif route=='head-tracking':
         rows+=head_rows(values,live,buttons,device_names)
     elif route=='exocraft':
@@ -590,6 +675,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         raise KeyError(route)
     rows+=_footer(route)
     if route=='flight-tuning':rows[-1].label='Reset class';rows[-1].help='Restore the starting profile for the class you are flying.'
+    if route=='keyboard':rows[-1].label='Reset keyboard layout';rows[-1].help='Put every key back on the default layout. Revert restores the saved one.'
     if route=='buttons':rows[-1].label='Clear all button bindings';rows[-1].help='Remove every button binding. Revert restores the saved ones.'
     return Page(route,ROUTE_TITLES[route],rows,modal)
 
@@ -616,7 +702,7 @@ class MenuController:
         modal=None
         if self.capture:
             c=self.capture
-            text=KEY_PROMPT if c.get('key') else BUTTON_PROMPT if (c.get('action') or c.get('modifier')) else CAPTURE_PROMPT
+            text=KEY_PROMPT if c.get('key') or c.get('keyboard') else BUTTON_PROMPT if (c.get('action') or c.get('modifier')) else CAPTURE_PROMPT
             if c.get('action','').startswith(('key.','mouse.')):text=f'{_action_title(c["action"])}: '+text
             modal={'kind':'capture','text':text,'binding':c['id'],'clearable':self._bound(c)}
         elif self.conflict:
@@ -627,8 +713,12 @@ class MenuController:
                 text=f"{hotas_buttons.describe_input(c['token'],device_names)} is bound to {_action_title(c['owner'])}. Move it to {_action_title(c['action'])}?"
             else:
                 text=f"{describe_binding(c['token'],device_names)} is bound to {_binding_title(c['owner'])}. Move it to {_binding_title(c['id'])}?"
+                if {c['id'],c['owner']}==set(PEDAL_INVERT):
+                    # Toe brakes on one axis, one per half (Olorin, 2026-10-29): Centre stop already splits it.
+                    text+=' Two pedals on one axis: keep it on Throttle and set Throttle style to Centre stop.'
             modal={'kind':'conflict','binding':c['id'],'text':text,'options':('Move binding','Keep current')}
-        buttons={'bindings':getattr(self.store,'buttons',[]),'modifier':getattr(self.store,'button_modifier',None)}
+        buttons={'bindings':getattr(self.store,'buttons',[]),'modifier':getattr(self.store,'button_modifier',None),
+                 'keyboard':getattr(self.store,'keyboard',[])}
         return build_page(self.route,self.store.values,live,focused,modal,device_names,self.store.current_class,buttons,self._tuning())
 
     def _tuning(self):
@@ -673,7 +763,15 @@ class MenuController:
         if row_id=='support-bundle':
             if self.on_action is None:return 'unavailable'
             self.on_action('support-bundle');return 'saving'
+        if row_id=='keyboard-move-game-keys':
+            if self.on_action is None:return 'unavailable'
+            self.on_action('keyboard-move-game-keys');return 'moved'
         if row_id=='buttons-reset':self.store.clear_buttons();return 'reset'
+        if row_id=='keyboard-reset':self.store.reset_keyboard();return 'reset'
+        if row_id.startswith('key-bind:'):
+            action_id=row_id[len('key-bind:'):]
+            if not bindable(action_id) or self.capture_start is None:return 'unavailable'
+            self.capture={'id':row_id,'action':action_id,'keyboard':True};self.capture_start(row_id);return 'capturing'
         if row_id.startswith('button-bind:'):
             action_id=row_id[len('button-bind:'):]
             if not bindable(action_id) or self.capture_start is None:return 'unavailable'
@@ -710,6 +808,12 @@ class MenuController:
                 self.store.clear_modifier();return 'cleared'
             if owner is None:self.store.set_modifier(token);return 'bound'
             self.conflict={'id':binding_id,'modifier':True,'token':token,'owner':owner};return 'conflict'
+        if capture.get('keyboard'):
+            if not hotas_buttons.is_keyboard(token):return 'stale'
+            owner=self.store.key_conflict(action_id,token);current=self.store.key_for(action_id)
+            if current and current['token']==hotas_buttons.canonical(token):self.store.clear_key(action_id);return 'cleared'
+            if owner is None:self.store.assign_key(action_id,token);return 'bound'
+            self.conflict={'id':binding_id,'action':action_id,'token':token,'owner':owner,'keyboard':True};return 'conflict'
         if action_id:
             try:owner=self.store.button_conflict(action_id,token,layer)
             except ValueError:return 'stale'  # not a button token
@@ -724,21 +828,30 @@ class MenuController:
             self.conflict={'id':binding_id,'action':action_id,'token':token,'layer':layer,'owner':owner};return 'conflict'
         owner=binding_conflict(self.store.values,binding_id,token)
         if owner is None:
-            self.store.assign_binding(binding_id,token);return 'bound'
-        self.conflict={'id':binding_id,'token':token,'owner':owner};return 'conflict'
+            self.store.assign_binding(binding_id,token);self._pedal_direction(binding_id,suffix=='down');return 'bound'
+        self.conflict={'id':binding_id,'token':token,'owner':owner,'down':suffix=='down'};return 'conflict'
+
+    def _pedal_direction(self,binding_id,down):
+        """A pedal or lever bound by pressing it: Invert follows the way it moved, so a pedal that reads full at rest
+        (Logitech G923, Olorin's bug report 2026-10-29) still drives forward with the gas and brakes with the brake."""
+        invert=PEDAL_INVERT.get(binding_id)
+        if invert is None or (binding_id=='bind-exo-throttle-axis' and self.store.values['exo-throttle-style']!='lever'):return
+        self.store.set(invert,down)
 
     def resolve_conflict(self,move):
         if not self.conflict:return 'stale'
         c=self.conflict;self.conflict=None
         if move and c.get('modifier'):self.store.set_modifier(c['token'],steal_from=c['owner']);return 'moved'
+        if move and c.get('keyboard'):self.store.assign_key(c['action'],c['token'],steal_from=c['owner']);return 'moved'
         if move and c.get('action'):self.store.assign_button(c['action'],c['token'],steal_from=c['owner'],layer=c.get('layer'));return 'moved'
-        if move:self.store.assign_binding(c['id'],c['token'],steal_from=c['owner']);return 'moved'
+        if move:self.store.assign_binding(c['id'],c['token'],steal_from=c['owner']);self._pedal_direction(c['id'],c.get('down'));return 'moved'
         return 'kept'
 
     def _bound(self,capture):
         """Whether the row being captured currently has a binding to clear."""
         if capture.get('key'):return False
         if capture.get('modifier'):return getattr(self.store,'button_modifier',None) is not None
+        if capture.get('keyboard'):return self.store.key_for(capture['action']) is not None
         if capture.get('action'):return self.store.button_for(capture['action']) is not None
         return self.store.values.get(capture['id']) is not None
 
@@ -749,6 +862,7 @@ class MenuController:
         self.capture=None
         if self.capture_cancel:self.capture_cancel()
         if c.get('modifier'):self.store.clear_modifier()
+        elif c.get('keyboard'):self.store.clear_key(c['action'])
         elif c.get('action'):self.store.clear_button(c['action'])
         else:self.store.assign_binding(c['id'],None)
         return 'cleared'
