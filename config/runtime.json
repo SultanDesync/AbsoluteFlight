@@ -6,7 +6,7 @@
   },
   "bus": {
     "dll": "bin/absolute_input_bus.dll",
-    "dll_sha256": "48e8d3caedad9def33f0fa9e9d163cdb4ab27d749a0f614fc042df6ee1c9c2b5",
+    "dll_sha256": "caa5ea676e1d3d3078373f9d0c51eb49a2815ab3318d76459ce6df3c812708bd",
     "abi_source": "input_bus/scripts/bus0_probe.py",
     "abi_sha256": "14ca3db1f5507f5e043b308232f49f793c5baedfbdc9e3e0d40fd99db836f1b3"
   },
