@@ -128,7 +128,8 @@ def validate_values(values,limits=(.25,.5,5.)):
     steering,throttle,mav=limits
     if len(values) != 6 or not all(math.isfinite(v) for v in values):
         raise ValueError('Six finite channel values required')
-    if any(abs(v) > steering for v in values[:3]) or not 0 <= values[3] <= throttle:
+    # Full native authority carries signed throttle (T116 reverse thrust); the D10 research bound stays forward-only.
+    if any(abs(v) > steering for v in values[:3]) or not (-throttle if steering == 1 else 0) <= values[3] <= throttle:
         raise ValueError('D10 rotational/throttle authority exceeded')
     if math.hypot(*values[4:]) > mav+1e-10:
         raise ValueError('D12 MAV target norm exceeded')

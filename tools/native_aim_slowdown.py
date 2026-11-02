@@ -23,10 +23,10 @@ from command_mailbox import CommandMailbox, reader_code
 from native_roll_patch import Code, K
 from native_six_axis import save, restore
 
-SITE_RVA = 0x1447BA2
+SITE_RVA = 0x144BE92
 ORIGINAL = bytes.fromhex('f30f10442438410f28c8')
-CALLER_RVA = 0x178C1EB
-APP_GLOBAL = 0x6F5F868
+CALLER_RVA = 0x17906CB
+APP_GLOBAL = 0x6F6B208
 PRODUCER_OFFSET = 0x60D0
 FACTOR_OFFSET = 0x64
 BLOCK = 0x800
@@ -38,11 +38,11 @@ MAX_GAIN = 1.
 # Exact-build below-entry pins. The producer's saved outer RBP is [RBP+100],
 # and its original return address is [RBP+108], from this prologue.
 PINS = {
-    0x14469D1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
-    0x14475B5: bytes.fromhex('c746640000803f'),
-    0x1447E5B: bytes.fromhex('f30f594e64'),
-    0x1447F74: bytes.fromhex('f30f594e64'),
-    0x178C1E6: bytes.fromhex('e8d5a7cbff'),
+    0x144ACC1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
+    0x144B8A5: bytes.fromhex('c746640000803f'),
+    0x144C14B: bytes.fromhex('f30f594e64'),
+    0x144C264: bytes.fromhex('f30f594e64'),
+    0x17906C6: bytes.fromhex('e8e5a5cbff'),
 }
 
 _RETAINED = []
@@ -129,7 +129,7 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
         reject(raw)
     pointer(0, base+APP_GLOBAL if global_slot is None else global_slot)
     reject('48 8b 00 48 85 c0', b'\x0f\x84')
-    for raw in ('83 b8 98 bd 89 00 00', '83 b8 dc b6 72 00 00',
+    for raw in ('83 b8 a8 be 89 00 00', '83 b8 dc b6 72 00 00',
                 '83 b8 cc b6 72 00 00'):
         reject(raw)
     reject('80 b8 6d aa 57 00 01', b'\x0f\x87')  # known manual combat allowed

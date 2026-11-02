@@ -22,16 +22,16 @@ The game has no numpad keys (cTkInputEnum), so the moved keys go to the right-ha
 import ctypes as C
 import hashlib
 
-APP_GLOBAL = 0x6F5F868
+APP_GLOBAL = 0x6F6B208
 SAVED = 0x307C18                   # app + this: the saved settings' CustomBindingsPC (in effect)
 WORKING = 0x30E9A8                 # app + this: the options pages' working copy (what Apply saves)
-COPY, COPY_END = 0x1CB6D0, 0x1CB7C6
-RESIZE, RESIZE_END = 0x1CB610, 0x1CB6CD
-PAGE_SITE = 0x6F3297               # mov rbx,[app]; mov rdi,rcx; add rbx,30E998h (General page's working copy)
-APPLY_SITE = 0x6F3BD6              # saved = app+307C08; compare; dialog; Apply: copy working over saved (0x1BFB90)
+COPY, COPY_END = 0x1CB6E0, 0x1CB7D6
+RESIZE, RESIZE_END = 0x1CB620, 0x1CB6DD
+PAGE_SITE = 0x6F4A87               # mov rbx,[app]; mov rdi,rcx; add rbx,30E998h (General page's working copy)
+APPLY_SITE = 0x6F53C6              # saved = app+307C08; compare; dialog; Apply: copy working over saved (0x1BFB90)
 ENTRY = 0xA0
 PIN_RANGES = ((COPY, COPY_END-COPY), (RESIZE, RESIZE_END-RESIZE), (PAGE_SITE, 0x11), (APPLY_SITE, 0x49))
-PIN_SHA256 = '1bc00d91abb573832d325f66cb3b330af685f5bbf0fd09217458e2a82878c9cf'  # sha256 over PIN_RANGES, 183877
+PIN_SHA256 = '56488d326da60870a27d711e2ed99c3ebc1b3da8c412275fd763ae71088022b4'  # sha256 over PIN_RANGES, 184271
 
 SHIP, QUICK = 'ShipControls', 'ShipQuickMenu'
 # (action set, action, key): every stock ship binding on a key the keyboard layout uses, moved to the right side

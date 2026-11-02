@@ -4,9 +4,9 @@ from pathlib import Path
 import struct
 from native_roll_patch import Code,K,allocate_near,replace_code
 
-SITE_RVA=0x178D78B
+SITE_RVA=0x1791C6B
 ORIGINAL=bytes.fromhex('F3 0F 10 95 80 41 00 00')
-GLOBAL_SLOT_RVA=0x6F5F868
+GLOBAL_SLOT_RVA=0x6F6B208
 
 
 def cave_bytes(cave,site,data,get_tick,global_slot):
@@ -29,7 +29,7 @@ def cave_bytes(cave,site,data,get_tick,global_slot):
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot))
     c.emit(bytes.fromhex('48 85 C0'));c.relative(b'\x0f\x84','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',4))
-    c.emit(bytes.fromhex('83 B8 98 BD 89 00 00'));c.relative(b'\x0f\x85','reject')
+    c.emit(bytes.fromhex('83 B8 A8 BE 89 00 00'));c.relative(b'\x0f\x85','reject')
     c.emit(bytes.fromhex('80 B8 6D AA 57 00 00'));c.relative(b'\x0f\x85','reject')
     c.relative(b'\xc7\x05',data+56,struct.pack('<I',5))
     c.emit(bytes.fromhex('8B 85 80 41 00 00'));c.relative(b'\x89\x05',data+48)

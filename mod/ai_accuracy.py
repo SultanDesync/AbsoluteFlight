@@ -14,23 +14,23 @@ from ai_evasion_model import EvasionObserver, tuning_values
 from ai_pilots import wanted_mode
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6F5F868
+APP_GLOBAL = 0x6F6B208
 MANAGER_FROM_APP = 0x6CDF10
-GUN_LOOKUP_CALLER = 0x1746EA9
+GUN_LOOKUP_CALLER = 0x174B2D9
 ROW_SIZE = 0xD0
 DISPERSION = 0xB4
 MAX_SPREAD = 60.0  # Native scale <=1/3, well below its [0,1] saturation.
 # Below detour entries, including the exact native call that resolves lookup 1751120.
 PINS = {
-    0x1746DF2: bytes.fromhex('448bb1740a0000bf010000000f2970b8498bd90f2978a84d8be8488bf1'),
-    0x1746EA4: bytes.fromhex('e897a00000448ba6007d00004889442460'),
-    0x1746F8C: bytes.fromhex('488b442460f30f102dcf4e4a034885c07408f30f10a8b4000000f30f5e2dca504a03'),
-    0x174704C: bytes.fromhex('0f57c9f30f5fcd0f28ef660f5ad0f30f5de9'),
-    0x1747079: bytes.fromhex('0f59eb0f285d800f585d900f586c2450'),
-    0x17471F1: bytes.fromhex('488d44245048894424200f11442460e87b23e6ff'),
-    0x1750FD8: bytes.fromhex('488d5368488b5c2430488b7424384883c4205fe9d0010000'),
-    0x1750FF0: bytes.fromhex('488d5318488b5c2430488b7424384883c4205fe9b8010000'),
-    0x4BEC078: struct.pack('<f', 180.),
+    0x174B222: bytes.fromhex('448bb1740a0000bf010000000f2970b8498bd90f2978a84d8be8488bf1'),
+    0x174B2D4: bytes.fromhex('e897a00000448ba6007d00004889442460'),
+    0x174B3BC: bytes.fromhex('488b442460f30f102d27ac4a034885c07408f30f10a8b4000000f30f5e2d22ae4a03'),
+    0x174B47C: bytes.fromhex('0f57c9f30f5fcd0f28ef660f5ad0f30f5de9'),
+    0x174B4A9: bytes.fromhex('0f59eb0f285d800f585d900f586c2450'),
+    0x174B621: bytes.fromhex('488d44245048894424200f11442460e8ab20e6ff'),
+    0x1755408: bytes.fromhex('488d5368488b5c2430488b7424384883c4205fe9d0010000'),
+    0x1755420: bytes.fromhex('488d5318488b5c2430488b7424384883c4205fe9b8010000'),
+    0x4BF6200: struct.pack('<f', 180.),
 }
 
 

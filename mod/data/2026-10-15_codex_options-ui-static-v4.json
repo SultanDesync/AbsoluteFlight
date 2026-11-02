@@ -1,144 +1,144 @@
 {
- "file_version": "183877",
- "sha256": "d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37",
- "steam_buildid": "26295378",
+ "file_version": "184271",
+ "sha256": "a77fc29877789c3da9181afeb5941b9b85a27d3df24919a24403cf8e194c6109",
+ "steam_buildid": "26386568",
  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
- "remap_note": "183877 (2026-10-29, claude): targets (rva, entry32, signature.rva, matches) and menu_index_instructions were carried by tools/game_update.py scan and checked on disk; nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
+ "remap_note": "184271 (2026-11-02, claude): targets (rva, entry32, signature) and menu_index_instructions carried by tools/game_update.py scan/apply, plus DoGameSwitcher, RenderPage, Activate and NGuiBeginInput re-read from the new exe by hand (frame sizes changed); nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
  "targets": {
   "BeginPage": {
-   "rva": "0x1bd040",
+   "rva": "0x1bd050",
    "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 0F 57 C0 33 C0",
    "matches": [
-    "0x1bd040"
+    "0x1bd050"
    ]
   },
   "Header": {
-   "rva": "0x1b9f40",
-   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100db21fa304488d",
+   "rva": "0x1b9f50",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100d2ac1a304488d",
    "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
    "matches": [
-    "0x1b9f40"
+    "0x1b9f50"
    ]
   },
   "Boolean": {
-   "rva": "0x1ba2d0",
+   "rva": "0x1ba2e0",
    "entry32": "4c894424185657415541574883ec7883790801410fb6f94c8bac24c80000004c",
    "pattern": "4C 89 44 24 ? 56 57 41 55",
    "matches": [
-    "0x1ba2d0"
+    "0x1ba2e0"
    ]
   },
   "Int": {
-   "rva": "0x1ba4c0",
+   "rva": "0x1ba4d0",
    "entry32": "44894c24204c8944241855564157488d6c24d94881ece0000000837908014c8b",
    "pattern": "44 89 4C 24 ? 4C 89 44 24 ? 55 56 41 57",
    "matches": [
-    "0x1ba4c0"
+    "0x1ba4d0"
    ]
   },
   "Float": {
-   "rva": "0x1ba740",
+   "rva": "0x1ba750",
    "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
    "pattern": "F3 0F 11 5C 24 ? 55 53 41 54",
    "matches": [
-    "0x1ba740"
+    "0x1ba750"
    ]
   },
   "Button": {
-   "rva": "0x1ba120",
+   "rva": "0x1ba130",
    "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 57 48 81 EC ? ? ? ? 32 DB",
    "matches": [
-    "0x1ba120"
+    "0x1ba130"
    ]
   },
   "BeginList": {
-   "rva": "0x1bb370",
+   "rva": "0x1bb380",
    "entry32": "48895c240848896c2410488974241857415641574883ec2033db488d792c8959",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 33 DB 48 8D 79 ? 89 59",
    "matches": [
-    "0x1bb370"
+    "0x1bb380"
    ]
   },
   "ListOption": {
-   "rva": "0x1bb490",
+   "rva": "0x1bb4a0",
    "entry32": "40534883ec2048634120488d59204c8bca83f83f0f87870000004869c8840000",
    "pattern": "40 53 48 83 EC ? 48 63 41 ? 48 8D 59",
    "matches": [
-    "0x1bb490"
+    "0x1bb4a0"
    ]
   },
   "EndPage": {
-   "rva": "0x1bd820",
+   "rva": "0x1bd830",
    "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
    "pattern": "48 8B C4 55 57 48 8D 68 ? 48 81 EC ? ? ? ? 83 79",
    "matches": [
-    "0x1bd820"
+    "0x1bd830"
    ]
   },
   "FinalizePage": {
-   "rva": "0x1bd530",
+   "rva": "0x1bd540",
    "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 55 41 56 41 57 48 83 EC ? 48 8B 81 ? ? ? ? 45 33 FF",
    "matches": [
-    "0x1bd530"
+    "0x1bd540"
    ]
   },
   "DoOptions": {
-   "rva": "0x6edbf0",
-   "entry32": "4055488dac24a0d8ffffb860280000e88ccdd902482be0833d66aa8906000f84",
+   "rva": "0x6ef2f0",
+   "entry32": "4055488dac24a0d8ffffb860280000e8fc05da02482be0833d064d8a06000f84",
    "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
    "matches": [
-    "0x6edbf0"
+    "0x6ef2f0"
    ]
   },
   "DoGameSwitcher": {
-   "rva": "0x6ee9e0",
-   "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
+   "rva": "0x6f00e0",
+   "entry32": "488bc4555356574154415541564157488da8f8f5ffff4881ecc80a0000660f6f",
    "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
    "matches": [
-    "0x6ee9e0"
+    "0x6f00e0"
    ]
   },
   "UpdateRender": {
-   "rva": "0x9097d0",
+   "rva": "0x90b760",
    "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
    "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
    "matches": [
-    "0x9097d0"
+    "0x90b760"
    ]
   },
   "ApplicationUpdate": {
-   "rva": "0x2dd2c0",
-   "entry32": "40534883ec20e895df9802488905fefdff06e81940efff803db42b0605000fb6",
+   "rva": "0x2dd3e0",
+   "entry32": "40534883ec20e8752899024889058eb60007e8093fefff803d14e10605000fb6",
    "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
    "matches": [
-    "0x2dd2c0"
+    "0x2dd3e0"
    ]
   },
   "RequestOptionsPage": {
-   "rva": "0x2ea3a0",
-   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0da954c70648",
+   "rva": "0x2ea4c0",
+   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0d290dc80648",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
    "matches": [
-    "0x2ea3a0"
+    "0x2ea4c0"
    ]
   },
   "RenderPage": {
-   "rva": "0x917880",
-   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e8f730b702482be04889b424",
-   "pattern": "48 89 4C 24 ? 55 53 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 48 89 B4 24 ? ? ? ? 48 89 BC 24",
+   "rva": "0x919860",
+   "entry32": "405553488dac2428d7ffffb8d8290000e88b60b702482be04889b424d0290000",
+   "pattern": "40 55 53 48 ? AC 24 28 D7 FF FF ? ? ? ? 00 ? ? ? ? 02 ? ? ? ? 89 B4 24 D0 29 00 00 ? ? ? ? C8 29 00 00",
    "matches": [
-    "0x917880"
+    "0x919860"
    ]
   },
   "Activate": {
-   "rva": "0x90d7f0",
-   "entry32": "405556574157488bec4883ec588b8178c40100450fb6f84863f2488bf983f804",
+   "rva": "0x90f780",
+   "entry32": "405556574157488bec4883ec588b8188c50100450fb6f84863f2488bf983f804",
    "pattern": "40 55 56 57 41 57 48 8B EC",
    "matches": [
-    "0x90d7f0"
+    "0x90f780"
    ]
   }
  },
@@ -152,7 +152,7 @@
  },
  "builders": {
   "General": {
-   "rva": "0x6fdbf0",
+   "rva": "0x6ff2e0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6fdbe2",
@@ -357,7 +357,7 @@
    ]
   },
   "Controls": {
-   "rva": "0x6f3280",
+   "rva": "0x6f4a70",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f3294",
@@ -557,7 +557,7 @@
    ]
   },
   "Camera": {
-   "rva": "0x6f22c0",
+   "rva": "0x6f3ab0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f230f",
@@ -737,35 +737,35 @@
  "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
  "menu_index_instructions": [
   {
-   "rva": "0x6edc46",
+   "rva": "0x6ef346",
    "instruction": "mov ecx, dword ptr [rip + 0x689ba38]"
   },
   {
-   "rva": "0x6edc4c",
+   "rva": "0x6ef34c",
    "instruction": "lea r15, [rip - 0x6edc03]"
   },
   {
-   "rva": "0x6edc53",
+   "rva": "0x6ef353",
    "instruction": "mov rax, qword ptr [rip + 0x689ba2e]"
   },
   {
-   "rva": "0x6edc5a",
+   "rva": "0x6ef35a",
    "instruction": "dec ecx"
   },
   {
-   "rva": "0x6edc5c",
+   "rva": "0x6ef35c",
    "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
   },
   {
-   "rva": "0x6edc63",
+   "rva": "0x6ef363",
    "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
   },
   {
-   "rva": "0x6edc6a",
+   "rva": "0x6ef36a",
    "instruction": "mov rcx, qword ptr [rax + rcx*8]"
   },
   {
-   "rva": "0x6edc6e",
+   "rva": "0x6ef36e",
    "instruction": "movsxd rax, dword ptr [rcx]"
   }
  ]

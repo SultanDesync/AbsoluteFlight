@@ -11,7 +11,7 @@ player-ship reacquire. The throttle yields to the game while native throttle is 
 "leave this axis to the game", so one missing device never takes the others down.
 """
 import math
-from flight_shaping import LATERAL_COMMAND_SIGN,ThrottleChannel,shape_axis,strafe_sum
+from flight_shaping import LATERAL_COMMAND_SIGN,ReverseThrust,ThrottleChannel,shape_axis,strafe_sum
 from hotas_settings import strafe_enabled
 
 MAILBOX_ORDER=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical')
@@ -82,6 +82,7 @@ class FlightControl:
         self.throttle=ThrottleChannel(self.values);self.reasons={};self.throttle_u=0.
         self.ramp={}  # channel -> ramp-in progress 0..1 after arming off-centre
         self.brake=False  # HOSAS direct stick pulled back past its deadzone: the runtime holds the game's Brake
+        self.reverse=ReverseThrust();self.reversing=False  # T116 Reverse thrust: the loop owns the throttle u
 
     def reconfigure(self,values,changed=()):
         if 'flight-model' in changed:self.disarm_all('flight model changed')
@@ -90,13 +91,19 @@ class FlightControl:
         for c in rebound:self._disarm(c,'binding changed')
 
     def _disarm(self,channel,reason):
-        if channel=='throttle':self.throttle.disarm();self.throttle_u=0.;self.brake=False
+        if channel=='throttle':self.throttle.disarm();self.throttle_u=0.;self.brake=False;self.reverse.reset();self.reversing=False
         self.armed[channel]=False;self.reasons[channel]=reason;self.ramp.pop(channel,None)
 
     def disarm_all(self,reason):
         for c in MAILBOX_ORDER:self._disarm(c,reason)
 
-    def step(self,table,eligible,dt,native_u=None,reason='not eligible',strafe_buttons=(0.,0.)):
+    def reverse_thrust(self):
+        """T116: native HOSAS Direct with Pull back set to Reverse thrust."""
+        v=self.values
+        return (v['flight-model']!='sultan' and v['throttle-style']=='hosas' and v['hosas-stick-mode']=='direct'
+                and v['hosas-reverse']=='thrust')
+
+    def step(self,table,eligible,dt,native_u=None,reason='not eligible',strafe_buttons=(0.,0.),forward_speed=None):
         """Returns the six mailbox values in MAILBOX_ORDER.
 
         strafe_buttons: (lateral, vertical) from the strafe buttons (T111), in stick terms; added to the
@@ -105,6 +112,9 @@ class FlightControl:
         native_u: the game's own throttle demand this frame (receipt, before substitution). While it
         is nonzero the game owns throttle (auto-boost on launch or station exit, keyboard thrust):
         throttle publishes 0 without disarming its channel, and the stick axes stay live.
+
+        forward_speed: the ship's speed along its nose (u/s, MAV snapshot) or None when unknown; Reverse thrust
+        needs it, and without it pulling back holds idle.
         """
         v=self.values
         if not eligible or not v['flight-controls-enabled']:
@@ -142,7 +152,8 @@ class FlightControl:
             # T116: the game's u goes negative as soon as our Brake press takes, which lands here. Keep holding Brake while
             # the stick is still pulled back; dropping it made the brake flicker on and off (0.2.4-dev.12 Vanilla: game u
             # median -0.03 with the stick fully back, against -0.73 to -1.00 with a real S key).
-            if native_u<0:self.brake=self.throttle.brake_demand(unit)>NEUTRAL
+            if native_u<0 and not self.reverse_thrust():self.brake=self.throttle.brake_demand(unit)>NEUTRAL
+            self.reverse.reset();self.reversing=False
             return self._finish(out)
         cmd=self.throttle.step(unit,dt,native_u)
         if cmd is None:
@@ -151,11 +162,18 @@ class FlightControl:
         else:
             # The back half has no analog brake lane: it holds idle thrust and presses the game's own Brake
             # (the Thrust back button's lane), so pulling back slows the ship whichever flight model is current.
-            wanted=min(THROTTLE_MAX_U,max(0.,cmd.thrust));self.brake=cmd.brake>NEUTRAL
+            # In Reverse thrust (T116) the loop's signed u replaces both while it runs.
+            wanted=min(THROTTLE_MAX_U,max(0.,cmd.thrust))
+            reverse=self.reverse.step(cmd.pull,forward_speed,v['hosas-reverse-speed'],dt) if self.reverse_thrust() else None
+            # Pushing forward while reversing is ordinary thrust (a positive u also brakes the backward motion natively).
+            if reverse is not None and cmd.thrust>0:self.reverse.reset();reverse=None
+            self.reversing=reverse is not None
+            if reverse is not None:wanted=min(THROTTLE_MAX_U,reverse)
+            self.brake=cmd.brake>NEUTRAL and not self.reverse_thrust()
             if not self.armed['throttle']:
                 self.armed['throttle']=True
-                if wanted>NEUTRAL:self.ramp['throttle']=0.
-            self.reasons['throttle']='armed'
+                if abs(wanted)>NEUTRAL:self.ramp['throttle']=0.
+            self.reasons['throttle']='reversing' if self.reversing else 'armed'
             if 'throttle' in self.ramp:  # armed with the lever up: ease the demand in, like the sticks
                 k=self.ramp['throttle']=min(1.,self.ramp['throttle']+max(0.,dt)/ARM_RAMP)
                 if k>=1.:del self.ramp['throttle']

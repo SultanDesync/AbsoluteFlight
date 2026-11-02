@@ -140,7 +140,11 @@ CONTROLS=(
     Control('hosas-stick-mode','choice','Stick behaviour','Direct: centre is stop, push for thrust, pull to brake. Rate: push to change speed; it holds when you let go.','direct',choices=(('direct','Direct'),('rate','Rate')),visible=NATIVE_HOSAS,new=True),
     Control('throttle-deadzone','float','Centre deadzone','Stick travel around centre that does nothing.',.05,0.,.5,visible=HOSAS_ONLY),
     Control('hosas-saturation','float','Saturation','Deflection that reaches full signed thrust under Sultan; full thrust or brake in native Direct mode.',.95,.05,1.,visible=HOSAS_ONLY,new=True),
-    Control('hosas-brake-authority','float','Brake strength','Pulling back past the deadzone presses the game\'s own Brake (on or off, not analog). 0 turns the brake off.',1.,0.,1.,visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),),new=True),
+    Control('hosas-reverse','choice','Pull back',"Game's Brake: pulling back presses the game's own Brake, which slows the ship and can reverse it a little. "
+            'Reverse thrust: pulling back flies the ship backwards, up to the reverse speed limit at full pull; centring the stick brings it to a stop.',
+            'brake',choices=(('brake',"Game's Brake"),('thrust','Reverse thrust')),visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),),new=True),
+    Control('hosas-brake-authority','float','Brake strength','Pulling back past the deadzone presses the game\'s own Brake (on or off, not analog). 0 turns the brake off.',1.,0.,1.,visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),('hosas-reverse','brake')),new=True),
+    Control('hosas-reverse-speed','float','Reverse speed limit','Backward speed at full pull. The game has no reverse limit of its own.',50.,10.,150.,5.,'speed',visible=NATIVE_HOSAS+(('hosas-stick-mode','direct'),('hosas-reverse','thrust')),new=True),
     Control('rate-throttle-ramp','float','Ramp rate','Speed setting change per second at full deflection.',1.,.1,3.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('rate-throttle-decay','float','Return to idle','Speed setting lost per second while centred. 0 holds speed.',0.,0.,1.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('lever-controls','choice','Lever controls','Speed holds a forward speed along the nose, without braking lateral drift. Thrust commands acceleration. Coast disables either controller.','speed',choices=(('speed','Speed'),('thrust','Thrust')),visible=HOTAS_ONLY+SULTAN_ONLY,new=True),

@@ -4,7 +4,7 @@ Static research: research/re-log/2026-10-16_codex_native-actions-static.md (buil
 research/re-log/2026-10-28_claude_native-actions-183791.md (this build). Every digital query reaches the input
 manager's slot +0x20, the wrapper 0x2CA55C0 (`bool Digital(manager, action, validation, port)`: RCX, EDX, R8D, R9D,
 result AL): gameplay code through the controller getter 0x1445760, which first returns false unless the frontend
-state app+0x89BD98 is 0 or 2, and the quick menu and other UI by calling the slot directly (0x15548BF: Quick_Left,
+state app+0x89BEA8 is 0 or 2, and the quick menu and other UI by calling the slot directly (0x15548BF: Quick_Left,
 Pressed, port -1; 0.2.3-dev.2 live: a cave on the getter never saw them). The wrapper refreshes the action from Steam
 and tail-jumps the core 0x2C97870, which resolves the port (-1 = manager+0x18) and hands the port block
 manager+port*0x470+0x5B0 to 0x185BE10: Held, Pressed (down this frame), HeldConfirm (held 50 frames), Released (up this
@@ -26,20 +26,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F5F868
-GETTER = 0x1445670                 # the controller getter (pinned: its frontend gate and slot +0x20 jump)
-GETTER_BYTES = bytes.fromhex('4c8bc9488b0deea1b1058b8198bd890085c0740883f802740332c0c3488b89a8ae9500458b4908488b0148ff6020')
-WRAPPER = 0x2CA5380                # manager slot +0x20: refresh, then jmp CORE
+APP_GLOBAL = 0x6F6B208
+GETTER = 0x1449960                 # the controller getter (pinned: its frontend gate and slot +0x20 jump)
+GETTER_BYTES = bytes.fromhex('4c8bc9488b0d9e18b2058b81a8be890085c0740883f802740332c0c3488b89b8af9500458b4908488b0148ff6020')
+WRAPPER = 0x2CA9D90                # manager slot +0x20: refresh, then jmp CORE
 WRAPPER_BYTES = bytes.fromhex('48895c240848896c24104889742418574883ec20418bf8418bd9458bc18bf2488be9e849200000448bcb448bc78bd6'
                               '488bcd488b5c2430488b6c2438488b7424404883c4205fe96522ffff')
-REFRESH, CORE = 0x2CA73F0, 0x2C97630
+REFRESH, CORE = 0x2CABE00, 0x2C9C040
 SITE_SIZE = 10                     # mov [rsp+8], rbx; mov [rsp+0x10], rbp
 CONTINUE = WRAPPER+SITE_SIZE
-FRONTEND, MANAGER = 0x89BD98, 0x95AEA8
+FRONTEND, MANAGER = 0x89BEA8, 0x95AFB8
 DEFAULT_PORT, PORT_STRIDE, PORT_BLOCK, BLOCK_FRAME, PORT_MAX = 0x18, 0x470, 0x5B0, 0x20, 5
 # The core and validation helper the cave's port and frame reads come from (pinned, not called).
-PIN_RANGES = ((GETTER, len(GETTER_BYTES)), (WRAPPER, len(WRAPPER_BYTES)), (CORE, 0x8D), (0x185BBD0, 0x50))
-PIN_SHA256 = 'cae54f9c10211c3a606e59ce2d90c1c8a543312ab55b12efc212f76ced1da0ee'  # sha256 over PIN_RANGES of the exe (research/re-log/2026-10-28_claude_native-actions-183791.md)
+PIN_RANGES = ((GETTER, len(GETTER_BYTES)), (WRAPPER, len(WRAPPER_BYTES)), (CORE, 0x8D), (0x1860190, 0x50))
+PIN_SHA256 = 'c8c193fd9e5a2ade1e76e8d08f982b1cc41ab7c61822fb3c39c04639ac8f8b80'  # sha256 over PIN_RANGES of the exe (research/re-log/2026-10-28_claude_native-actions-183791.md)
 
 HELD, PRESSED, HELD_CONFIRM, RELEASED, HELD_OVER, CANCELED = range(6)  # cTkInputValidation
 CONFIRM_FRAMES = 50                # 0x185BE10: HeldConfirm after 0x32 frames

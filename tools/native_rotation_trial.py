@@ -26,7 +26,7 @@ from rotation_sustained_envelope import (freeze_windows, manifest as sustained_m
 
 MAX_LEASE_MS = 50
 STRICT_ROTATION = 0x80000000
-TORQUE_RVA = 0x17918BE
+TORQUE_RVA = 0x1795D9E
 TORQUE_ORIGINAL = bytes.fromhex('0f5dd8410f14d3440f16c2440f5fc3')
 WORK = 0x200
 WORK_SIZE = 0x300
@@ -37,8 +37,8 @@ ALLOCATION = RING + SLOT * CAPACITY + 0xc000
 STACK = 0x110
 SAVED_TOTAL = STACK + 80
 AXES = ('pitch', 'yaw', 'roll')
-ORDINARY_RVA = 0x17912c0
-ORDINARY_ORIGINAL = bytes.fromhex('488b0d210b7605')
+ORDINARY_RVA = 0x17957a0
+ORDINARY_ORIGINAL = bytes.fromhex('488b0dd17f7605')
 SITES = {'ordinary': (ORDINARY_RVA, ORDINARY_ORIGINAL), 'target': (SITE_RVA, ORIGINAL), 'torque': (TORQUE_RVA, TORQUE_ORIGINAL)}
 PREWORK = 0x500
 MODE_FIELDS = {'q9ab670': (344, 4), 'route_flag': (348, 4), 'device_root': (352, 8),
@@ -109,10 +109,10 @@ def _pin_engine(c, pins, newtonian=None):
 def read_mode_pins(pm, base):
     """Read-only bounded native route identities; caller fingerprints calibration."""
     def read(address, fmt): return struct.unpack(fmt, pm.read_bytes(address, struct.calcsize(fmt)))[0]
-    app = read(base + 0x6f5f868, '<Q')
+    app = read(base + 0x6f6b208, '<Q')
     if not app: raise ValueError('Native application unavailable')
     out = {'q9ab670': read(app + 0x30e986, '<B'), 'route_flag': read(app + 0x30e930, '<I')}
-    for name, root_address in (('device', app + 0x95aea8), ('pad', base + 0x5363c80)):
+    for name, root_address in (('device', app + 0x95afb8), ('pad', base + 0x536f300)):
         root = read(root_address, '<Q')
         if not root: raise ValueError('Missing native route root: ' + name)
         index = read(root + 0x18, '<i')
@@ -125,13 +125,13 @@ def read_mode_pins(pm, base):
 
 
 def _capture_modes(c, base, work):
-    c.relative(b'\x48\x8b\x05', base + 0x6f5f868)
+    c.relative(b'\x48\x8b\x05', base + 0x6f6b208)
     c.emit(bytes.fromhex('0f b6 88 86 e9 30 00')); c.relative(b'\x89\x0d', work + 344)
     c.emit(bytes.fromhex('8b 88 30 e9 30 00')); c.relative(b'\x89\x0d', work + 348)
     for name, offset in (('device', 352), ('pad', 384)):
         if name == 'device':
-            c.relative(b'\x48\x8b\x05', base + 0x6f5f868); c.emit(bytes.fromhex('48 8b 90 a8 ae 95 00'))
-        else: c.relative(b'\x48\x8b\x15', base + 0x5363c80)
+            c.relative(b'\x48\x8b\x05', base + 0x6f6b208); c.emit(bytes.fromhex('48 8b 90 b8 af 95 00'))
+        else: c.relative(b'\x48\x8b\x15', base + 0x536f300)
         c.relative(b'\x48\x89\x15', work + offset)
         c.emit(bytes.fromhex('48 85 d2')); c.relative(b'\x0f\x84', 'mode_capture_done')
         c.emit(bytes.fromhex('8b 42 18')); c.relative(b'\x89\x05', work + offset + 8)
@@ -146,13 +146,13 @@ def _capture_modes(c, base, work):
 
 
 def _pin_modes(c, base, pins):
-    c.relative(b'\x48\x8b\x05', base + 0x6f5f868)
+    c.relative(b'\x48\x8b\x05', base + 0x6f6b208)
     for raw, expected in (('0f b6 88 86 e9 30 00', pins['q9ab670']), ('8b 88 30 e9 30 00', pins['route_flag'])):
         c.emit(bytes.fromhex(raw) + b'\x81\xf9' + struct.pack('<I', expected)); c.relative(b'\x0f\x85', 'out')
     for name in ('device', 'pad'):
         if name == 'device':
-            c.relative(b'\x48\x8b\x05', base + 0x6f5f868); c.emit(bytes.fromhex('48 8b 90 a8 ae 95 00'))
-        else: c.relative(b'\x48\x8b\x15', base + 0x5363c80)
+            c.relative(b'\x48\x8b\x05', base + 0x6f6b208); c.emit(bytes.fromhex('48 8b 90 b8 af 95 00'))
+        else: c.relative(b'\x48\x8b\x15', base + 0x536f300)
         c.emit(b'\x48\xb8' + struct.pack('<Q', pins[name + '_root']) + bytes.fromhex('48 39 c2')); c.relative(b'\x0f\x85', 'out')
         c.emit(bytes.fromhex('81 7a 18') + struct.pack('<I', pins[name + '_index'])); c.relative(b'\x0f\x85', 'out')
         c.emit(bytes.fromhex('48 8b 92') + struct.pack('<I', 0x5f8 + 0x470*pins[name + '_index']))
@@ -373,7 +373,7 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
         c.emit(raw); c.relative(b'\x89\x05', w + target)
     for offset in range(0, 0x78, 4):
         c.emit(b'\x8b\x86' + struct.pack('<I', 0x6640 + offset)); c.relative(b'\x89\x05', w + 192 + offset)
-    c.relative(b'\x48\x8b\x05', base + 0x6f5f868)
+    c.relative(b'\x48\x8b\x05', base + 0x6f6b208)
     c.emit(bytes.fromhex('48 8b 80 30 cf 72 00 48 85 c0')); c.relative(b'\x0f\x84', 'captured_look')
     c.emit(bytes.fromhex('0f b6 80 c9 01 00 00')); c.relative(b'\x89\x05', w + 312)
     c.label('captured_look')
@@ -563,12 +563,12 @@ def ordinary_code(cave, site, own, newtonian, frame, base, *, fixture=None):
     if fixture is not None: _pin_fixture(c, newtonian, fixture)
     _ne(c, b'\x83\x3d', own, b'\x01')
     _ne(c, b'\x48\x83\x3d', own + 8, b'\x00')
-    c.relative(b'\x48\x8b\x05', base + 0x6f5f868); _ne(c, b'\x48\x3b\x05', newtonian + 80)
+    c.relative(b'\x48\x8b\x05', base + 0x6f6b208); _ne(c, b'\x48\x3b\x05', newtonian + 80)
     c.relative(b'\xc7\x05', own + PREWORK + 420, bytes(4))
     _capture_modes(c, base, own + PREWORK)
     _copy(c, newtonian + 48, own + 104)
     c.label('out'); _restore(c)
-    c.relative(bytes.fromhex('48 8b 0d'), base + 0x6ef1de8)
+    c.relative(bytes.fromhex('48 8b 0d'), base + 0x6efd778)
     c.relative(b'\xe9', site + len(ORDINARY_ORIGINAL))
     return c.finish()
 

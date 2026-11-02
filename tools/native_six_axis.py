@@ -13,9 +13,9 @@ from command_mailbox import reader_code, STRICT_ROTATION
 SIZE = 512
 PAYLOAD = 64
 DEADLINE, MASK, VALUES, GENERATION = 64, 72, 80, 104
-SITES = {0x178af4d:bytes.fromhex('0f118690760000'),
-         0x178c23a:bytes.fromhex('488d8ec0600000'),
-         0x178d78b:THROTTLE_ORIGINAL, 0x1790ee8:ROLL_ORIGINAL}
+SITES = {0x178f42d:bytes.fromhex('0f118690760000'),
+         0x179071a:bytes.fromhex('488d8ec0600000'),
+         0x1791c6b:THROTTLE_ORIGINAL, 0x17953c8:ROLL_ORIGINAL}
 
 
 def save(c):
@@ -64,7 +64,7 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot)+bytes.fromhex('48 85 c0'))
     c.relative(b'\x0f\x84',reject)
-    for instruction,condition in (('83 b8 98 bd 89 00 00',b'\x0f\x85'),
+    for instruction,condition in (('83 b8 a8 be 89 00 00',b'\x0f\x85'),
             ('80 b8 6d aa 57 00 '+('01' if allow_combat_input else '00'),
              b'\x0f\x87' if allow_combat_input else b'\x0f\x85')):
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
@@ -117,7 +117,7 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
-    rva={'latch':0x178af4d,'processed':0x178c23a,'throttle':0x178d78b,'roll':0x1790ee8}[kind]
+    rva={'latch':0x178f42d,'processed':0x179071a,'throttle':0x1791c6b,'roll':0x17953c8}[kind]
     original=SITES[rva]
     if kind=='latch':c.emit(original)
     save(c)
@@ -163,7 +163,11 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
             check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',8),reject='throttle_native',condition=b'\x0f\x84')
             idle(c,bytes.fromhex('8b 85 80 41 00 00'),limit=.0001)
             c.relative(b'\x8b\x05',frame+VALUES+12)
-            c.emit(b'\x3d'+struct.pack('<f',throttle_limit));c.relative(b'\x0f\x87','conflict')
+            # Full authority takes signed u (T116 reverse thrust: the E5 target and the forward follower are signed
+            # in u); the sign bit is masked for the bound check only. The D10 research bound stays forward-only.
+            if throttle_limit==1:c.emit(bytes.fromhex('89 c1 81 e1 ff ff ff 7f')+b'\x81\xf9'+struct.pack('<f',throttle_limit))
+            else:c.emit(b'\x3d'+struct.pack('<f',throttle_limit))
+            c.relative(b'\x0f\x87','conflict')
             c.emit(bytes.fromhex('89 85 80 41 00 00'))
             c.relative(b'\x83\x0d',frame+200,b'\x08')
             c.label('throttle_native');c.emit(bytes.fromhex('8b 85 80 41 00 00'))
@@ -219,7 +223,7 @@ class SixAxisPatches:
             site=base+rva;original=SITES[rva]
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
-            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f5f868,steering_limit,throttle_limit,turn_scale,
+            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f6b208,steering_limit,throttle_limit,turn_scale,
                             allow_planetary_input,allow_combat_input,allow_power_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')

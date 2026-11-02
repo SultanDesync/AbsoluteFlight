@@ -1,15 +1,15 @@
 {
- "file_version": "183877",
- "sha256": "d393c6782d29e1915854c0d5cf42505c8093740c05dc53705dbed7e0d1d4ac37",
- "steam_buildid": "26295378",
+ "file_version": "184271",
+ "sha256": "a77fc29877789c3da9181afeb5941b9b85a27d3df24919a24403cf8e194c6109",
+ "steam_buildid": "26386568",
  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
- "remap_note": "183877 (2026-10-29, claude): targets (rva, entry32, signature.rva, matches) and menu_index_instructions were carried by tools/game_update.py scan and checked on disk; nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
+ "remap_note": "184271 (2026-11-02, claude): targets (rva, entry32, signature) and menu_index_instructions carried by tools/game_update.py scan/apply, plus DoGameSwitcher, RenderPage, Activate and NGuiBeginInput re-read from the new exe by hand (frame sizes changed); nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
  "targets": {
   "Render2D": {
-   "rva": "0x915320",
+   "rva": "0x9172d0",
    "entry32": "488bc4555356574154488d68b84881ec200100004c8968d0488bf94c8970c848",
    "signature": {
-    "rva": "0x915320",
+    "rva": "0x9172d0",
     "pattern": "48 8B C4 55 53 56 57 41 54 48 8D 68 B8 48 81 EC 20 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -314,11 +314,11 @@
    ]
   },
   "RenderPage": {
-   "rva": "0x917880",
-   "entry32": "48894c24085553488dac2438d7ffffb8c8290000e8f730b702482be04889b424",
+   "rva": "0x919860",
+   "entry32": "405553488dac2428d7ffffb8d8290000e88b60b702482be04889b424d0290000",
    "signature": {
-    "rva": "0x917880",
-    "pattern": "48 89 4C 24 08 55 53 48 8D AC 24 38 D7 FF FF B8 C8 29 00 00 E8 ? ? ? ?",
+    "rva": "0x919860",
+    "pattern": "40 55 53 48 8D AC 24 28 D7 FF FF B8 D8 29 00 00 E8 8B 60 B7 02 ? ? ? ?",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
    },
@@ -3442,10 +3442,10 @@
    ]
   },
   "DoOptions": {
-   "rva": "0x6edbf0",
-   "entry32": "4055488dac24a0d8ffffb860280000e88ccdd902482be0833d66aa8906000f84",
+   "rva": "0x6ef2f0",
+   "entry32": "4055488dac24a0d8ffffb860280000e8fc05da02482be0833d064d8a06000f84",
    "signature": {
-    "rva": "0x6edbf0",
+    "rva": "0x6ef2f0",
     "pattern": "40 55 48 8D AC 24 A0 D8 FF FF B8 60 28 00 00 E8 ? ? ? ? 48 2B E0 83 3D ? ? ? ? 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -3598,11 +3598,11 @@
    ]
   },
   "DoGameSwitcher": {
-   "rva": "0x6ee9e0",
-   "entry32": "488bc4555356574154415541564157488da8f8f7ffff4881ecc8080000660f6f",
+   "rva": "0x6f00e0",
+   "entry32": "488bc4555356574154415541564157488da8f8f5ffff4881ecc80a0000660f6f",
    "signature": {
-    "rva": "0x6ee9e0",
-    "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 F8 F7 FF FF 48 81 EC C8 08 00 00 66 0F 6F 0D ? ? 50 04",
+    "rva": "0x6f00e0",
+    "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 F8 F5 FF FF 48 81 EC C8 0A 00 00 66 0F 6F 0D ? ? 50 04",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
    },
@@ -4330,10 +4330,10 @@
    ]
   },
   "nvgBeginFrame": {
-   "rva": "0x199bc00",
+   "rva": "0x19a0310",
    "entry32": "48895c240848896c24104889742418574883ec300f2974242033ed89a9a84200",
    "signature": {
-    "rva": "0x199bc00",
+    "rva": "0x19a0310",
     "pattern": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 30 0F 29 74 24 20 33 ED",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4350,10 +4350,10 @@
    ]
   },
   "nvgEndFrame": {
-   "rva": "0x199bcc0",
+   "rva": "0x19a03d0",
    "entry32": "40534883ec60488b4148488bd9488b09ffd0486383e042000085c00f845f0100",
    "signature": {
-    "rva": "0x199bcc0",
+    "rva": "0x19a03d0",
     "pattern": "40 53 48 83 EC 60 48 8B 41 48 48 8B D9 48 8B 09 FF D0 48 63 83 E0 42 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4361,10 +4361,10 @@
    "calls": []
   },
   "nvgSave": {
-   "rva": "0x199c1b0",
+   "rva": "0x19a08c0",
    "entry32": "486381a84200004c8bc983f8400f8d9500000085c00f8e860000004c69c00801",
    "signature": {
-    "rva": "0x199c1b0",
+    "rva": "0x19a08c0",
     "pattern": "48 63 81 A8 42 00 00 4C 8B C9 83 F8 40 0F 8D ? ? ? ? 85 C0 0F 8E ? ? ? ?",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4372,10 +4372,10 @@
    "calls": []
   },
   "nvgRestore": {
-   "rva": "0x199c260",
+   "rva": "0x19a0970",
    "entry32": "8b81a842000083f8017e08ffc88981a8420000c3cccccccccccccccccccccccc",
    "signature": {
-    "rva": "0x199c260",
+    "rva": "0x19a0970",
     "pattern": "8B 81 A8 42 00 00 83 F8 01 7E ? FF C8 89 81 A8 42 00 00 C3",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4383,10 +4383,10 @@
    "calls": []
   },
   "nvgReset": {
-   "rva": "0x199c280",
-   "entry32": "486381a84200000f57c0660f6f0dae8a25034869d00801000033c00f11440a6c",
+   "rva": "0x19a0990",
+   "entry32": "486381a84200000f57c0660f6f0d4ee525034869d00801000033c00f11440a6c",
    "signature": {
-    "rva": "0x199c280",
+    "rva": "0x19a0990",
     "pattern": "48 63 81 A8 42 00 00 0F 57 C0 66 0F 6F 0D ? ? 25 03 48 69 D0 08 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4394,10 +4394,10 @@
    "calls": []
   },
   "nvgAppendCommands": {
-   "rva": "0x199cf80",
+   "rva": "0x19a1690",
    "entry32": "48895c2410448944241855565741544155415641574883ec40486381a8420000",
    "signature": {
-    "rva": "0x199cf80",
+    "rva": "0x19a1690",
     "pattern": "48 89 5C 24 10 44 89 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 83 EC 40",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4422,10 +4422,10 @@
    ]
   },
   "nvgStrokeWidth": {
-   "rva": "0x199c3a0",
+   "rva": "0x19a0ab0",
    "entry32": "486381a84200004869d008010000f30f114c0a40c3cccccccccccccccccccccc",
    "signature": {
-    "rva": "0x199c3a0",
+    "rva": "0x19a0ab0",
     "pattern": "48 63 81 A8 42 00 00 48 69 D0 08 01 00 00 F3 0F 11 4C 0A 40 C3",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4433,10 +4433,10 @@
    "calls": []
   },
   "nvgStrokeColor": {
-   "rva": "0x199c5b0",
+   "rva": "0x19a0cc0",
    "entry32": "486381a84200004c69c00801000033c0498944080849894408380f100249c744",
    "signature": {
-    "rva": "0x199c5b0",
+    "rva": "0x19a0cc0",
     "pattern": "48 63 81 A8 42 00 00 4C 69 C0 08 01 00 00 33 C0 49 89 44 08 08 49 89 44 08 38",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4444,10 +4444,10 @@
    "calls": []
   },
   "nvgFillColor": {
-   "rva": "0x199c660",
+   "rva": "0x19a0d70",
    "entry32": "486381a84200004c69c00801000033c049894408b849894408e80f100249c744",
    "signature": {
-    "rva": "0x199c660",
+    "rva": "0x19a0d70",
     "pattern": "48 63 81 A8 42 00 00 4C 69 C0 08 01 00 00 33 C0 49 89 44 08 B8 49 89 44 08 E8",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4455,10 +4455,10 @@
    "calls": []
   },
   "nvgFontSize": {
-   "rva": "0x19a1340",
+   "rva": "0x19a5a50",
    "entry32": "486381a84200004869d008010000f30f118c0a90000000c3cccccccccccccccc",
    "signature": {
-    "rva": "0x19a1340",
+    "rva": "0x19a5a50",
     "pattern": "48 63 81 A8 42 00 00 48 69 D0 08 01 00 00 F3 0F 11 8C 0A 90 00 00 00 C3",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4466,10 +4466,10 @@
    "calls": []
   },
   "nvgTextAlign": {
-   "rva": "0x19a13a0",
+   "rva": "0x19a5ab0",
    "entry32": "486381a84200004c69c00801000041899408a0000000c3cccccccccccccccccc",
    "signature": {
-    "rva": "0x19a13a0",
+    "rva": "0x19a5ab0",
     "pattern": "48 63 81 A8 42 00 00 4C 69 C0 08 01 00 00 41 89 94 08 A0 00 00 00 C3",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4477,10 +4477,10 @@
    "calls": []
   },
   "nvgFontFaceId": {
-   "rva": "0x19a13c0",
+   "rva": "0x19a5ad0",
    "entry32": "486381a84200004c69c00801000041899408a4000000c3cccccccccccccccccc",
    "signature": {
-    "rva": "0x19a13c0",
+    "rva": "0x19a5ad0",
     "pattern": "48 63 81 A8 42 00 00 4C 69 C0 08 01 00 00 41 89 94 08 A4 00 00 00 C3",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4488,10 +4488,10 @@
    "calls": []
   },
   "nvgBeginPath": {
-   "rva": "0x199ffd0",
+   "rva": "0x19a46e0",
    "entry32": "488b81b042000033d289919c000000895008488b81b0420000895018c3cccccc",
    "signature": {
-    "rva": "0x199ffd0",
+    "rva": "0x19a46e0",
     "pattern": "48 8B 81 B0 42 00 00 33 D2 89 91 9C 00 00 00 89 50 08 48 8B 81 B0 42 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4499,10 +4499,10 @@
    "calls": []
   },
   "nvgMoveTo": {
-   "rva": "0x199fff0",
+   "rva": "0x19a4700",
    "entry32": "4883ec3841b803000000f30f114c2424488d542420f30f11542428c744242000",
    "signature": {
-    "rva": "0x199fff0",
+    "rva": "0x19a4700",
     "pattern": "48 83 EC 38 41 B8 03 00 00 00 F3 0F 11 4C 24 24 48 8D 54 24 20 F3 0F 11 54 24 28 C7 44 24 20 00 00 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4515,10 +4515,10 @@
    ]
   },
   "nvgLineTo": {
-   "rva": "0x19a0020",
+   "rva": "0x19a4730",
    "entry32": "4883ec3841b803000000f30f114c2424488d542420f30f11542428c744242000",
    "signature": {
-    "rva": "0x19a0020",
+    "rva": "0x19a4730",
     "pattern": "48 83 EC 38 41 B8 03 00 00 00 F3 0F 11 4C 24 24 48 8D 54 24 20 F3 0F 11 54 24 28 C7 44 24 20 00 00 80 3F",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4531,10 +4531,10 @@
    ]
   },
   "nvgBezierTo": {
-   "rva": "0x19a0050",
+   "rva": "0x19a4760",
    "entry32": "488bc44883ec48f30f10442470488d50d8f30f1140e841b807000000f30f1084",
    "signature": {
-    "rva": "0x19a0050",
+    "rva": "0x19a4760",
     "pattern": "48 8B C4 48 83 EC 48 F3 0F 10 44 24 70 48 8D 50 D8 F3 0F 11 40 E8 41 B8 07 00 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4547,10 +4547,10 @@
    ]
   },
   "nvgArc": {
-   "rva": "0x19a04a0",
+   "rva": "0x19a4bb0",
    "entry32": "488bc4f30f115820f30f115018f30f114810535556574154415541564881ec20",
    "signature": {
-    "rva": "0x19a04a0",
+    "rva": "0x19a4bb0",
     "pattern": "48 8B C4 F3 0F 11 58 20 F3 0F 11 50 18 F3 0F 11 48 10 53 55 56 57 41 54",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4595,10 +4595,10 @@
    ]
   },
   "nvgRect": {
-   "rva": "0x19a0b00",
+   "rva": "0x19a5210",
    "entry32": "488bc44883ec680f28e2f30f1148bcf30f58a42490000000f30f1148c8488d50",
    "signature": {
-    "rva": "0x19a0b00",
+    "rva": "0x19a5210",
     "pattern": "48 8B C4 48 83 EC 68 0F 28 E2 F3 0F 11 48 BC F3 0F 58 A4 24 90 00 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4611,10 +4611,10 @@
    ]
   },
   "nvgEllipse": {
-   "rva": "0x19a0e40",
+   "rva": "0x19a5550",
    "entry32": "488bc455488d68a94881ece0000000f30f106d7f488d558f0f2970e841b82000",
    "signature": {
-    "rva": "0x19a0e40",
+    "rva": "0x19a5550",
     "pattern": "48 8B C4 55 48 8D 68 A9 48 81 EC E0 00 00 00 F3 0F 10 6D 7F 48 8D 55 8F",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4627,10 +4627,10 @@
    ]
   },
   "nvgFill": {
-   "rva": "0x19a0fd0",
+   "rva": "0x19a56e0",
    "entry32": "48895c2408574881ec90000000486381a8420000488bd94869f8080100000f10",
    "signature": {
-    "rva": "0x19a0fd0",
+    "rva": "0x19a56e0",
     "pattern": "48 89 5C 24 08 57 48 81 EC 90 00 00 00 48 63 81 A8 42 00 00 48 8B D9 48 69 F8 08 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4647,10 +4647,10 @@
    ]
   },
   "nvgStroke": {
-   "rva": "0x19a1130",
+   "rva": "0x19a5840",
    "entry32": "48895c2408574881eca0000000486381a8420000488bd94869f8080100000f29",
    "signature": {
-    "rva": "0x19a1130",
+    "rva": "0x19a5840",
     "pattern": "48 89 5C 24 08 57 48 81 EC A0 00 00 00 48 63 81 A8 42 00 00 48 8B D9 48 69 F8 08 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4671,10 +4671,10 @@
    ]
   },
   "nvgText": {
-   "rva": "0x19a1670",
+   "rva": "0x19a5d80",
    "entry32": "488bc4488970205557415441564157488da838ffffff4881eca00100000f2970",
    "signature": {
-    "rva": "0x19a1670",
+    "rva": "0x19a5d80",
     "pattern": "48 8B C4 48 89 70 20 55 57 41 54 41 56 41 57 48 8D A8 38 FF FF FF 48 81 EC A0 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4723,10 +4723,10 @@
    ]
   },
   "NGuiBeginFrame": {
-   "rva": "0x203760",
+   "rva": "0x203780",
    "entry32": "48895c241048896c2418488974242041564883ec3080b9c407000000450fb6f1",
    "signature": {
-    "rva": "0x203760",
+    "rva": "0x203780",
     "pattern": "48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 41 56 48 83 EC 30 80 B9 C4 07 00 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4759,10 +4759,10 @@
    ]
   },
   "NGuiEndFrame": {
-   "rva": "0x2038a0",
+   "rva": "0x2038c0",
    "entry32": "48895c2408574881ec8000000080b9c407000000488bfa488bd90f84ad000000",
    "signature": {
-    "rva": "0x2038a0",
+    "rva": "0x2038c0",
     "pattern": "48 89 5C 24 08 57 48 81 EC 80 00 00 00 80 B9 C4 07 00 00 00 48 8B FA 48 8B D9",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4787,10 +4787,10 @@
    ]
   },
   "Float": {
-   "rva": "0x1ba740",
+   "rva": "0x1ba750",
    "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
    "signature": {
-    "rva": "0x1ba740",
+    "rva": "0x1ba750",
     "pattern": "F3 0F 11 5C 24 20 55 53 41 54 41 55 48 8D 6C 24 C8 48 81 EC 38 01 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -4870,7 +4870,7 @@
     }
    ],
    "instructions": [
-    "0x1ba740: movss dword ptr [rsp + 0x20], xmm3",
+    "0x1ba750: movss dword ptr [rsp + 0x20], xmm3",
     "0x1ba746: push rbp",
     "0x1ba747: push rbx",
     "0x1ba748: push r12",
@@ -5117,10 +5117,10 @@
    ]
   },
   "Header": {
-   "rva": "0x1b9f40",
-   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100db21fa304488d",
+   "rva": "0x1b9f50",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100d2ac1a304488d",
    "signature": {
-    "rva": "0x1b9f40",
+    "rva": "0x1b9f50",
     "pattern": "48 89 5C 24 10 57 48 83 EC 40 83 79 08 01 48 8B DA 49 63 F8 75 ? F3 0F 10 0D ? ? ? ?",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5157,10 +5157,10 @@
    ]
   },
   "Button": {
-   "rva": "0x1ba120",
+   "rva": "0x1ba130",
    "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
    "signature": {
-    "rva": "0x1ba120",
+    "rva": "0x1ba130",
     "pattern": "48 89 5C 24 18 48 89 6C 24 20 56 57 41 57 48 81 EC 80 00 00 00 32 DB 49 8B F1",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5212,7 +5212,7 @@
     }
    ],
    "instructions": [
-    "0x1ba120: mov qword ptr [rsp + 0x18], rbx",
+    "0x1ba130: mov qword ptr [rsp + 0x18], rbx",
     "0x1ba125: mov qword ptr [rsp + 0x20], rbp",
     "0x1ba12a: push rsi",
     "0x1ba12b: push rdi",
@@ -5311,10 +5311,10 @@
    ]
   },
   "BeginPage": {
-   "rva": "0x1bd040",
+   "rva": "0x1bd050",
    "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
    "signature": {
-    "rva": "0x1bd040",
+    "rva": "0x1bd050",
     "pattern": "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 40 0F 57 C0 33 C0 0F 11 41 0C",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5343,10 +5343,10 @@
    ]
   },
   "FinalizePage": {
-   "rva": "0x1bd530",
+   "rva": "0x1bd540",
    "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
    "signature": {
-    "rva": "0x1bd530",
+    "rva": "0x1bd540",
     "pattern": "48 89 5C 24 10 48 89 6C 24 18 56 57 41 55 41 56 41 57 48 83 EC 40 48 8B 81 B8 27 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5407,10 +5407,10 @@
    ]
   },
   "EndPage": {
-   "rva": "0x1bd820",
+   "rva": "0x1bd830",
    "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
    "signature": {
-    "rva": "0x1bd820",
+    "rva": "0x1bd830",
     "pattern": "48 8B C4 55 57 48 8D 68 A1 48 81 EC A8 00 00 00 83 79 08 01 48 8B F9 0F 84 ? ? ? ?",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5471,10 +5471,10 @@
    ]
   },
   "GetRow": {
-   "rva": "0x1b9ae0",
+   "rva": "0x1b9af0",
    "entry32": "48895c2408488974241048897c24185541544155415641574881ec3003000048",
    "signature": {
-    "rva": "0x1b9ae0",
+    "rva": "0x1b9af0",
     "pattern": "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 54 41 55 41 56 41 57 48 81 EC 30 03 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5518,7 +5518,7 @@
     }
    ],
    "instructions": [
-    "0x1b9ae0: mov qword ptr [rsp + 8], rbx",
+    "0x1b9af0: mov qword ptr [rsp + 8], rbx",
     "0x1b9ae5: mov qword ptr [rsp + 0x10], rsi",
     "0x1b9aea: mov qword ptr [rsp + 0x18], rdi",
     "0x1b9aef: push rbp",
@@ -5793,10 +5793,10 @@
    ]
   },
   "RowInput": {
-   "rva": "0x1b8820",
+   "rva": "0x1b8830",
    "entry32": "48895c241044894424185556574154415541564157488d6c24d94881ec900000",
    "signature": {
-    "rva": "0x1b8820",
+    "rva": "0x1b8830",
     "pattern": "48 89 5C 24 10 44 89 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 D9",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -5852,7 +5852,7 @@
     }
    ],
    "instructions": [
-    "0x1b8820: mov qword ptr [rsp + 0x10], rbx",
+    "0x1b8830: mov qword ptr [rsp + 0x10], rbx",
     "0x1b8825: mov dword ptr [rsp + 0x18], r8d",
     "0x1b882a: push rbp",
     "0x1b882b: push rsi",
@@ -6475,10 +6475,10 @@
    ]
   },
   "GetPosition": {
-   "rva": "0x1e14d0",
+   "rva": "0x1e14e0",
    "entry32": "4883ec28488b41484585c04c8bca4c8bd1440fb6583bf30f10502cf30f105830",
    "signature": {
-    "rva": "0x1e14d0",
+    "rva": "0x1e14e0",
     "pattern": "48 83 EC 28 48 8B 41 48 45 85 C0 4C 8B CA 4C 8B D1 44 0F B6 58 3B F3 0F 10 50 2C",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -6502,7 +6502,7 @@
     }
    ],
    "instructions": [
-    "0x1e14d0: sub rsp, 0x28",
+    "0x1e14e0: sub rsp, 0x28",
     "0x1e14d4: mov rax, qword ptr [rcx + 0x48]",
     "0x1e14d8: test r8d, r8d",
     "0x1e14db: mov r9, rdx",
@@ -6583,10 +6583,10 @@
    ]
   },
   "ElementVisible": {
-   "rva": "0x1e1ce0",
+   "rva": "0x1e1cf0",
    "entry32": "40534881ec8000000080795100488bd9740b32c04881c4800000005bc3488b0d",
    "signature": {
-    "rva": "0x1e1ce0",
+    "rva": "0x1e1cf0",
     "pattern": "40 53 48 81 EC 80 00 00 00 80 79 51 00 48 8B D9 74 ? 32 C0 48 81 C4 80 00 00 00",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
@@ -6618,7 +6618,7 @@
     }
    ],
    "instructions": [
-    "0x1e1ce0: push rbx",
+    "0x1e1cf0: push rbx",
     "0x1e1ce2: sub rsp, 0x80",
     "0x1e1ce9: cmp byte ptr [rcx + 0x51], 0",
     "0x1e1ced: mov rbx, rcx",
@@ -6701,11 +6701,11 @@
    ]
   },
   "NGuiBeginInput": {
-   "rva": "0x204570",
-   "entry32": "488bc4535556574154415641574881ec200100000f2970a8488db1a003000048",
+   "rva": "0x204590",
+   "entry32": "488bc4535556574154415641574881ec100100000f2970a8488db1a003000048",
    "signature": {
-    "rva": "0x204570",
-    "pattern": "48 8B C4 53 55 56 57 41 54 41 56 41 57 48 81 EC 20 01 00 00 0F 29 70 A8",
+    "rva": "0x204590",
+    "pattern": "48 8B C4 53 55 56 57 41 54 41 56 41 57 48 81 EC 10 01 00 00 0F 29 70 A8",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
    },
@@ -6885,17 +6885,17 @@
    ]
   },
   "NGuiEndInput": {
-   "rva": "0x206240",
+   "rva": "0x2062a0",
    "entry32": "33c0837a3401750f3942647603894264488982f8020000837a38017508394274",
    "signature": {
-    "rva": "0x206240",
+    "rva": "0x2062a0",
     "pattern": "33 C0 83 7A 34 01 75 ? 39 42 64 76 ? 89 42 64 48 89 82 F8 02 00 00 83 7A 38 01",
     "match_count": 1,
     "verification": "on-disk executable sections of recorded SHA-256"
    },
    "calls": [],
    "instructions": [
-    "0x206240: xor eax, eax",
+    "0x2062a0: xor eax, eax",
     "0x206242: cmp dword ptr [rdx + 0x34], 1",
     "0x206246: jne 0x206257",
     "0x206248: cmp dword ptr [rdx + 0x64], eax",

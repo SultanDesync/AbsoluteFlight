@@ -3,7 +3,8 @@
 shape() is a verbatim port of AbsoluteHOTAS AxisShapingPolicy::Shape; its source test
 vectors are copied into tests/test_flight_shaping.py. Inputs are bus-calibrated: sticks and
 levers arrive as unit positions 0..1. Throttle output is the NMS normal-flight u (0..1, E5)
-plus an analog brake demand (0..1, native brake action 0x8B); None means "not armed", so the
+plus a brake demand (0..1, the game's Brake action) or, in Reverse thrust, a signed u from
+ReverseThrust; None means "not armed", so the
 consumer leaves throttle to native input.
 """
 from dataclasses import dataclass
@@ -76,6 +77,40 @@ def hosas_direct(signed,deadzone,saturation,brake_authority):
 class ThrottleCommand:
     thrust:float
     brake:float=0.
+    pull:float=0.  # HOSAS direct back half before Brake strength (0..1), the reverse demand in Reverse thrust
+
+
+# T116 reverse thrust (native HOSAS Direct). The game's own reverse has no speed limit: the forward follower is
+# sign(u)*|u|*ThrustForce*taper, and the taper (keyed to the smoothed target's magnitude, ship+0x6714 taken
+# abs at 0x178D87D on 183877) never stops a ship moving backwards, so held reverse ran past 2,000 u/s
+# (dev.15). We close the loop on the forward speed the native force stage used (MAV snapshot) instead.
+REVERSE_GAIN_SPEED=40.  # u/s of speed error that asks for full thrust either way
+REVERSE_INTEGRAL_SECONDS=1.  # the integral term's time constant, against the game's minimum-speed push
+REVERSE_STOP_BAND=2.  # u/s: reversing slower than this with the stick centred, the loop lets go
+
+
+class ReverseThrust:
+    """Signed u that flies the ship backwards at pull*cap, and brings it to a stop when the stick centres.
+
+    step() returns None when the loop is idle (no pull and not reversing) or the speed is unknown, so the
+    caller falls back to idle thrust: never reverse without a measured speed. Integrates only while the
+    output is unsaturated, so a hard pull from cruise doesn't overshoot the cap.
+    """
+    def __init__(self):self.integral=0.
+
+    def reset(self):self.integral=0.
+
+    def step(self,pull,forward_speed,cap,dt):
+        _finite(pull,cap,dt)
+        if forward_speed is None or not math.isfinite(forward_speed):
+            self.reset();return None
+        pull=_clamp(pull,0.,1.)
+        if pull<=0. and forward_speed>-REVERSE_STOP_BAND:
+            self.reset();return None
+        p=(-pull*max(cap,0.)-forward_speed)/REVERSE_GAIN_SPEED
+        integral=self.integral+p*max(0.,min(dt,MAX_STEP_SECONDS))/REVERSE_INTEGRAL_SECONDS
+        if abs(p+integral)<1.:self.integral=_clamp(integral,-1.,1.)
+        return _clamp(p+self.integral,-1.,1.)
 
 
 class RateThrottle:
@@ -106,7 +141,7 @@ class ThrottleChannel:
     in over ARM_RAMP when it arms with the lever up. A change of style or stick mode re-arms it, and
     rate mode resumes from the speed the game holds.
     """
-    STYLE_KEYS=('throttle-style','hosas-stick-mode')
+    STYLE_KEYS=('throttle-style','hosas-stick-mode','hosas-reverse')
 
     def __init__(self,config):
         self.config=dict(config);self.armed=False;self.rate=RateThrottle()
@@ -149,7 +184,8 @@ class ThrottleChannel:
             return ThrottleCommand(self._position(lever))
         signed=bipolar(unit,c['throttle-inverted'])
         if c['hosas-stick-mode']=='direct':
-            return ThrottleCommand(*hosas_direct(signed,c['throttle-deadzone'],c['hosas-saturation'],c['hosas-brake-authority']))
+            thrust,pull=hosas_direct(signed,c['throttle-deadzone'],c['hosas-saturation'],1.)
+            return ThrottleCommand(thrust,pull*_clamp(c['hosas-brake-authority'],0.,1.),pull)
         request=shape(signed,1.,1.,c['throttle-deadzone'])
         return ThrottleCommand(self.rate.step(request,dt,c['rate-throttle-ramp'],c['rate-throttle-decay']))
 

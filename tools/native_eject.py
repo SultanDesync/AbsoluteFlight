@@ -24,13 +24,13 @@ import struct
 
 import capstone as cs
 
-BLOCK_RVA = 0x1562983
-BLOCK_END = 0x1562B8D  # just after `call 0x17870F0` (Eject)
-BLOCK_SHA256 = '04fdc24797f72d9a2e036d2645919dc5a089d03d318c38ae2abbb648056f8c3a'
-FAIL_RVA = 0x1567304   # the handler's common exit: the block's `je` (no player ship) and `jmp` (refused)
-EJECT_RVA = 0x17870F0
-EJECT_CALL = 0x1562B88  # the block's `call EJECT_RVA`
-REFUSAL_RVA = 0x1551FE0  # eject refusal text, or null when allowed (the quick menu's own test)
+BLOCK_RVA = 0x1566B33
+BLOCK_END = 0x1566D3D  # just after `call 0x17870F0` (Eject)
+BLOCK_SHA256 = 'dd62dcd47b794674358d822a63d68821cc55393a9103754ae9cb34f0b4be0226'
+FAIL_RVA = 0x156B4B4   # the handler's common exit: the block's `je` (no player ship) and `jmp` (refused)
+EJECT_RVA = 0x178B5D0
+EJECT_CALL = 0x1566D38  # the block's `call EJECT_RVA`
+REFUSAL_RVA = 0x1556190  # eject refusal text, or null when allowed (the quick menu's own test)
 ALLOWED = bytes.fromhex('31 c0 0f 1f 00')  # xor eax, eax; nop: in place of the block's `call REFUSAL_RVA`
 ACTION = 0x41          # cGcQuickMenuActions.ShipEject
 FRAME_SIZE = 0x5000    # the block's RBP locals reach rbp+0x4000

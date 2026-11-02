@@ -21,7 +21,7 @@ CHILD_ID='WHITE'
 ANCHOR_ID='BUTTON_CTR'  # native button; finding it proves the hash and root before we trust a miss
 ROOT_LAYER=0x14478       # DoGameSwitcher this -> root NGui layer
 INDEX_MAP=0x150          # layer -> descendant index map
-BUSY_FLAG=0x87FD7A       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
+BUSY_FLAG=0x87FD5A       # [app]+flag != 0: DoGameSwitcher polls no buttons this frame
 SOUND_HASH=0x18AECCF6    # native 5th arg {0, 0x18AECCF6, 1}: the click sound key
 
 

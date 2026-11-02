@@ -38,14 +38,14 @@ import time
 from head_math import PHYSICAL_LIMITS,compose_basis
 from head_pose_source import fade_weight,semantic_angles
 
-CALLER=0x661A79
-APP_GLOBAL=0x6F5F868
-FRONTEND=0x89BD98  # 0x875498 on 180836
+CALLER=0x662D39
+APP_GLOBAL=0x6F6B208
+FRONTEND=0x89BEA8  # 0x875498 on 180836
 BEHAVIOUR=0x72CF30  # 0x72C840 on 180836; this is still behaviour+0x20 at caller 0x661A24
-FIRST_PERSON_VTABLE=0x4B0E690
+FIRST_PERSON_VTABLE=0x4B18690
 CONFIG_OFFSET=0x20
 PILOT_ACTIVE=0x60C8
-FIRST_PERSON_UPDATE=0x65E320  # cGcCameraBehaviourFirstPerson vtable slot +0x20 (this, float dt, output); 183877 (0x65E2D0 on 183791)
+FIRST_PERSON_UPDATE=0x65F5E0  # cGcCameraBehaviourFirstPerson vtable slot +0x20 (this, float dt, output); 183877 (0x65E2D0 on 183791)
 VEHICLE_MODE=16      # cGcActionSetType.VehicleMode (tools/native_analog_actions.current_set)
 THIRD_PERSON=0x1A8   # behaviour+0x1A8 nonzero, or the byte app+0x282E5: 0x1824180's third-person test
 THIRD_PERSON_BYTE=0x282E5

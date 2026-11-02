@@ -16,7 +16,7 @@ break, HUD):
   every collision hit for the never-kill cap. It then calls the original, clears the marks and logs the hit in a
   ring the runtime reads.
 - B, 0x14902D6 in TakeDamage (`test rbx,rbx; jne`, the shield block): for a marked hull-first hit, jump straight to
-  the hull block 0x149054C with r13d = 0, the native "shields already down" path. Shields are left as they are.
+  the hull block 0x149054C with r12d = 0 (r13d before 184271), the native "shields already down" path. Shields are left as they are.
 - C, 0x1490C5F in the tech-break roll (`movss xmm4,[rsi+0x108]`, TechDamageChance): for that hit's damage definition,
   load the speed-scaled chance instead. RFLAGS are live here (comiss at 0x1490C47, jbe at 0x1490C78): saved.
 - D, 0x1490574 in the hull block (`cmp byte [r15+0x10E],0`, the game's own non-lethal clamp test): for a marked hit,
@@ -36,20 +36,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F5F868
+APP_GLOBAL = 0x6F6B208
 HULL = 0xB940+0x898  # PlayerState hull (int), application+0xC1D8; 0x591980 reads [PlayerState+0x898]
-ROUTE = 0xB1EDB0      # player damage route (player, id, source, direction, multiplier)
-COLLISION_RETURN = 0x17961D5
-HULL_GETTER = 0x5919D0
+ROUTE = 0xB22290      # player damage route (player, id, source, direction, multiplier)
+COLLISION_RETURN = 0x179A6B5
+HULL_GETTER = 0x592920
 SITES = {  # name: (rva, original bytes)
-    'multiplier': (0x1797B3F, bytes.fromhex('e86c7238ff')),
-    'hull_first': (0x14901E6, bytes.fromhex('4885db7509')),
-    'break_chance': (0x1490B6F, bytes.fromhex('f30f10a608010000')),
-    'never_kill': (0x1490484, bytes.fromhex('4180bf0e01000000')),
+    'multiplier': (0x179C01F, bytes.fromhex('e86c6238ff')),
+    'hull_first': (0x1494356, bytes.fromhex('4885db7509')),
+    'break_chance': (0x1494CDF, bytes.fromhex('f30f10a608010000')),
+    'never_kill': (0x14945F4, bytes.fromhex('4180bf0e01000000')),
 }
-PIN_RANGES = ((0x1795034, 121), (0x17961B9, 33), (0x1797780, 19), (0x17977D9, 61), (0x1797B2D, 29),
-              (0x1490197, 174), (0x14903EB, 229), (0x1490B18, 120), (0x5919D0, 45))
-PIN_SHA256 = '706462eb88f35e49918ce66bd946d7f961e1692ae2552c023b70394fa9c7d3d5'
+PIN_RANGES = ((0x1799514, 121), (0x179A699, 33), (0x179BC60, 19), (0x179BCB9, 61), (0x179C00D, 29),
+              (0x1494307, 174), (0x149455B, 229), (0x1494C88, 120), (0x592920, 45))
+PIN_SHA256 = '00c86b1f4aea3a4e547c1351cc5e8cf425a39b407d92553fef221244c7cbbbda'
 IDS = {1: b'IMPACTGROUND', 2: b'IMPACTINSTANCE'}
 KINDS = {1: 'ground', 2: 'object'}
 
@@ -238,10 +238,10 @@ def hull_first_code(cave, base, data):
     c.emit(bytes.fromhex('48 85 db')); c.relative(JE, 'orig')  # ship context only
     c.relative(b'\x4c\x89\x3d', data+ACTIVE_DEF)            # r15 = damage definition, for C
     c.relative(b'\x83\x0d', data+APPLIED, bytes([HULL_APPLIED]))
-    c.emit(bytes.fromhex('45 31 ed'))                       # r13d = 0: shields already down
-    c.relative(b'\xe9', base+0x149045C)
+    c.emit(bytes.fromhex('45 31 e4'))                       # r12d = 0: shields already down (r13d before 184271)
+    c.relative(b'\xe9', base+0x14945CC)
     c.label('orig')
-    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x14901F4)
+    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x1494364)
     c.relative(b'\xe9', base+rva+5)
     return c.finish()
 
@@ -272,10 +272,10 @@ def never_kill_code(cave, base, data):
     c.label('capped')
     c.relative(b'\x83\x0d', data+APPLIED, bytes([CAPPED]))
     c.label('done')
-    c.relative(b'\xe9', base+0x14904B0)
+    c.relative(b'\xe9', base+0x1494620)
     c.label('orig')
-    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x14904B0)
-    c.relative(b'\xe9', base+0x149048E)
+    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x1494620)
+    c.relative(b'\xe9', base+0x14945FE)
     return c.finish()
 
 

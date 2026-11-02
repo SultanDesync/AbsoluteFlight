@@ -2,7 +2,7 @@
 
 Research: research/re-log/2026-10-28_claude_exocraft-input-183791.md. Every analog query reaches the input manager's slot
 +0x28, the wrapper 0x2CA5580 (`float Analog(manager, action, port)`: RCX, EDX, R8D, result XMM0): gameplay through the
-controller's scalar getter 0x1445790 (which first returns 0 unless the frontend state app+0x89BD98 is 0 or 2), and some
+controller's scalar getter 0x1445790 (which first returns 0 unless the frontend state app+0x89BEA8 is 0 or 2), and some
 vehicle code by calling the slot directly (0x182E3B8: VehicleThrust, port -1). The wrapper refreshes the action from Steam
 and tail-jumps the core 0x2C97460, which resolves the port (-1 = manager+0x18) and reads this frame's record.
 
@@ -26,20 +26,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F5F868
-WRAPPER = 0x2CA5340                # manager slot +0x28: refresh, then jmp CORE
+APP_GLOBAL = 0x6F6B208
+WRAPPER = 0x2CA9D50                # manager slot +0x28: refresh, then jmp CORE
 WRAPPER_BYTES = bytes.fromhex('48895c24084889742410574883ec20418bd88bfa488bf1e894200000448bc38bd7488bce488b5c2430488b7424'
                               '384883c4205fe9a81effff')
-CORE, SET_HEAD, SET_FORCE, GETTER = 0x2C97220, 0x2C97120, 0x2C9D210, 0x14456A0
+CORE, SET_HEAD, SET_FORCE, GETTER = 0x2C9BC30, 0x2C9BB30, 0x2CA1C20, 0x1449990
 SITE_SIZE = 10                     # mov [rsp+8], rbx; mov [rsp+0x10], rsi
 CONTINUE = WRAPPER+SITE_SIZE
-MANAGER = 0x95AEA8
+MANAGER = 0x95AFB8
 DEFAULT_PORT, PORT_STRIDE, PORT_BLOCK, PORT_MAX = 0x18, 0x470, 0x5B0, 5
 SET_FORCED, SET_COUNT, SET_LIST = 0x80, 0x64, 0x68  # in the port block (0x2C97360, 0x2C9D450)
 # The core, the set reader and setter the cave's port and set reads come from (pinned, not called). Not the scalar getter:
 # the release mod hooks it for ship pitch/yaw (AbsoluteHOTASScalar), so its first bytes are a jump live (0.2.3-dev.7).
 PIN_RANGES = ((WRAPPER, len(WRAPPER_BYTES)), (CORE, 0xD1), (SET_HEAD, 0x2A), (SET_FORCE, 0x66))
-PIN_SHA256 = 'dbfe5d77019f3d72ce9c6394124eb33895a2700d70076217eccef79ea3f05a15'  # sha256 over PIN_RANGES of the exe
+PIN_SHA256 = '2bd9023b5cf4966c47bcdde96ff000813fbf3c948b4d90eb97e06fde98ce50ee'  # sha256 over PIN_RANGES of the exe
 
 VEHICLE_MODE = 16                  # cGcActionSetType.VehicleMode
 STEER, THRUST, BRAKE = 0x8D, 0x8E, 0x8F

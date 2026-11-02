@@ -15,13 +15,13 @@ def local_player_ship(read,base):
         if len(value)!=size:raise ValueError('Short player identity read')
         return value
     def q(address):return struct.unpack('<Q',raw(address,8))[0]
-    manager=q(base+0x6f5f868)
+    manager=q(base+0x6f6b208)
     if not manager:return 0
     handle=q(manager+0x72cf48)
     if not handle or handle>>32>0xfeff:return 0
-    entity=base+0x5469f80+0x58*(handle>>32)
+    entity=base+0x5475800+0x58*(handle>>32)
     if q(entity+0x50)!=handle:return 0
-    component=struct.unpack('<h',raw(base+0x517e568,2))[0]
+    component=struct.unpack('<h',raw(base+0x51895a8,2))[0]
     if not 0<=component<256:return 0
     mask_raw=raw(entity+0x30,32);mask=int.from_bytes(mask_raw,'little')
     if not mask&(1<<component):return 0
@@ -30,7 +30,7 @@ def local_player_ship(read,base):
     rank=(mask&((1<<component)-1)).bit_count()
     ship=q(components+8*rank)
     if not ship:return 0
-    if (q(base+0x6f5f868)!=manager or q(manager+0x72cf48)!=handle or
+    if (q(base+0x6f6b208)!=manager or q(manager+0x72cf48)!=handle or
             q(entity+0x50)!=handle or raw(entity+0x30,32)!=mask_raw or
             q(entity+0x20)!=components or q(components+8*rank)!=ship):
         return 0

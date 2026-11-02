@@ -22,7 +22,7 @@ import hashlib
 import struct
 import threading
 
-SKY_GLOBALS = 0x53021E0          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
+SKY_GLOBALS = 0x530D860          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
 BLOCKS = {'SpaceSkyMax': 0x1900, 'SpaceSkyMin': 0x19A0}  # cGcSpaceSkyProperties, 0xA0 each
 BLOCK_SIZE = 0xA0
 # Turned to 0. The two fog colour strengths already ship at 0.
@@ -45,9 +45,9 @@ VANILLA = bytes.fromhex(
 assert len(VANILLA) == 2 * BLOCK_SIZE
 
 # Chain to the generator and the current system, every link in the pinned code below.
-APP_GLOBAL = 0x6F5F868      # cGcApplication::Data (same global as ai_pilots)
+APP_GLOBAL = 0x6F6B208      # cGcApplication::Data (same global as ai_pilots)
 SYSTEM_FROM_APP = 0x72B610  # current solar system
-GENERATOR_FROM_SYSTEM = 0x522390
+GENERATOR_FROM_SYSTEM = 0x5223b0
 PALETTE_LISTS = 0x6C0       # generator+0x6C0: common list, +0x6C8: rare list; list = {data ptr, count}
 SYSTEM_SKY = 0x2020         # system sky properties (cGcSpaceSkyProperties copy)
 SYSTEM_SEED = 0x2480        # 16 bytes; a new seed means a new system was generated
@@ -62,13 +62,13 @@ PALETTES = (('common', 10, 'afef1e3b3f29bdd77075577170ce732e25c32ac1e6932dcab983
 # StarVisibility, SunSize, SunStrength, pad: copied from SpaceSkyMin as is, so a real system sky has them.
 SYSTEM_TAIL = bytes.fromhex('85eb513f0ad7a33b9a99193f00000000')
 PINS = {
-    # mov rax,[NMS+0x6F60828]; ... mov rcx,[rax+0x72B610]; ... seed to rcx+0x2480; add rcx,0x522390;
+    # mov rax,[NMS+0x6F60828]; ... mov rcx,[rax+0x72B610]; ... seed to rcx+0x2480; add rcx,0x5223b0;
     # call the sky generator 0x1682F00.
-    0x1B535A: bytes.fromhex('488b0507a5da060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c190235200488945b8e88ed94c01'),
+    0x1B536A: bytes.fromhex('488b05975edb060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c1b0235200488945b8e80e1e4d01'),
     # Generator: system sky properties at system+0x2020.
-    0x1682DBA: bytes.fromhex('498b0b4881c120200000'),
+    0x168724A: bytes.fromhex('498b0b4881c120200000'),
     # Generator: palette list = [generator + set*8 + 0x6C0], entry count at list+8.
-    0x1682F0C: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
+    0x168739C: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
 }
 
 

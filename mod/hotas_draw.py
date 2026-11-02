@@ -128,11 +128,11 @@ class MeterPainter:
 
 
 def layout_from_tls(read_q,read_bytes,nt,ctx):
-    """U3 native layout: UI-thread TLS scale (TEB+0x58 -> slot0 -> +0x1AB8) and active NanoVG matrix."""
+    """U3 native layout: UI-thread TLS scale (TEB+0x58 -> slot0 -> +0x1CD8) and active NanoVG matrix."""
     tbi=C.create_string_buffer(48)
     if nt.NtQueryInformationThread(P(-2),0,C.addressof(tbi),48,None)!=0:raise RuntimeError('Cannot read UI-thread TLS')
     teb=struct.unpack_from('<Q',tbi.raw,8)[0];tls_block=read_q(read_q(teb+0x58))
-    scale=struct.unpack('<2f',read_bytes(tls_block+0x1ab8,8));n=struct.unpack('<i',read_bytes(ctx+0x42a8,4))[0]
+    scale=struct.unpack('<2f',read_bytes(tls_block+0x1cd8,8));n=struct.unpack('<i',read_bytes(ctx+0x42a8,4))[0]
     if not 1<=n<64:raise RuntimeError('Bad native state count')
     matrix=struct.unpack('<6f',read_bytes(ctx+0xa8+(n-1)*0x108+0xb4,24))
     return scale,matrix
