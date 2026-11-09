@@ -275,8 +275,10 @@ PROFILE_CONTROLS=(
     Control('tuning-hold-threshold','float','Hold threshold','Near-zero speed used by the parking brake hold state.',.1,.001,5.,.01,'speed',new=True),
     Control('tuning-jerk-limit','float','Jerk limit','Maximum acceleration change per second. Zero disables smoothing.',0.,0.,5000.,25.,'jerk',new=True),
     Control('tuning-additive-pitch-yaw','bool','Additive pitch/yaw','Give Fighter pitch and yaw their full independent authority together. Centre both axes after enabling. Other ship classes keep native handling. Native torque limits and Auto-bank on yaw still apply.',False,new=True),
-    *[Control('tuning-'+axis+'-rate','float',axis.title()+' rate',f'Multiplier on this class top {axis} rate. 1.0 is native. Centre the stick after changing. Native torque limits still apply; Corvette stays native.',1.,.5,2.,.05,'multiplier',new=True) for axis in ('pitch','yaw','roll')],
+    *[Control('tuning-'+axis+'-rate','float',axis.title()+' rate',f'Multiplier on this class top {axis} rate. 1.0 is native. Centre the stick after changing. Native torque limits still apply.',1.,.5,2.,.05,'multiplier',new=True) for axis in ('pitch','yaw','roll')],
     Control('tuning-turn-response','float','Turn response','How quickly pitch, yaw and roll reach their rate and settle: a multiplier on the class engine TurnStrength and RollForce. 1.0 is native. Native torque limits still apply.',1.,.5,2.,.05,'multiplier',new=True),
+    # T118: the rotation seam yields to native in space combat unless this is on (the game also swaps in its combat engine).
+    Control('tuning-rotation-in-combat','bool','Rotation in combat',"Keep this class's rotation rates, turn response and Fighter additive pitch/yaw while an enemy is engaged. Off, the game's own rotation takes over for the fight. Turn response stays relative to the game's combat engine.",False,new=True),
     Control('tuning-auto-bank-on-yaw','bool','Auto-bank on yaw','Allow the native RudderToRoll assist to bank the ship during yaw.',False,new=True),
     # T88 air style per class (planetary_flight.AirStyle).
     Control('tuning-air-terminal-speed','float','Terminal speed in thick air','Top speed at full forward thrust in thick air. Thinner air higher up lets the ship go faster.',400.,50.,1500.,10.,'speed',visible=AIR_ONLY,new=True),
@@ -386,8 +388,10 @@ SULTAN_BASELINES={
             # Air (T98, GUESS): balanced and heavier. Flies Sultan since 2026-10-22, incomplete (T104).
             # Flight 2026-10-22: its Planet block is only ThrustForce 20 and it could not leave the ground. MAV lift
             # carries it at any tier, like the Explorer (user: the endgame ship isn't punished for its mass).
-            air_mav_lift=1.6,
-            air_terminal_speed=380.,air_engine_loss=.2,air_lift=.8,air_side_drag=2.,air_damping=.35,air_boost=.5,
+            # Flight 2026-11-09 (dev.3): still a slog, full up and forward on boost until pulse height (user: 'give a
+            # little more thrust'). MAV lift 1.6 -> 2.0 (climb surplus 0.6 g -> 1.0 g), engine loss .2 -> .1 (mains +12.5%).
+            air_mav_lift=2.,
+            air_terminal_speed=380.,air_engine_loss=.1,air_lift=.8,air_side_drag=2.,air_damping=.35,air_boost=.5,
             air_nose_authority=.8,air_induced_drag=.25,air_slip_authority=.7,air_weathervane=1.,air_sway_damping=.5,
             air_buffet=.15,air_overspeed_penalty=1.2,air_wing_support=.8,air_glide_ratio=3.,air_omni=.2),
     # Hauler: barge. Weak thrust, lift favoured over strafe, slow to turn and slower to roll.
@@ -414,6 +418,9 @@ SULTAN_BASELINES={
 
 AIR_KEYS=tuple(k for k in PROFILE_KEYS.values() if k.startswith('air_'))
 # Air styles shipped before T98, recognised on load so a class nobody retuned picks up its new style.
+# Air values a class shipped with and later retuned (user, 2026-11-09: Corvette). A saved profile still holding the old
+# stock value takes the new baseline at load; a value the player tuned stays. Per key, so tuning one keeps the other.
+RETUNED_AIR={10:{'air_mav_lift':1.6,'air_engine_loss':.2}}
 _RETIRED_AIR={1:dict(air_terminal_speed=300.,air_engine_loss=.4,air_damping=.4,air_boost=.5,air_nose_authority=.4,
                      air_slip_authority=.4,air_weathervane=.5,air_sway_damping=.15),
               4:dict(air_terminal_speed=260.,air_engine_loss=.35,air_damping=.4,air_boost=.5,air_nose_authority=.5,
@@ -602,6 +609,9 @@ class SettingsStore:
                         for c in PROFILE_CONTROLS:
                             key=PROFILE_KEYS[c.id]
                             if key not in raw_profile or stock_air and key in AIR_KEYS:continue
+                            old=RETUNED_AIR.get(int(class_key),{}).get(key)
+                            if (old is not None and not isinstance(raw_profile[key],bool) and isinstance(raw_profile[key],(int,float))
+                                    and abs(float(raw_profile[key])-old)<1e-9):continue  # untouched old stock: new baseline
                             try:profiles[class_key][key]=coerce(c,raw_profile[key])
                             except ValueError as e:report.issues.append(f'class {class_key}: {e}; using default')
         buttons=[];modifier=None

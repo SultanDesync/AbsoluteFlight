@@ -54,7 +54,10 @@ COLUMNS=(['t','piloting','reason','style','hosas_mode','lever_unit','throttle_ar
            'force_after_x','force_after_y','force_after_z','combat_active','frontend_state','newtonian_requalifications']
          +NEWTONIAN_COLUMNS+['parking_brake_requested']
          +['landing_gear','ground_clearance','ground_tilt','touchdown','landing_state']  # T101
-         +[name for name,_,_ in GATE_FIELDS+APP_GATES]+['gates_failed'])
+         +[name for name,_,_ in GATE_FIELDS+APP_GATES]+['gates_failed']
+         # T118: the rotation seam (class style / Fighter additive): host state and mode, and 1 when the
+         # last native receipt applied it, 0 when native rejected it, blank with no receipt.
+         +['rotation_state','rotation_mode','rotation_applied'])
 
 
 def decode_receipt(raw):

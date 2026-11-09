@@ -17,7 +17,7 @@ import threading
 from types import MappingProxyType
 
 from native_roll_patch import Code, K, replace_code
-from native_newtonian import _allocate_data, EXPECTED_SHA, planetary_skip
+from native_newtonian import _allocate_data, EXPECTED_SHA, SUPPORTED_CLASSES, planetary_skip
 from native_additive_rotation import ORIGINAL, GLOBAL_RVA, SITE_RVA
 from native_rotation_gates import emit as full_gates
 
@@ -26,6 +26,18 @@ from rotation_sustained_envelope import (freeze_windows, manifest as sustained_m
 
 MAX_LEASE_MS = 50
 STRICT_ROTATION = 0x80000000
+# T118: in combat native replaces the effective engine block (ship+0x6640..) with the selected controls'
+# combat engine (185034: 0x1793F4D..0x1793FB6 copies selectedControl+0 or blends toward +0x74 by
+# ship+0x62D0). Selected controls and MaxTorque stay. Pitch/yaw targets on the stick route are formed
+# from input curves and constants only (0x1796D19..0x1797E95); the engine sets the response gains.
+APP_GLOBAL = 0x6F6C288
+COMBAT_OFFSET = 0x57AA6D  # app offset: manual-combat byte, 0 none, 1 known combat
+
+
+def read_combat(pm, base):
+    """The game's manual-combat byte, or None while the application object is missing."""
+    app = struct.unpack('<Q', pm.read_bytes(base + APP_GLOBAL, 8))[0]
+    return pm.read_bytes(app + COMBAT_OFFSET, 1)[0] if app else None
 TORQUE_RVA = 0x17982BE
 TORQUE_ORIGINAL = bytes.fromhex('0f5dd8410f14d3440f16c2440f5fc3')
 WORK = 0x200
@@ -111,20 +123,26 @@ def _pin_fixture(c, newtonian, fixture):
             c.emit(b'\x48\xb8' + struct.pack('<Q', value)); _ne(c, b'\x48\x3b\x05', newtonian + offset)
 
 
-def _pin_engine(c, pins, newtonian=None):
+def _pin_engine(c, pins, newtonian=None, base=None):
     """Pin the effective engine snapshot, selected controls and native MaxTorque.
 
     With `newtonian` (T92) the snapshot compare is skipped while the T88 PLANETARY switch is on:
     in air native blends the whole block from the Planet engine (selectedControl+0xE8) toward Space
     (+0x15C) by ship+0x62C0 every frame, so TurnStrength and RollForce are legitimately live there,
-    and shaping multiplies whatever native gain it finds. Combat and power engine contexts stay
-    excluded by the strict gates; selected-control identity and MaxTorque are pinned either way.
+    and shaping multiplies whatever native gain it finds. With `base` (T118) it is also skipped while
+    the manual-combat byte is 1, when native selects the combat engine the same way. Power engine
+    contexts stay excluded by the strict gates; selected-control identity and MaxTorque are pinned either way.
     """
     if newtonian is not None: planetary_skip(c, newtonian, 'engine_blend_tolerated')
+    if base is not None:
+        c.relative(b'\x48\x8b\x05', base + APP_GLOBAL)
+        c.emit(bytes.fromhex('48 85 c0')); c.relative(b'\x0f\x84', 'out')
+        c.emit(bytes.fromhex('80 b8') + struct.pack('<I', COMBAT_OFFSET) + b'\x01')
+        c.relative(b'\x0f\x84', 'engine_blend_tolerated')
     for offset in range(0, 0x78, 4):
         value = bytes.fromhex(pins['engine_snapshot_hex'])[offset:offset + 4]
         c.emit(bytes.fromhex('81 be') + struct.pack('<I', 0x6640 + offset) + value); c.relative(b'\x0f\x85', 'out')
-    if newtonian is not None: c.label('engine_blend_tolerated')
+    if newtonian is not None or base is not None: c.label('engine_blend_tolerated')
     c.emit(b'\x48\xb8' + struct.pack('<Q', pins['selected_control']) + bytes.fromhex('48 39 86 b8 66 00 00')); c.relative(b'\x0f\x85', 'out')
     c.emit(bytes.fromhex('81 b8 f0 01 00 00') + struct.pack('<I', pins['max_torque_bits'])); c.relative(b'\x0f\x85', 'out')
 
@@ -377,11 +395,11 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
                 mode_pins=None, max_input_amplitude=.25, fixture=None, engine_pins=None,
                 pitch_input_sign=None, yaw_input_sign=None, sustained_windows=None, hard_duration_ms=30000,
                 production=False, signed_endpoints=None, production_hard_deadline=False, validation_origin=None,
-                rotation=None, allow_planetary_flight=False, air_authority=False):
+                rotation=None, allow_planetary_flight=False, air_authority=False, allow_combat_flight=False):
     rotation = _rotation(rotation)
     shaped = rotation != NATIVE_ROTATION or air_authority
-    if (shaped or allow_planetary_flight) and not production:
-        raise ValueError('Rotation shaping and planetary flight require the production kernel')
+    if (shaped or allow_planetary_flight or allow_combat_flight) and not production:
+        raise ValueError('Rotation shaping, planetary and combat flight require the production kernel')
     if production and (signed_endpoints is not None or not shaped):
         signed_endpoints = _signed_endpoints(signed_endpoints)
     if production and sustained_windows is not None:
@@ -435,7 +453,8 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
         c.relative(b'\xc7\x05', w + 728, struct.pack('<I', 1))
         c.relative(b'\xc7\x05', w + 696, struct.pack('<f', max_input_amplitude))
     _stage(c, w, 1)
-    full_gates(c, newtonian, base, tick, allow_planetary_flight=allow_planetary_flight)
+    full_gates(c, newtonian, base, tick, allow_planetary_flight=allow_planetary_flight,
+               allow_combat_flight=allow_combat_flight)
     _stage(c, w, 2)
     _fresh(c, own, frame, mailbox, pilot, tick, newtonian=newtonian, production=production,
            hard_deadline=hard_duration_ms if production_hard_deadline else None)
@@ -542,7 +561,8 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
         _pin_modes(c, base, mode_pins)
         if production and signed_endpoints is not None: _game_pitch_invert(c, base, w)
         if fixture is not None: _pin_fixture(c, newtonian, fixture)
-        _pin_engine(c, engine_pins, newtonian if allow_planetary_flight else None)
+        _pin_engine(c, engine_pins, newtonian if allow_planetary_flight else None,
+                    base if allow_combat_flight else None)
         if air_authority:
             # One read each: the validated copies are the values applied below.
             for source, (low, high), target in ((AIR_SCALE, AIR_RANGE, 0), (AIR_DAMPING, DAMPING_RANGE, 4)):
@@ -557,7 +577,7 @@ def target_code(cave, site, own, newtonian, frame, mailbox, pilot, base, tick, *
                 c.relative(b'\x89\x05', w + AIR_RECEIPT + 8 + 4 * index)
         _stage(c, w, 11)
         full_gates(c, newtonian, base, tick, prefix='commit_', check_clock=False,
-                   allow_planetary_flight=allow_planetary_flight)
+                   allow_planetary_flight=allow_planetary_flight, allow_combat_flight=allow_combat_flight)
         _stage(c, w, 12)
         _provenance(c, frame, production=production)
         _stops(c, own, frame, mailbox, label='agent_final_checked')
@@ -880,7 +900,8 @@ class RotationBridge:
         if self.data: raise RuntimeError('Already prepared')
         for name, (rva, original) in SITES.items():
             if self.pm.read_bytes(self.base + rva, len(original)) != original: raise RuntimeError('T66 original site mismatch: ' + name)
-        if self.fixture.get('ship_class') not in (1, 2, 3, 4, 6, 7, 8, 9): raise ValueError('Unsupported class')
+        # Every Newtonian class, Corvette included (T104; it was missing here until T118).
+        if self.fixture.get('ship_class') not in SUPPORTED_CLASSES: raise ValueError('Unsupported class')
         for offset, key in ((8, 'ship'), (16, 'body'), (24, 'state'), (32, 'context')):
             if struct.unpack('<Q', self.pm.read_bytes(self.newtonian_data + offset, 8))[0] != self.fixture[key]: raise RuntimeError('Newtonian fixture mismatch')
         self.data = _allocate_data(self.pm.process_handle, self.base + SITE_RVA, ALLOCATION)
@@ -906,6 +927,7 @@ class RotationBridge:
                                       rotation=getattr(self, 'rotation', None),
                                       allow_planetary_flight=getattr(self, 'allow_planetary_flight', False),
                                       air_authority=getattr(self, 'air_authority', False),
+                                      allow_combat_flight=getattr(self, 'allow_combat_flight', False),
                                       production_hard_deadline=self._production and self.hard_duration_ms is not None,
                                       validation_origin=self.native_origin if self._prepared_validation is not None else None) if name == 'target' else
                            ordinary_code(cave, site, self.data, self.newtonian_data, self.frame, self.base, fixture=self.fixture) if name == 'ordinary' else
@@ -929,6 +951,7 @@ class RotationBridge:
                 'rotation': dict(getattr(self, 'rotation', NATIVE_ROTATION)),
                 'allow_planetary_flight': getattr(self, 'allow_planetary_flight', False),
                 'air_authority': getattr(self, 'air_authority', False),
+                'allow_combat_flight': getattr(self, 'allow_combat_flight', False),
                 'sustained_authority': None if self.sustained_windows is None else sustained_manifest(
                     self.sustained_windows, self.hard_duration_ms,
                     max_input_amplitude=self.max_input_amplitude if self._production else .25,
@@ -1063,7 +1086,7 @@ class ProductionRotationBridge(RotationBridge):
     def __init__(self, pm, pid, base, newtonian_data, frame, mailbox, pilot_deadline, tick, fixture,
                  *, signed_endpoints, exe_sha256, mode_pins, engine_pins, counter=0, hard_duration_ms=None,
                  validation_windows=None, validation_max_input_amplitude=1., rotation=None,
-                 allow_planetary_flight=False, air_authority=False):
+                 allow_planetary_flight=False, air_authority=False, allow_combat_flight=False):
         if exe_sha256 != EXPECTED_SHA: raise ValueError('Exact qualified executable SHA256 required')
         rotation = _rotation(rotation)
         if air_authority and not allow_planetary_flight:
@@ -1102,6 +1125,7 @@ class ProductionRotationBridge(RotationBridge):
         self.signed_endpoints = None if endpoints is None else MappingProxyType(endpoints)
         self.rotation = MappingProxyType(rotation)
         self.allow_planetary_flight, self.air_authority = bool(allow_planetary_flight), bool(air_authority)
+        self.allow_combat_flight = bool(allow_combat_flight)
         self.fixture = MappingProxyType(self.fixture)
         self.mode_pins = MappingProxyType(self.mode_pins)
         self.engine_pins = MappingProxyType(self.engine_pins)

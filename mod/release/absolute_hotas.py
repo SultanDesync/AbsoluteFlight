@@ -1812,6 +1812,10 @@ class AbsoluteHOTAS(Mod):
                     for name,offset,fmt in APP_GATES:state[name]=struct.unpack(fmt,pm.read_bytes(manager+offset,struct.calcsize(fmt)))[0]
             except BaseException:pass # Missing diagnostic reads never affect controls.
         state['newtonian_requalifications']=getattr(self,'newtonian_refresh_count',0)
+        rotation=additive_rotation.status(self);native=rotation.get('native') or {}
+        state.update(rotation_state=rotation.get('state',''),rotation_mode=rotation.get('mode') or '',
+                     rotation_applied=(int(all(native.get(k)==1 for k in ('override_applied','admitted','fresh','qualified','complete')))
+                                       if 'override_applied' in native else ''))
         state['parking_brake_requested']=int(bool(getattr(getattr(self,'buttons',None),'parking',False)))
         consumer=getattr(self,'flight_consumer',None);air=((consumer.latest.get('planetary') if consumer is not None else None) or {})
         state.update(landing_gear=int(bool(air.get('gear'))),ground_clearance=air.get('clearance',''),ground_tilt=air.get('tilt',''),

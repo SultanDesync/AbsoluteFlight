@@ -545,7 +545,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                             'Rename the file to rename the tuning; share the file to share the tuning.'))
         groups=(('THRUST',('acceleration-scale','forward-ratio','retro-ratio','lateral-ratio','up-ratio','down-ratio','jerk-limit')),
                 ('SPEED',('speed-cap','speed-cap-multiplier','speed-hold-gain','accel-fade-exponent','brake-floor','momentum','overspeed-bleed-time')),
-                ('ROTATION',('pitch-rate','yaw-rate','roll-rate','turn-response','additive-pitch-yaw','auto-bank-on-yaw')),
+                ('ROTATION',('pitch-rate','yaw-rate','roll-rate','turn-response','additive-pitch-yaw','rotation-in-combat','auto-bank-on-yaw')),
                 ('BOOST',('boost-enabled','boost-source','boost-multiplier','boost-heat-time','boost-cool-time','boost-cold-strength','boost-hot-zone','boost-relight-level')),
                 ('PARKING BRAKE',('brake-strength','settle-time','hold-threshold')))
         for group,keys in groups:
