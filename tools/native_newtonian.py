@@ -840,8 +840,8 @@ def snapshot_physics(read, ship, module_base, *, max_hash_probes=256):
     if u64(backend+0x20)!=module_base+0x363DBC8:
         raise SnapshotError('unrecognized backend body-accessor vtable')
     handle=u64(state+0x88)
-    body_id=(handle if handle&(1<<63) else lookup(backend+0x1138,handle))&0x10008ef
-    if body_id==0x10008ef:raise SnapshotError('invalid native body id')
+    body_id=(handle if handle&(1<<63) else lookup(backend+0x1148,handle))&0xffffff  # map 0x1138 on 184271
+    if body_id==0xffffff:raise SnapshotError('invalid native body id')
     body_pages=u64(backend+0x40)
     body=u64(body_pages+8*(body_id//42))+0xc0*(body_id%42)
     wrapper=u64(body+0xb8)
