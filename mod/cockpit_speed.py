@@ -11,17 +11,17 @@ import threading
 
 # name: (direct data RVA, stock value, unscaled value)
 FIELDS = {
-    'SpaceSpeedReadoutMultiplier': (0x533CC88, 2., 1.),
-    'SpeedReadoutMultiplier': (0x533CCB4, 1., 1.),
-    'CombatSpeedReadoutMultiplier': (0x533C708, 1.5, 1.),
-    'HUDBoostUpgradeMultiplier': (0x5301AF4, 10., 0.),
+    'SpaceSpeedReadoutMultiplier': (0x533DCC8, 2., 1.),
+    'SpeedReadoutMultiplier': (0x533DCF4, 1., 1.),
+    'CombatSpeedReadoutMultiplier': (0x533D748, 1.5, 1.),
+    'HUDBoostUpgradeMultiplier': (0x5302B34, 10., 0.),
 }
 PINS = {
-    0x9EAEC2: bytes.fromhex('f30f1035be1d9504'),
-    0x9EAECA: bytes.fromhex('f30f5c35e21d9504'),
-    0x9EAEE2: bytes.fromhex('f30f5835ca1d9504'),
-    0x9EAF05: bytes.fromhex('f30f5935fb179504'),
-    0x9EAF8C: bytes.fromhex('f30f5905606b9104'),
+    0x9EACE2: bytes.fromhex('f30f1035de2f9504'),
+    0x9EACEA: bytes.fromhex('f30f5c3502309504'),
+    0x9EAD02: bytes.fromhex('f30f5835ea2f9504'),
+    0x9EAD25: bytes.fromhex('f30f59351b2a9504'),
+    0x9EADAC: bytes.fromhex('f30f5905807d9104'),
 }
 
 

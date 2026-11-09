@@ -26,20 +26,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F6B208
-GETTER = 0x1449960                 # the controller getter (pinned: its frontend gate and slot +0x20 jump)
-GETTER_BYTES = bytes.fromhex('4c8bc9488b0d9e18b2058b81a8be890085c0740883f802740332c0c3488b89b8af9500458b4908488b0148ff6020')
-WRAPPER = 0x2CA9D90                # manager slot +0x20: refresh, then jmp CORE
+APP_GLOBAL = 0x6F6C288
+GETTER = 0x1449D00                 # the controller getter (pinned: its frontend gate and slot +0x20 jump)
+GETTER_BYTES = bytes.fromhex('4c8bc9488b0d7e25b2058b81a8be890085c0740883f802740332c0c3488b89b8af9500458b4908488b0148ff6020')
+WRAPPER = 0x2CAA370                # manager slot +0x20: refresh, then jmp CORE
 WRAPPER_BYTES = bytes.fromhex('48895c240848896c24104889742418574883ec20418bf8418bd9458bc18bf2488be9e849200000448bcb448bc78bd6'
                               '488bcd488b5c2430488b6c2438488b7424404883c4205fe96522ffff')
-REFRESH, CORE = 0x2CABE00, 0x2C9C040
+REFRESH, CORE = 0x2CAC3E0, 0x2C9C620
 SITE_SIZE = 10                     # mov [rsp+8], rbx; mov [rsp+0x10], rbp
 CONTINUE = WRAPPER+SITE_SIZE
 FRONTEND, MANAGER = 0x89BEA8, 0x95AFB8
 DEFAULT_PORT, PORT_STRIDE, PORT_BLOCK, BLOCK_FRAME, PORT_MAX = 0x18, 0x470, 0x5B0, 0x20, 5
 # The core and validation helper the cave's port and frame reads come from (pinned, not called).
-PIN_RANGES = ((GETTER, len(GETTER_BYTES)), (WRAPPER, len(WRAPPER_BYTES)), (CORE, 0x8D), (0x1860190, 0x50))
-PIN_SHA256 = 'c8c193fd9e5a2ade1e76e8d08f982b1cc41ab7c61822fb3c39c04639ac8f8b80'  # sha256 over PIN_RANGES of the exe (research/re-log/2026-10-28_claude_native-actions-183791.md)
+PIN_RANGES = ((GETTER, len(GETTER_BYTES)), (WRAPPER, len(WRAPPER_BYTES)), (CORE, 0x8D), (0x18600E0, 0x50))
+PIN_SHA256 = '7a56567e3b9fd6bfe1fc677ccc8d142d3f65e61ada611df1129cfabb2f4d4ebb'  # sha256 over PIN_RANGES of the exe (research/re-log/2026-10-28_claude_native-actions-183791.md)
 
 HELD, PRESSED, HELD_CONFIRM, RELEASED, HELD_OVER, CANCELED = range(6)  # cTkInputValidation
 CONFIRM_FRAMES = 50                # 0x185BE10: HeldConfirm after 0x32 frames

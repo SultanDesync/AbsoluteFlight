@@ -26,11 +26,11 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F6B208
-WRAPPER = 0x2CA9D50                # manager slot +0x28: refresh, then jmp CORE
+APP_GLOBAL = 0x6F6C288
+WRAPPER = 0x2CAA330                # manager slot +0x28: refresh, then jmp CORE
 WRAPPER_BYTES = bytes.fromhex('48895c24084889742410574883ec20418bd88bfa488bf1e894200000448bc38bd7488bce488b5c2430488b7424'
                               '384883c4205fe9a81effff')
-CORE, SET_HEAD, SET_FORCE, GETTER = 0x2C9BC30, 0x2C9BB30, 0x2CA1C20, 0x1449990
+CORE, SET_HEAD, SET_FORCE, GETTER = 0x2C9C210, 0x2C9C110, 0x2CA2200, 0x1449D30
 SITE_SIZE = 10                     # mov [rsp+8], rbx; mov [rsp+0x10], rsi
 CONTINUE = WRAPPER+SITE_SIZE
 MANAGER = 0x95AFB8
@@ -39,7 +39,7 @@ SET_FORCED, SET_COUNT, SET_LIST = 0x80, 0x64, 0x68  # in the port block (0x2C973
 # The core, the set reader and setter the cave's port and set reads come from (pinned, not called). Not the scalar getter:
 # the release mod hooks it for ship pitch/yaw (AbsoluteHOTASScalar), so its first bytes are a jump live (0.2.3-dev.7).
 PIN_RANGES = ((WRAPPER, len(WRAPPER_BYTES)), (CORE, 0xD1), (SET_HEAD, 0x2A), (SET_FORCE, 0x66))
-PIN_SHA256 = '2bd9023b5cf4966c47bcdde96ff000813fbf3c948b4d90eb97e06fde98ce50ee'  # sha256 over PIN_RANGES of the exe
+PIN_SHA256 = 'a5e1353ec9302e1a0aaef06419e9a03b1eef5389b9f677818608c478907a6340'  # sha256 over PIN_RANGES of the exe
 
 VEHICLE_MODE = 16                  # cGcActionSetType.VehicleMode
 STEER, THRUST, BRAKE = 0x8D, 0x8E, 0x8F

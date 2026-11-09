@@ -18,8 +18,8 @@ AUTOBANK_COUNT=0x308
 AUTOBANK_INVOCATION=0x310
 AUTOBANK_STAGE=0x318
 AUTOBANK_SITE={
-    'rva':0x1795269,'size':8,'original':'f30f108588410000',
-    'signature':'f30f1085884100000f570538a84603f30f59c30f28f8e9f3',
+    'rva':0x1797789,'size':8,'original':'f30f108588410000',
+    'signature':'f30f1085884100000f5705a89b4603f30f59c30f28f8e9f3',
     'instructions':['movss xmm0, dword ptr [rbp + 0x4188]'],
     'disposition':'zero yaw-derived RudderToRoll demand only under qualified Sultan flight',
 }
@@ -41,7 +41,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     ne(b'\x83\x3d',data+4,b'\x01')
     ne(b'\x83\x3d',data+AUTOBANK_SUPPRESS,b'\x01')
     stage(1)
-    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x1788421));ins_ne('48 39 85 68 41 00 00')
+    c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x178A941));ins_ne('48 39 85 68 41 00 00')
     # Native clock is checked here, independently of a previous translation call.
     c.emit(b'\x48\xb8'+struct.pack('<Q',get_tick)+b'\xff\xd0')
     c.relative(b'\x48\x3b\x05',data+72);c.relative(b'\x0f\x83','out')
@@ -54,7 +54,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     c.emit(bytes.fromhex('49 8b 85 28 03 00 00'));ne(b'\x48\x3b\x05',data+32)
     c.emit(bytes.fromhex('49 89 c0')) # R8 pinned context, RDX pinned state
     c.emit(bytes.fromhex('48 8b 82 88 00 00 00'));ne(b'\x48\x3b\x05',data+112)
-    c.relative(b'\x48\x8b\x05',base+0x6f6b208);ne(b'\x48\x3b\x05',data+80)
+    c.relative(b'\x48\x8b\x05',base+0x6f6c288);ne(b'\x48\x3b\x05',data+80)
     c.emit(bytes.fromhex('48 8b 80 48 cf 72 00'));ne(b'\x48\x3b\x05',data+304)
     c.emit(bytes.fromhex('48 8b 86 c0 60 00 00'));ne(b'\x48\x3b\x05',data+168)
     c.emit(bytes.fromhex('48 8b 00'));ne(b'\x48\x3b\x05',data+176)
@@ -70,7 +70,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','out')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','out')
-    c.relative(b'\x48\x8b\x05',base+0x6f6b208)
+    c.relative(b'\x48\x8b\x05',base+0x6f6c288)
     for code in ('83 b8 a8 be 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
         if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
             # Clear-space manual combat shares this assist; all other guards stay.
@@ -114,14 +114,14 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     # Zero effective time would make this an unqualified paused physics frame.
     c.emit(bytes.fromhex('41 8b 85 60 02 00 00 85 c0'));c.relative(b'\x0f\x8e','out')
     c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    for address in (base+0x723e838+0x18,base+0x723e838+0x24):
+    for address in (base+0x723f8e8+0x18,base+0x723f8e8+0x24):
         c.relative(b'\x8b\x05',address);c.emit(bytes.fromhex('85 c0'));c.relative(b'\x0f\x8e','out')
         c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    c.relative(b'\xf3\x0f\x10\x05',base+0x723e838+0x18)
-    c.relative(b'\xf3\x0f\x59\x05',base+0x723e838+0x24)
+    c.relative(b'\xf3\x0f\x10\x05',base+0x723f8e8+0x18)
+    c.relative(b'\xf3\x0f\x59\x05',base+0x723f8e8+0x24)
     c.emit(bytes.fromhex('66 0f 7e c0 85 c0'));c.relative(b'\x0f\x8e','out')
     c.emit(bytes.fromhex('3d 00 00 80 7f'));c.relative(b'\x0f\x83','out')
-    c.relative(b'\x8b\x05',base+0x723e838+0x30);c.emit(bytes.fromhex('f7 c0 00 ff 00 00'));c.relative(b'\x0f\x84','clock_running')
+    c.relative(b'\x8b\x05',base+0x723f8e8+0x30);c.emit(bytes.fromhex('f7 c0 00 ff 00 00'));c.relative(b'\x0f\x84','clock_running')
     c.emit(bytes.fromhex('f7 c0 00 00 ff 00'));c.relative(b'\x0f\x84','out')
     c.label('clock_running')
     stage(6)

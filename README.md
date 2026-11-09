@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (alpha 0.2.5-alpha)
+# Absolute Flight for No Man's Sky (alpha 0.2.6-dev.1)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -16,7 +16,7 @@ new builds and tester chat. See "Reporting a problem" below.
 
 ## What you need
 
-- No Man's Sky on **Steam, build 184271** (Steam build id 26386568). On any other build the mod
+- No Man's Sky on **Steam, build 185034** (Steam build id 26540391). On any other build the mod
   stays off and the game plays as normal. If the pause menu's Options list looks wrong after a game update,
   delete `GAMEDATA\MODS\AbsoluteFlight\UI` until a new release catches up.
 - Windows 10 or 11, 64-bit.

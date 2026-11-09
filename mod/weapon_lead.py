@@ -13,24 +13,24 @@ import threading
 import time
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6F6B208
-INHERITANCE = 0x533CAE8
+APP_GLOBAL = 0x6F6C288
+INHERITANCE = 0x533DB28
 OWNERS = {'pip': 0x733180, 'aim_assist': 0x72FF60}  # app+: frame owner objects
 # These sites are below the hooked entries and remain verifiable on hot reload.
 PINS = {
-    0x15BD9B2: bytes.fromhex('410f5c370f58c8'),
-    0x99898C: bytes.fromhex('e82f4dc200'),
-    0x141DF6B: bytes.fromhex('e850f71900'),
-    0x141DFC2: bytes.fromhex('e8f9f61900'),
-    0x15A9B96: bytes.fromhex('f30f10054a2fd903'),
+    0x15BE012: bytes.fromhex('410f5c370f58c8'),
+    0x9988BC: bytes.fromhex('e85f54c200'),
+    0x141E35B: bytes.fromhex('e8c0f91900'),
+    0x141E3B2: bytes.fromhex('e869f91900'),
+    0x15AA1F6: bytes.fromhex('f30f10052a39d903'),
 }
 # Independent qualification: a sampling mismatch must not disable the T72 fix.
 TARGET_PINS = {
-    0x15BD6E1: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e8578f770184c00f84e0020000'),
-    0x29A580: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e80613ac02'),
-    0x2D5B8A6: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
-    0x2D36063: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
-    0x2D36660: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
+    0x15BDD41: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e8a78f770184c00f84e0020000'),
+    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e86617ac02'),
+    0x2D5BCA6: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
+    0x2D36743: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
+    0x2D36D10: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
 }
 TARGET_MAX_AGE_MS = 150
 

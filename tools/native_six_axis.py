@@ -13,9 +13,9 @@ from command_mailbox import reader_code, STRICT_ROTATION
 SIZE = 512
 PAYLOAD = 64
 DEADLINE, MASK, VALUES, GENERATION = 64, 72, 80, 104
-SITES = {0x178f42d:bytes.fromhex('0f118690760000'),
-         0x179071a:bytes.fromhex('488d8ec0600000'),
-         0x1791c6b:THROTTLE_ORIGINAL, 0x17953c8:ROLL_ORIGINAL}
+SITES = {0x179194d:bytes.fromhex('0f118690760000'),
+         0x1792c3a:bytes.fromhex('488d8ec0600000'),
+         0x179418b:THROTTLE_ORIGINAL, 0x17978e8:ROLL_ORIGINAL}
 
 
 def save(c):
@@ -117,7 +117,7 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
-    rva={'latch':0x178f42d,'processed':0x179071a,'throttle':0x1791c6b,'roll':0x17953c8}[kind]
+    rva={'latch':0x179194d,'processed':0x1792c3a,'throttle':0x179418b,'roll':0x17978e8}[kind]
     original=SITES[rva]
     if kind=='latch':c.emit(original)
     save(c)
@@ -223,7 +223,7 @@ class SixAxisPatches:
             site=base+rva;original=SITES[rva]
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
-            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f6b208,steering_limit,throttle_limit,turn_scale,
+            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f6c288,steering_limit,throttle_limit,turn_scale,
                             allow_planetary_input,allow_combat_input,allow_power_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')

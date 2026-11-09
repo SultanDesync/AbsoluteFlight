@@ -4,9 +4,9 @@ from pathlib import Path
 import struct
 from native_roll_patch import Code,K,allocate_near,replace_code
 
-SITE_RVA=0x1791C6B
+SITE_RVA=0x179418B
 ORIGINAL=bytes.fromhex('F3 0F 10 95 80 41 00 00')
-GLOBAL_SLOT_RVA=0x6F6B208
+GLOBAL_SLOT_RVA=0x6F6C288
 
 
 def cave_bytes(cave,site,data,get_tick,global_slot):

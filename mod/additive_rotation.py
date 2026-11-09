@@ -20,7 +20,7 @@ from planetary_flight import AIR_CLASSES
 from hotas_settings import PROFILE_KEYS, parse_token
 
 MAX_LEASE_MS = 50
-BUILD_SHA256 = 'a77fc29877789c3da9181afeb5941b9b85a27d3df24919a24403cf8e194c6109'
+BUILD_SHA256 = '092236962ee050e419424699b5c343a0173f7773d5ad0866b7ec366d334c07d4'
 FIGHTER_ENDPOINTS = {'pitch_negative': 1.1641868352890015, 'pitch_positive': -1.1641868352890015,
                      'yaw_negative': -1., 'yaw_positive': 1.}
 # T90: per-class rotation shaping (Flight Tuning > Rotation): top pitch/yaw/roll rate multipliers
@@ -102,8 +102,8 @@ def capture_identity(runtime):
     from native_rotation_trial import EXPECTED_SHA, read_engine_pins, read_mode_pins
     bridge = runtime.newtonian
     base = int(runtime.pm.process_base.lpBaseOfDll)
-    return {'exe_sha256': EXPECTED_SHA, 'file_version': '184271',
-            'steam_buildid': '26386568', 'process_id': os.getpid(),
+    return {'exe_sha256': EXPECTED_SHA, 'file_version': '185034',
+            'steam_buildid': '26540391', 'process_id': os.getpid(),
             'fixture': _copy(bridge.fixture),
             'engine_pins': read_engine_pins(runtime.pm, bridge.fixture['ship']),
             'mode_pins': read_mode_pins(runtime.pm, base),
@@ -200,8 +200,8 @@ def get_runtime_profile(identity, request=None):
     multiplies native targets and that gain, never the MaxTorque clamp.
     """
     request = DEFAULT_REQUEST if request is None else request
-    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '184271'
-            or identity.get('steam_buildid') != '26386568'):
+    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '185034'
+            or identity.get('steam_buildid') != '26540391'):
         raise ValueError('unsupported additive rotation game build')
     ship_class = identity.get('fixture', {}).get('ship_class')
     if request['additive'] and ship_class != 2:
@@ -360,7 +360,7 @@ class AdditiveRotation:
         if rows:
             row = rows[-1]
             self.native = {key: row[key] for key in ('invocation', 'override_applied', 'admitted',
-                           'fresh', 'qualified', 'complete', 'tick_ms') if key in row}
+                           'fresh', 'qualified', 'complete', 'tick_ms', 'game_pitch_invert') if key in row}
         if self.native is not None and not 0 <= now - self.native.get('tick_ms', -MAX_LEASE_MS) < MAX_LEASE_MS:
             self.native = None
 

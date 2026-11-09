@@ -23,10 +23,10 @@ from command_mailbox import CommandMailbox, reader_code
 from native_roll_patch import Code, K
 from native_six_axis import save, restore
 
-SITE_RVA = 0x144BE92
+SITE_RVA = 0x144C232
 ORIGINAL = bytes.fromhex('f30f10442438410f28c8')
-CALLER_RVA = 0x17906CB
-APP_GLOBAL = 0x6F6B208
+CALLER_RVA = 0x1792BEB
+APP_GLOBAL = 0x6F6C288
 PRODUCER_OFFSET = 0x60D0
 FACTOR_OFFSET = 0x64
 BLOCK = 0x800
@@ -38,11 +38,11 @@ MAX_GAIN = 1.
 # Exact-build below-entry pins. The producer's saved outer RBP is [RBP+100],
 # and its original return address is [RBP+108], from this prologue.
 PINS = {
-    0x144ACC1: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
-    0x144B8A5: bytes.fromhex('c746640000803f'),
-    0x144C14B: bytes.fromhex('f30f594e64'),
-    0x144C264: bytes.fromhex('f30f594e64'),
-    0x17906C6: bytes.fromhex('e8e5a5cbff'),
+    0x144B061: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
+    0x144BC45: bytes.fromhex('c746640000803f'),
+    0x144C4EB: bytes.fromhex('f30f594e64'),
+    0x144C604: bytes.fromhex('f30f594e64'),
+    0x1792BE6: bytes.fromhex('e86584cbff'),
 }
 
 _RETAINED = []

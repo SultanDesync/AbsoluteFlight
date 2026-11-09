@@ -1,144 +1,144 @@
 {
- "file_version": "184271",
- "sha256": "a77fc29877789c3da9181afeb5941b9b85a27d3df24919a24403cf8e194c6109",
- "steam_buildid": "26386568",
+ "file_version": "185034",
+ "sha256": "092236962ee050e419424699b5c343a0173f7773d5ad0866b7ec366d334c07d4",
+ "steam_buildid": "26540391",
  "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin",
- "remap_note": "184271 (2026-11-02, claude): targets (rva, entry32, signature) and menu_index_instructions carried by tools/game_update.py scan/apply, plus DoGameSwitcher, RenderPage, Activate and NGuiBeginInput re-read from the new exe by hand (frame sizes changed); nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
+ "remap_note": "185034 (2026-11-09, claude): targets (rva, entry32, signature) and menu_index_instructions carried by tools/game_update.py scan/apply, plus DoGameSwitcher (rewritten for the new Finalise Expedition button) and nvgReset (a leaf the scan missed) re-read from the new exe by hand; nested call records (builders, calls, driver_ui_calls, globals) still hold 183791 values. The release reads only targets' rva and entry32.",
  "targets": {
   "BeginPage": {
-   "rva": "0x1bd050",
+   "rva": "0x1bcfc0",
    "entry32": "48895c24084889742410574883ec400f57c033c00f11410c89411c488bd94889",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 0F 57 C0 33 C0",
    "matches": [
-    "0x1bd050"
+    "0x1bcfc0"
    ]
   },
   "Header": {
-   "rva": "0x1b9f50",
-   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100d2ac1a304488d",
+   "rva": "0x1b9ec0",
+   "entry32": "48895c2410574883ec4083790801488bda4963f8755bf30f100d52daa304488d",
    "pattern": "48 89 5C 24 ? 57 48 83 EC ? 83 79 ? ? 48 8B DA",
    "matches": [
-    "0x1b9f50"
+    "0x1b9ec0"
    ]
   },
   "Boolean": {
-   "rva": "0x1ba2e0",
+   "rva": "0x1ba250",
    "entry32": "4c894424185657415541574883ec7883790801410fb6f94c8bac24c80000004c",
    "pattern": "4C 89 44 24 ? 56 57 41 55",
    "matches": [
-    "0x1ba2e0"
+    "0x1ba250"
    ]
   },
   "Int": {
-   "rva": "0x1ba4d0",
+   "rva": "0x1ba440",
    "entry32": "44894c24204c8944241855564157488d6c24d94881ece0000000837908014c8b",
    "pattern": "44 89 4C 24 ? 4C 89 44 24 ? 55 56 41 57",
    "matches": [
-    "0x1ba4d0"
+    "0x1ba440"
    ]
   },
   "Float": {
-   "rva": "0x1ba750",
+   "rva": "0x1ba6c0",
    "entry32": "f30f115c2420555341544155488d6c24c84881ec38010000837908014d8be80f",
    "pattern": "F3 0F 11 5C 24 ? 55 53 41 54",
    "matches": [
-    "0x1ba750"
+    "0x1ba6c0"
    ]
   },
   "Button": {
-   "rva": "0x1ba130",
+   "rva": "0x1ba0a0",
    "entry32": "48895c241848896c2420565741574881ec8000000032db498bf1837908014d8b",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 57 48 81 EC ? ? ? ? 32 DB",
    "matches": [
-    "0x1ba130"
+    "0x1ba0a0"
    ]
   },
   "BeginList": {
-   "rva": "0x1bb380",
+   "rva": "0x1bb2f0",
    "entry32": "48895c240848896c2410488974241857415641574883ec2033db488d792c8959",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 33 DB 48 8D 79 ? 89 59",
    "matches": [
-    "0x1bb380"
+    "0x1bb2f0"
    ]
   },
   "ListOption": {
-   "rva": "0x1bb4a0",
+   "rva": "0x1bb410",
    "entry32": "40534883ec2048634120488d59204c8bca83f83f0f87870000004869c8840000",
    "pattern": "40 53 48 83 EC ? 48 63 41 ? 48 8D 59",
    "matches": [
-    "0x1bb4a0"
+    "0x1bb410"
    ]
   },
   "EndPage": {
-   "rva": "0x1bd830",
+   "rva": "0x1bd7a0",
    "entry32": "488bc45557488d68a14881eca800000083790801488bf90f842c0b0000488958",
    "pattern": "48 8B C4 55 57 48 8D 68 ? 48 81 EC ? ? ? ? 83 79",
    "matches": [
-    "0x1bd830"
+    "0x1bd7a0"
    ]
   },
   "FinalizePage": {
-   "rva": "0x1bd540",
+   "rva": "0x1bd4b0",
    "entry32": "48895c241048896c241856574155415641574883ec40488b81b82700004533ff",
    "pattern": "48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 55 41 56 41 57 48 83 EC ? 48 8B 81 ? ? ? ? 45 33 FF",
    "matches": [
-    "0x1bd540"
+    "0x1bd4b0"
    ]
   },
   "DoOptions": {
-   "rva": "0x6ef2f0",
-   "entry32": "4055488dac24a0d8ffffb860280000e8fc05da02482be0833d064d8a06000f84",
+   "rva": "0x6ef920",
+   "entry32": "4055488dac24a0d8ffffb860280000e86c07da02482be0833d56578a06000f84",
    "pattern": "40 55 48 8D AC 24 ? ? ? ? B8 ? ? ? ? E8 ? ? ? ? 48 2B E0 83 3D",
    "matches": [
-    "0x6ef2f0"
+    "0x6ef920"
    ]
   },
   "DoGameSwitcher": {
-   "rva": "0x6f00e0",
-   "entry32": "488bc4555356574154415541564157488da8f8f5ffff4881ecc80a0000660f6f",
-   "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 66 0F 6F 0D",
+   "rva": "0x6f0710",
+   "entry32": "488bc4555356574154415541564157488da8c8f2ffff4881ecf80d0000488b99",
+   "pattern": "48 8B C4 55 53 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 48 8B 99 78 44 01 00",
    "matches": [
-    "0x6f00e0"
+    "0x6f0710"
    ]
   },
   "UpdateRender": {
-   "rva": "0x90b760",
+   "rva": "0x90b690",
    "entry32": "488bc4488958105556574154415541564157488da878feffff4881ec50020000",
    "pattern": "48 8B C4 48 89 58 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 44 0F 29 90",
    "matches": [
-    "0x90b760"
+    "0x90b690"
    ]
   },
   "ApplicationUpdate": {
-   "rva": "0x2dd3e0",
-   "entry32": "40534883ec20e8752899024889058eb60007e8093fefff803d14e10605000fb6",
+   "rva": "0x2dd3f0",
+   "entry32": "40534883ec20e8452e99024889053ec70007e8993eefff803d44f10605000fb6",
    "pattern": "40 53 48 83 EC 20 E8 ? ? ? ? 48 89",
    "matches": [
-    "0x2dd3e0"
+    "0x2dd3f0"
    ]
   },
   "RequestOptionsPage": {
-   "rva": "0x2ea4c0",
-   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0d290dc80648",
+   "rva": "0x2ea4d0",
+   "entry32": "48895c24084889742420574881ec000100008bd984d2741a488b0d991dc80648",
    "pattern": "48 89 5C 24 ? 48 89 74 24 ? 57 48 81 EC ? ? ? ? 8B D9",
    "matches": [
-    "0x2ea4c0"
+    "0x2ea4d0"
    ]
   },
   "RenderPage": {
-   "rva": "0x919860",
-   "entry32": "405553488dac2428d7ffffb8d8290000e88b60b702482be04889b424d0290000",
+   "rva": "0x919790",
+   "entry32": "405553488dac2428d7ffffb8d8290000e8fb68b702482be04889b424d0290000",
    "pattern": "40 55 53 48 ? AC 24 28 D7 FF FF ? ? ? ? 00 ? ? ? ? 02 ? ? ? ? 89 B4 24 D0 29 00 00 ? ? ? ? C8 29 00 00",
    "matches": [
-    "0x919860"
+    "0x919790"
    ]
   },
   "Activate": {
-   "rva": "0x90f780",
+   "rva": "0x90f6b0",
    "entry32": "405556574157488bec4883ec588b8188c50100450fb6f84863f2488bf983f804",
    "pattern": "40 55 56 57 41 57 48 8B EC",
    "matches": [
-    "0x90f780"
+    "0x90f6b0"
    ]
   }
  },
@@ -152,7 +152,7 @@
  },
  "builders": {
   "General": {
-   "rva": "0x6ff2e0",
+   "rva": "0x6ff1a0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6fdbe2",
@@ -357,7 +357,7 @@
    ]
   },
   "Controls": {
-   "rva": "0x6f4a70",
+   "rva": "0x6f47d0",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f3294",
@@ -557,7 +557,7 @@
    ]
   },
   "Camera": {
-   "rva": "0x6f3ab0",
+   "rva": "0x6f3810",
    "direct_ui_calls": [
     {
      "call_rva": "0x6f230f",
@@ -737,35 +737,35 @@
  "limits": "Static direct-call inventory, not an executed row sequence; branches may omit rows.",
  "menu_index_instructions": [
   {
-   "rva": "0x6ef346",
+   "rva": "0x6ef976",
    "instruction": "mov ecx, dword ptr [rip + 0x689ba38]"
   },
   {
-   "rva": "0x6ef34c",
+   "rva": "0x6ef97c",
    "instruction": "lea r15, [rip - 0x6edc03]"
   },
   {
-   "rva": "0x6ef353",
+   "rva": "0x6ef983",
    "instruction": "mov rax, qword ptr [rip + 0x689ba2e]"
   },
   {
-   "rva": "0x6ef35a",
+   "rva": "0x6ef98a",
    "instruction": "dec ecx"
   },
   {
-   "rva": "0x6ef35c",
+   "rva": "0x6ef98c",
    "instruction": "mov rbx, qword ptr [rbp + 0x2730]"
   },
   {
-   "rva": "0x6ef363",
+   "rva": "0x6ef993",
    "instruction": "mov rsi, qword ptr [rbp + 0x2738]"
   },
   {
-   "rva": "0x6ef36a",
+   "rva": "0x6ef99a",
    "instruction": "mov rcx, qword ptr [rax + rcx*8]"
   },
   {
-   "rva": "0x6ef36e",
+   "rva": "0x6ef99e",
    "instruction": "movsxd rax, dword ptr [rcx]"
   }
  ]
