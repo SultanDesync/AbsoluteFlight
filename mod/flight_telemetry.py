@@ -23,6 +23,9 @@ SHIP_FIELDS=(('boost_max_speed',0x6650,'<f'),('falloff',0x6660,'<f'),('overspeed
 GATE_FIELDS=(('gate_active',0x60C8,'<B'),('gate_autopilot',0x6430,'<I'),('gate_landing',0x7318,'<I'),('gate_73e0',0x73E0,'<B'),
              ('gate_velocity_override',0x76ED,'<B'),('gate_native_boost',0x6CE4,'<B'),('gate_7740',0x7740,'<B'))
 APP_GATES=(('gate_pulse',0x72B6DC,'<I'),('gate_warp',0x72B6CC,'<I'))  # app (manager) fields
+# T124: the game's space-POI selector (app field, 185034; -1 = none). Not a Sultan gate, so not in gates_failed. Up to
+# 0.2.7-dev.2 the throttle cave refused every frame with a POI selected, which also took roll and strafe native.
+SPACE_POI=('space_poi',0x57AB24,'<i')
 
 
 def gates_failed(row):
@@ -59,7 +62,11 @@ COLUMNS=(['t','piloting','reason','style','hosas_mode','lever_unit','throttle_ar
          +[name for name,_,_ in GATE_FIELDS+APP_GATES]+['gates_failed']
          # T118: the rotation seam (class style / Fighter additive): host state and mode, and 1 when the
          # last native receipt applied it, 0 when native rejected it, blank with no receipt.
-         +['rotation_state','rotation_mode','rotation_applied'])
+         +['rotation_state','rotation_mode','rotation_applied']
+         # T124: the space-POI selector, and the watchdog's reset count and what it last found stuck.
+         +['space_poi','watchdog_resets','watchdog_cause']
+         # T125: the display. 0 flat, 1 VR with Experimental VR off (flight left to the game), 2 VR with it on.
+         +['vr'])
 
 
 def decode_receipt(raw):

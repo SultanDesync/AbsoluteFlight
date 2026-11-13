@@ -94,11 +94,12 @@ class ButtonCapture:
     Press counters, not levels, so a button already held when capture starts never binds, and a
     tap shorter than one poll still does.
     """
-    def __init__(self,table,now=time.monotonic,modifier=None):
-        """modifier: the shift button token. A binding made while it is held comes back as
+    def __init__(self,table,now=time.monotonic,modifier=None,timeout=None):
+        """timeout: seconds to listen (CAPTURE_TIMEOUT when None). modifier: the shift button token. A binding made while it is held comes back as
         '<token>+shift'. Pressed and released alone, it comes back as itself, so the menu can say it is
         the shift button instead of ignoring the press silently (live 2026-10-16)."""
         self.table=table;self.now=now;self.started=now();self.baseline=self._sample();self.modifier=modifier
+        self.timeout=timeout or CAPTURE_TIMEOUT
         self.modifier_pressed=False
 
     def _sample(self):
@@ -109,7 +110,7 @@ class ButtonCapture:
 
     def poll(self):
         """Token string when captured, 'timeout', or None while listening."""
-        if self.now()-self.started>CAPTURE_TIMEOUT:return 'timeout'
+        if self.now()-self.started>self.timeout:return 'timeout'
         for guid,(generation,counts) in self._sample().items():
             base=self.baseline.get(guid)
             if base is None or base[0]!=generation:

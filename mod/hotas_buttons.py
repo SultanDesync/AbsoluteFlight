@@ -73,6 +73,7 @@ ACTIONS=(
     Action('mod.flight-model-next','Next flight model','flight','mod',('tap','long'),help='Cycle Vanilla, Vanilla + strafe and Sultan\'s Flight Tuning.'),
     Action('mod.flight-model-toggle','Flight model toggle','flight','mod',('tap','long'),help='Switch between your two chosen flight models.'),
     Action('mod.lever-mode-toggle','Lever: speed / thrust','flight','mod',('tap','long'),help='Switch the HOTAS lever between speed target and thrust.'),
+    Action('mod.coupled-toggle','Coupled flight on/off','flight','mod',('tap','long'),help="Turn Sultan's coupled flight assist on or off (Flight Model page): the throttle sets a speed and the ship brakes its own drift."),
     Action('mod.pip-toggle','Switch lead / lag pip','flight','mod',('tap','long'),help='Switch the aiming pip between Lead and Lag. Visibility is set separately on Combat. Lag initially supports manual aiming in Sultan space flight.'),
     Action('mod.head-tracking-toggle','Head tracking on/off','flight','mod',('tap','long'),help='Turn head tracking on or off.'),
     Action('mod.head-recentre','Recentre head tracking','flight','mod',('tap','long'),help='Take the current head pose as centre.'),
@@ -85,6 +86,9 @@ ACTIONS=(
     Action('mod.power-weapons','Power: weapons','flight','mod',('tap','long'),help="Set the ship's power to weapons, whatever it was."),
     Action('mod.power-engines','Power: engines','flight','mod',('tap','long'),help="Set the ship's power to engines, whatever it was."),
     Action('mod.power-shields','Power: shields','flight','mod',('tap','long'),help="Set the ship's power to shields, whatever it was."),
+    # T125 (user 2026-11-13: "is it possible to put a recenter vr binding on the hotas?"): the game recentres the VR view
+    # while its two HMD_Recenter actions are held together for its own hold time (button_actions.VR_RECENTRE_NATIVES).
+    Action('mod.vr-recentre','Recentre VR view','flight','mod',('press',),help="VR only: hold until the view recentres. It holds the game's own two recentre inputs for you, so the game's hold time applies. Works wherever the game has focus, in or out of the ship. Does nothing in flat play."),
     Action('mod.eject','Eject (hold)','flight','mod',('press',),help='Hold to leave the ship in flight, even where the game refuses (Sultan flight only). Hold time is set below. Bind it somewhere you will not press by accident.'),
     # T59 static (180836): Land 0x21 only requests landing; native launch reads Ship_Thrust 0x1B (or scalar 0x8A).
     _ship('boost','Boost',0x1D),_ship('land','Land',0x21),

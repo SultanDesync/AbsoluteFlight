@@ -131,6 +131,7 @@ class FlightProfile:
     speed_cap: float = 1200.
     speed_cap_multiplier: float = 1.
     brake_strength: float = 1.
+    brake_override: float = 0.  # T126: share of thrust and strafe that pushes through a held (yielding) brake
     settle_time: float = 1.
     hold_threshold: float = .02
     jerk_limit: float = 0.
@@ -159,6 +160,8 @@ class FlightProfile:
             raise ValueError('Speed cap, its multiplier and settle time must be positive')
         if not 0. <= self.brake_strength <= 1.:
             raise ValueError('Brake strength is a fraction of available authority')
+        if not 0. <= self.brake_override <= 1.:
+            raise ValueError('Brake override is a fraction of thrust authority')
         if not 0. <= self.brake_floor <= 1.:
             raise ValueError('Brake floor must be a fraction')
         if self.boost_heat_time <= 0. or self.boost_cool_time <= 0.:
@@ -207,7 +210,8 @@ class LeverZones:
     cruise_level: float = .5
     cruise_enabled: bool = True
     boost_enabled: bool = False  # requests the mod-owned multiplier, never native boost
-    reverse_mode: str = 'full'
+    reverse_mode: str = 'full'  # full | proportional | off (T123: the range joins the zone above)
+    parking_enabled: bool = True  # off joins the parking range to coast (T123)
 
     def __post_init__(self):
         positions = (self.reverse_end, self.parking_end, self.coast_end,
@@ -217,8 +221,10 @@ class LeverZones:
             raise ValueError('Lever zones must fit strictly inside the lever range')
         if any(a >= b for a, b in zip(positions, positions[1:])):
             raise ValueError('Lever zone boundaries must be strictly ordered')
-        if not 0. <= self.cruise_level <= 1. or self.reverse_mode not in ('full', 'proportional'):
+        if not 0. <= self.cruise_level <= 1. or self.reverse_mode not in ('full', 'proportional', 'off'):
             raise ValueError('Invalid cruise level or reverse mode')
+        if not isinstance(self.parking_enabled, bool):
+            raise ValueError('Parking zone must be on or off')
 
 
 @dataclass(frozen=True)
@@ -228,6 +234,12 @@ class ThrottleDemand:
     parking: bool = False
     boost_requested: bool = False
     speed_control: bool = False
+    # T126: a held Parking brake button. The brake gives way a little: value (as a thrust fraction) and the strafe
+    # inputs push through at the profile's brake_override share. A latched brake and the lever's zone never yield.
+    yielding: bool = False
+    # T128 coupled flight (optional assist): value is a share of the speed cap along the nose for every throttle
+    # style (neutral = stop), and a released strafe axis brakes its own drift. Thrust authority only.
+    coupled: bool = False
 
     def __post_init__(self):
         _finite(self.value)
@@ -240,16 +252,18 @@ def map_lever(unit, zones=None, control='speed', inverted=False):
 
     Intervals include their lower boundary. With cruise disabled its plateau joins
     the forward ramp; with boost disabled the upper zone is ordinary full thrust.
+    With reverse off its range joins the parking zone above; with the parking zone
+    off its range joins coast (T123).
     """
     _finite(unit)
     zones = zones or LeverZones()
     if control not in ('speed', 'thrust'):
         raise ValueError('Lever controls must be speed or thrust')
     p = 1.-_clamp(unit, 0., 1.) if inverted else _clamp(unit, 0., 1.)
-    if p < zones.reverse_end:
+    if p < zones.reverse_end and zones.reverse_mode != 'off':
         value = -1. if zones.reverse_mode == 'full' else -(zones.reverse_end-p)/zones.reverse_end
         zone = 'reverse'
-    elif p < zones.parking_end:
+    elif p < zones.parking_end and zones.parking_enabled:
         return ThrottleDemand(zone='parking', parking=True)
     elif p <= zones.coast_end:
         return ThrottleDemand()
@@ -311,6 +325,21 @@ def compute_acceleration(profile, lateral, vertical, throttle, velocity_world, b
     timestep-correct exponential controller, bounded by directional authority and
     the acceleration that would stop each component in this invocation. Its safety
     bound takes precedence over jerk smoothing at engage and near zero.
+
+    T126 (user 2026-11-13: 'thrust can overcome held break slightly'): a yielding
+    parking demand (a held button) adds the pilot's thrust and strafe at
+    profile.brake_override of each direction's unboosted authority on top of the
+    brake. The brake still pulls against the velocity, so the ship creeps at about
+    push * settle_time and stops when the input is released. Acceleration only: the
+    cap is not involved.
+
+    T128 (user 2026-11-13: 'throw in a coupled flight mode', then 'Throttle sets
+    speed'): a coupled demand makes the forward axis the speed follower for every
+    throttle style (target = value * cap, so neutral is stop) and, on each strafe
+    axis whose input is released, brakes that axis's body drift with the same
+    follower gain. Everything stays inside each direction's authority and then goes
+    through the same fade, brake floor, momentum and cap steps as pilot thrust, so
+    the assist has no more acceleration than the pilot and the cap is unchanged.
     """
     _finite(lateral, vertical, dt)
     if dt <= 0.:
@@ -324,6 +353,7 @@ def compute_acceleration(profile, lateral, vertical, throttle, velocity_world, b
     limits = profile.authority(native_thrust_force, 1. if parking else boost_multiplier)
     body_velocity = basis.to_body(velocity)
     target_speed = None
+    push = ZERO  # body-axis pilot thrust through a yielding brake (T126)
     if parking:
         gain = -math.expm1(-dt/profile.settle_time)/dt
         if _norm(velocity) <= profile.hold_threshold:
@@ -331,16 +361,26 @@ def compute_acceleration(profile, lateral, vertical, throttle, velocity_world, b
         requested = tuple(_clamp(-v*gain, -negative*profile.brake_strength,
                                  positive*profile.brake_strength)
                           for v, (negative, positive) in zip(body_velocity, limits))
+        if throttle.yielding and profile.brake_override > 0.:
+            fractions = (_clamp(lateral, -1., 1.), _clamp(vertical, -1., 1.), throttle.value)
+            push = tuple(profile.brake_override*u*(positive if u >= 0. else negative)
+                         for u, (negative, positive) in zip(fractions, limits))
+            requested = tuple(a+b for a, b in zip(requested, push))
     else:
         fractions = (_clamp(lateral, -1., 1.), _clamp(vertical, -1., 1.), throttle.value)
         requested = tuple(u*(positive if u >= 0. else negative)
                           for u, (negative, positive) in zip(fractions, limits))
-        if throttle.speed_control:
+        if throttle.speed_control or throttle.coupled:
             target_speed = throttle.value*profile.effective_cap
             # Exponential discretization avoids target overshoot at low frame rates.
             gain = -math.expm1(-profile.speed_hold_gain*dt)/dt
             forward = _clamp((target_speed-body_velocity[2])*gain, -limits[2][0], limits[2][1])
             requested = (requested[0], requested[1], forward)
+            if throttle.coupled:
+                # A held strafe axis is still thrust; a released one takes its drift off.
+                requested = tuple(_clamp(-v*gain, -negative, positive) if u == 0. else a
+                                  for a, u, v, (negative, positive)
+                                  in zip(requested[:2], fractions[:2], body_velocity[:2], limits[:2]))+(forward,)
     acceleration = basis.to_world(requested)
     if profile.jerk_limit > 0.:
         delta = tuple(a-b for a, b in zip(acceleration, previous))
@@ -358,9 +398,11 @@ def compute_acceleration(profile, lateral, vertical, throttle, velocity_world, b
         # carry a braking component through zero into reverse motion.
         body = basis.to_body(acceleration)
         safe = []
-        for a, v, (negative, positive) in zip(body, body_velocity, limits):
+        for a, v, p, (negative, positive) in zip(body, body_velocity, push, limits):
             bound = min(abs(v)/dt, (negative if v > 0. else positive)*profile.brake_strength)
-            safe.append(_clamp(a, -bound, 0.) if v > 0. else _clamp(a, 0., bound) if v < 0. else 0.)
+            low, high = (-bound, 0.) if v > 0. else (0., bound) if v < 0. else (0., 0.)
+            # A yielding brake's range widens by the pilot's push (T126), inside this axis's authority.
+            safe.append(_clamp(_clamp(a, low+min(p, 0.), high+max(p, 0.)), -negative, positive))
         acceleration = basis.to_world(tuple(safe))
     speed = _norm(velocity)
     cap = profile.effective_cap

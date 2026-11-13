@@ -12,7 +12,7 @@ so the row always shows the current value and the arrows pick the previous or ne
 api is a dict of native callables, so everything here is tested with a fake.
 """
 import struct,threading,time
-from hotas_menu import ROOT,MenuController,build_page
+from hotas_menu import CONFIRM_TIMEOUT,ROOT,MenuController,build_page
 from hotas_settings import BY_ID,Control
 
 CONTROLS_PAGE=2
@@ -20,6 +20,7 @@ ENTRY_HEADER='ABSOLUTE FLIGHT'
 ENTRY_BUTTON='Absolute Flight Setup'
 ENTRY_HELP='Bind and tune your HOTAS or HOSAS flight controls.'
 FOCUS_SECONDS=3.
+PANE_SECONDS=2.  # a pane counts as drawable this long after the runtime last placed it
 FORMATS={'percent':(100.,' %','%.0f%s'),'multiplier':(1.,'x','%.2f%s'),'per-second':(1.,' /s','%.2f%s'),'speed':(1.,' u/s','%.0f%s'),
          'seconds':(1.,' s','%.2f%s'),'jerk':(1.,' u/s³','%.0f%s'),'acceleration':(1.,' u/s²','%.2f%s'),'pixels':(1.,' px/s','%.0f%s'),'degrees':(1.,' deg','%.1f%s'),'g':(1.,' g','%.1f%s'),
          'number':(1.,'','%.2f%s'),'distance':(1.,' u','%.0f%s')}
@@ -54,20 +55,34 @@ class NativeMenu:
         self.last_changed=(None,0.);self._labels=set();self._section='';self._repeats=set()
         self.trace=None  # runtime log hook: every row activation and its result (alpha binding report, 2026-10-22)
         self.meters={}  # spacer label -> meter spec, for the drawing pass
+        self.pane_at=None  # when the runtime last found room for this page's pane (T122)
+        self._last_label=None
 
     # ----- capture plumbing (runtime thread calls back) -----
     def _start_capture(self,binding_id):
         def done(token):
             with self.lock:
-                if token=='timeout':
-                    self.controller.capture=None
+                if token=='timeout':self.controller.capture_timeout()
                 elif token=='clear':  # Delete/Backspace during capture
                     if self.controller.clear_capture()=='stale':self.controller.capture=None
                 else:self.controller.capture_result(token)
         # Read by the runtime's capture start: which device kind to listen to.
         done.kind=('key' if binding_id=='button-add-key' else 'modifier' if binding_id=='button-modifier'
                    else 'button' if binding_id.startswith('button-') else 'keyboard' if binding_id.startswith('key-bind:') else 'axis')
+        # A button conflict listening for its answer (T122) waits longer than a capture: there is a pane to read.
+        done.timeout=CONFIRM_TIMEOUT if (self.controller.conflict or {}).get('confirm') else None
         self._capture_start(done)
+
+    # ----- pane (T122, hotas_menu.PANES): drawn by the runtime over the game's description panel -----
+    def pane_drawn(self):
+        """The runtime has room for this page's pane this frame (and drew it, if it had anything to say)."""
+        self.pane_at=self.now()
+
+    @property
+    def pane_live(self):
+        """Whether the pane can be drawn. When it can't (no room, meters off after drawing errors), prompts fall back
+        to rows in the list, as on every other page."""
+        return self.pane_at is not None and self.now()-self.pane_at<=PANE_SECONDS
 
     # ----- navigation -----
     def frame(self,depth):
@@ -96,6 +111,7 @@ class NativeMenu:
         """Stop owning every screen (watchdog / menu left): native rows return, settings saved."""
         with self.lock:
             self.depth_routes.clear();self.pending=None;self.meters={}
+            if (self.controller.capture or self.controller.conflict) and self.controller.capture_cancel:self.controller.capture_cancel()
             self.controller.capture=None;self.controller.conflict=None;self.controller.stack=[ROOT]
             self.store.save()
 
@@ -133,6 +149,8 @@ class NativeMenu:
             # The prompt goes right above the row being bound, where the player is looking; on a long page
             # the top is off-screen (alpha 2026-10-22). Top of the page if that row isn't shown.
             modal=view.modal
+            # T122: on a pane page the prompt is drawn in the pane and the rows stay where they are.
+            if modal and modal.get('pane') and self.pane_live:modal=None
             if modal and not any(r.id==modal.get('binding') for r in view.rows):self._modal_rows(page,api,modal);modal=None
             for row in view.rows:
                 if modal and row.id==modal.get('binding'):self._modal_rows(page,api,modal);modal=None
@@ -146,7 +164,7 @@ class NativeMenu:
         if (base in self._repeats or label in self._labels) and self._section:label=f'{base} ({self._section})'
         n=2
         while label in self._labels:label=f'{base} ({n})';n+=1
-        self._labels.add(label)
+        self._labels.add(label);self._last_label=label
         return self.s(label)
 
     def _modal_rows(self,page,api,modal):
@@ -163,7 +181,11 @@ class NativeMenu:
         s=self.s
         if row.kind=='header':
             if row.label:self._section=row.label.title()
-            api['Header'](page,self._label(row.label or ' '),0);return
+            label=self._label(row.label or ' ')
+            # A header carrying a pane (T122): registered like a meter's spacer, before the call (GetRow reports the
+            # row's root while NMS creates it), so the runtime can find the list on screen without an extra row.
+            if row.meter:self.meters[self._last_label]=row.meter
+            api['Header'](page,label,0);return
         if row.kind=='meter':
             label='  '+row.id.upper()  # unique spacer row; the drawing pass covers it
             # Register before the call: NMS reports the row's root (GetRow) while creating it.
@@ -200,12 +222,12 @@ class NativeMenu:
             if row.kind=='bool':keys,texts=(False,True),BOOL_TEXTS
             else:keys=[k for k,_ in control.choices];texts=[t for _,t in control.choices]
             current=keys.index(value)
-            new=api['Float'](page,self._label(control.label),s(control.help),float(current),float(keys.index(default)),
+            new=api['Float'](page,self._label(control.label),s(row.help or control.help),float(current),float(keys.index(default)),
                              0.,float(len(keys)-1),self.options.choice(texts[current]))
             new=min(len(keys)-1,max(0,int(round(float(new)))))
             if new!=current:self._set(row.id,keys[new])
         elif row.kind=='float':
-            new=float(api['Float'](page,self._label(control.label),s(control.help),float(value),float(default),
+            new=float(api['Float'](page,self._label(control.label),s(row.help or control.help),float(value),float(default),
                                    float(control.low),float(control.high),self.options.float(control)))
             if abs(new-value)>1e-7:self._set(row.id,new)
 

@@ -46,6 +46,10 @@ CONFIRM_FRAMES = 50                # 0x185BE10: HeldConfirm after 0x32 frames
 COUNT = 0x110                      # action ids 0..0x10F (cGcInputActions up to Player_InteractSecondary 0x103)
 ENTRY = 0x20                       # held, press seq, release seq, seen press, seen release, down frame, up frame
 ENABLED, HITS, TABLE = 0x00, 0x08, 0x40
+# T125: in VR a bound fire button did not fire (user 2026-11-13). ANY_PORT lets the cave answer whichever port asks
+# (set only with Experimental VR on); the counters say what the game asked for: MISSES = a held action asked for on
+# a port that is not the active one (with that port and the active port), entry+ASKED = asked for while held.
+MISSES, MISS_PORT, MISS_ACTIVE, ANY_PORT, ASKED = 0x10, 0x18, 0x1C, 0x20, 0x1C
 DATA_OFFSET = 0x1000
 DATA_SIZE = TABLE+COUNT*ENTRY
 ALLOCATION = DATA_OFFSET+((DATA_SIZE+0xFFF) & ~0xFFF)
@@ -74,12 +78,23 @@ def cave_code(cave, base, data):
     c.emit(bytes.fromhex('83 f9 ff')); c.relative(JNE, 'port')
     c.emit(bytes.fromhex('89 d1'))
     c.label('port')
-    c.emit(bytes.fromhex('39 d1')); c.relative(JNE, 'false')   # only the active player's port
+    c.emit(bytes.fromhex('39 d1')); c.relative(JE, 'port-ok')  # the active player's port
+    c.relative(b'\x83\x3d', d(ANY_PORT), b'\x01'); c.relative(JE, 'port-ok')  # T125: or any port, while switched on
+    # Another port asked. If we hold that action, count it and note both ports; the answer stays false.
+    c.relative(b'\x4c\x8d\x05', d(TABLE))
+    c.emit(bytes.fromhex('89 f8 48 c1 e0 05 49 01 c0'))      # r8 = entry (action * 0x20)
+    c.emit(bytes.fromhex('41 83 38 00')); c.relative(JE, 'false')
+    c.relative(b'\x48\xff\x05', d(MISSES)); c.relative(b'\x89\x0d', d(MISS_PORT)); c.relative(b'\x89\x15', d(MISS_ACTIVE))
+    c.relative(b'\xe9', 'false')
+    c.label('port-ok')
     c.emit(bytes.fromhex('83 f9')+bytes([PORT_MAX])); c.relative(JA, 'false')
     c.emit(bytes.fromhex('48 69 c9')+struct.pack('<I', PORT_STRIDE))
     c.emit(bytes.fromhex('44 8b 9c 0e')+struct.pack('<I', PORT_BLOCK+BLOCK_FRAME))  # r11d = this frame
     c.relative(b'\x4c\x8d\x05', d(TABLE))
     c.emit(bytes.fromhex('89 f8 48 c1 e0 05 49 01 c0'))      # r8 = entry (action * 0x20)
+    c.emit(bytes.fromhex('41 83 38 00')); c.relative(JE, 'not-held')
+    c.emit(bytes.fromhex('41 ff 40')+bytes([ASKED]))          # asked for while held
+    c.label('not-held')
     # A new press or release takes the frame of the first query that sees it.
     c.emit(bytes.fromhex('41 8b 40 04 41 3b 40 0c')); c.relative(JE, 'no-press')
     c.emit(bytes.fromhex('41 89 40 0c 45 89 58 14'))
@@ -129,7 +144,7 @@ class NativeActions:
         self.code = cave_code(self.allocation, self.base, self.data)
         if len(self.code) > DATA_OFFSET:raise ValueError('native actions cave overflow')
         self.site = self.base+WRAPPER; self.patch = site_patch(self.site, self.allocation)
-        self.installed = False; self.held = set(); self.edges = {}
+        self.installed = False; self.held = set(); self.edges = {}; self.ever = set()
         self._write(0, bytes(DATA_SIZE))
         for action in range(COUNT):self._write(TABLE+action*ENTRY+0x14, struct.pack('<II', NEVER, NEVER))
         self.memmove(self.allocation, self.code, len(self.code))
@@ -155,6 +170,10 @@ class NativeActions:
 
     def enable(self):self._write(ENABLED, struct.pack('<I', 1))
 
+    def set_any_port(self, on):
+        """T125: answer whichever port asks (VR), not only the manager's active one."""
+        self._write(ANY_PORT, struct.pack('<I', 1 if on else 0))
+
     def disable(self):
         """Off, and every synthetic hold let go (a disabled cave answers native only)."""
         self._write(ENABLED, bytes(4)); self.step(())
@@ -170,7 +189,7 @@ class NativeActions:
             self._write(entry, struct.pack('<I', 1 if down else 0))
             self._write(entry+(4 if down else 8), struct.pack('<I', seq))
             self.edges[(action, down)] = now_ms
-        self.held = held
+        self.held = held; self.ever |= held
         for (action, down), since in list(self.edges.items()):
             entry = TABLE+action*ENTRY; seq, seen = (4, 0xC) if down else (8, 0x10)
             if self._u32(entry+seq) == self._u32(entry+seen):del self.edges[(action, down)]
@@ -179,5 +198,9 @@ class NativeActions:
 
     def status(self):
         return {'installed': self.installed, 'enabled': bool(self._u32(ENABLED)), 'held': sorted(self.held),
-                'hits': struct.unpack('<Q', self.read(self.data+HITS, 8))[0]}
+                'hits': struct.unpack('<Q', self.read(self.data+HITS, 8))[0],
+                # T125 diagnostics: did the game ask for what we held, and on which port.
+                'any_port': bool(self._u32(ANY_PORT)), 'misses': struct.unpack('<Q', self.read(self.data+MISSES, 8))[0],
+                'miss_port': self._u32(MISS_PORT), 'miss_active': self._u32(MISS_ACTIVE),
+                'asked': {f'{a:#x}': self._u32(TABLE+a*ENTRY+ASKED) for a in sorted(self.ever)}}
 

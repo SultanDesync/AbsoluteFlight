@@ -202,7 +202,10 @@ class FlightConsumer:
                     self.previous = (0., 0., 0.); condition.settle_until_ms = now_tick+planetary_flight.SETTLE_MS
             air = planetary_flight.compute(
                 profile, style, native['air'], planet, rho,
-                command.lateral, command.vertical, command.throttle, native['velocity'], basis,
+                # T128: coupled is space only for now; below orbit the air model flies the uncoupled demand.
+                command.lateral, command.vertical,
+                replace(command.throttle, coupled=False) if command.throttle.coupled else command.throttle,
+                native['velocity'], basis,
                 native.get('space_thrust_force', native['thrust_force']), native['dt'],
                 previous_acceleration_world=self.previous, boost_multiplier=multiplier, command_fresh=usable,
                 trim=getattr(command, 'trim', 0.),
@@ -281,6 +284,8 @@ class FlightConsumer:
             'target_speed': result.target_speed, 'zone': command.throttle.zone,
             **self.boost.status(), 'boost_active': boosting, 'boost_multiplier': multiplier,
             'bleeding_overspeed': result.bleeding_overspeed, 'planetary': planetary,
+            # T128: the coupled assist flew this frame (space, Sultan applying, brake off). The HUD tag reads it.
+            'coupled': bool(usable and command.throttle.coupled and planetary is None and not result.parking),
             'power_factor': power_factor,
         }
         return (1 if usable else 0), result

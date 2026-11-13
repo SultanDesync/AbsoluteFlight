@@ -75,10 +75,17 @@ HOTAS_ONLY=(('throttle-style','hotas'),)
 HOSAS_ONLY=(('throttle-style','hosas'),)
 NATIVE_HOTAS=HOTAS_ONLY+VANILLA_ONLY
 NATIVE_HOSAS=HOSAS_ONLY+VANILLA_ONLY
+# T123: a lever zone that is switched off hides its boundary; the range joins the zone above.
+LEVER_ZONE_ON={'reverse-end':(('lever-reverse-mode',('full','proportional')),),'parking-end':(('lever-parking-enabled',True),)}
 CONTROLS=(
     Control('flight-controls-enabled','bool','HOTAS flight control','Master switch. Off returns every flight axis to native NMS input.',True),
+    # T125 (user 2026-11-13: 'we should look into adding experimental vr support'). mod/vr_mode.py, docs/VR-SUPPORT.md.
+    Control('vr-experimental','bool','Experimental VR',"Only matters in a VR headset, and it is experimental. On: your HOTAS flies the ship in place of the game's in-world stick and throttle, and the mod flies without needing the game's desktop window in front. Off: in VR the mod leaves flight to the game. Either way the mod's own HUD, head tracking, lag pip, stick cursor and G effects stay off in VR. No effect in flat play.",False,new=True),
+    Control('vr-flat-input','bool','Flat-screen input in flight',"Experimental VR only. On: while you pilot, the game treats its input as on a flat screen instead of waiting for the VR hand controllers, so bound buttons can fire, launch and work the quick menu without picking the controllers up. It switches back whenever a menu opens or you leave the seat, because the VR menus are worked with the hands. Turn it off if flying in VR was fine and something got worse.",True,visible=(('vr-experimental',True),),new=True),
     Control('flight-model','choice','Flight model','Vanilla: the native NMS flight model on your HOTAS axes. Vanilla + strafe: the same, with lateral and vertical strafe on their own axes.'+(" Sultan's Flight Tuning: Newtonian flight; the ship keeps its momentum until you thrust, with a parking brake to stop." if SULTAN_FLIGHT_AVAILABLE else ''),'vanilla-strafe',choices=FLIGHT_MODELS,new=True),
-    Control('sultan-power-modes','bool','Ship power changes thrust',"The game's ship power modes change Sultan's acceleration: engines power raises it on every axis, weapons and shields power lower it. The amounts are the game's own engine factors (normally +33% and -15%). In atmosphere that moves the top speed too, because thrust against drag sets it. The speed cap stays the same. Off: power modes leave Sultan's thrust alone.",False,visible=SULTAN_ONLY,new=True),
+    # T128 (user 2026-11-13: 'might as well throw in a coupled flight mode ... some people like that'; 'Throttle sets speed').
+    Control('sultan-coupled','bool','Coupled flight',"A flight assist for Sultan's Flight Tuning, off by default. On: the ship spends its own thrust to follow the nose. The throttle sets a speed for every throttle style (its position is a share of top speed, neutral is stop), and letting go of strafe brakes the sideways and vertical drift. It has only the thrust you have, so a fast ship still slides through a turn. Space only: near a planet the air model flies as usual. Off: the ship keeps its momentum until you thrust.",False,visible=SULTAN_ONLY,new=True),
+    Control('sultan-power-modes','bool','Ship power changes thrust',"The game's ship power modes change Sultan's acceleration: engines power raises it on every axis, weapons and shields power lower it. The amounts are the game's own engine factors (normally +33% and -15%). In atmosphere that moves the top speed too, because thrust against drag sets it. The speed cap stays the same. Off: power modes leave Sultan's thrust alone.",True,visible=SULTAN_ONLY,new=True),
     Control('atmosphere-model','choice','Atmosphere flight',"Native: near a planet the game flies the ship, as before. Sultan: Sultan flight carries on down to the landing, with planet gravity, air that thickens toward the ground, drag and, for sleek hulls, lift. Each class flies its own air style: the Fighter carves like a jet, the Exotic, Living, Solar and Interceptor slide and lift in any direction, the Explorer sits between, and the Hauler and Shuttle are bricks on weak lift thrusters and strong mains. Corvette keeps native flight. Landing, takeoff and pulse stay native.",'sultan',choices=(('native','Native'),('sultan','Sultan')),visible=SULTAN_ONLY,new=True),
     Control('turn-rate-scale','float','Turn rate','Pitch and yaw rate at full deflection, after the game input curve. Applies on the next flight entry.',.85,.5,1.,.05,new=True),
     Control('strafe-authority','float','Strafe strength','Maximum native strafe correction at full deflection.',60.,10.,60.,5.,'speed',visible=(('flight-model','vanilla-strafe'),),new=True),
@@ -127,6 +134,7 @@ CONTROLS=(
     Control('hud-trim','bool','Lift trim','The lift trim you have set, as TRIM +62% under ATM/VAC. Shown only while a trim is set.',True,visible=SULTAN_ONLY+(('hud-planetary',True),),new=True),
     Control('hud-landing','bool','Landing guide',"With the gear down near the ground (Manual landing): a level bubble with your drift over the ground, a ground-height tape with the touchdown band, your sink rate and what the landing is waiting for.",True,visible=SULTAN_ONLY+LANDING_ON,new=True),
     Control('hud-mode-tag','bool','Flight mode tag','Who flies the ship, above the speed readout: SULTAN, or NATIVE with the reason (low height, landing) when the game takes over. Shown near planets and whenever the game flies.',True,visible=SULTAN_ONLY,new=True),
+    Control('hud-brake-warning','bool','Parking brake warning','A red warning above the reticle while the parking brake is on. PARKING BRAKE LATCHED, on a plate between red bars, while the latch is set: thrust does nothing until you press the button again. A plain red PARKING BRAKE while you hold the button or the lever sits in its parking zone.',True,visible=SULTAN_ONLY,new=True),
     Control('hud-scale','float','HUD size','Size of the speed readout and velocity markers.',1.,.5,2.,.05,'multiplier',visible=SULTAN_ONLY,new=True),
     Control('hud-font','choice','HUD font','Game font used for the speed readout. Compare shows a sample line in each game font.','GAMEFONT',choices=(('GAMEFONT','Game font 1'),('GAMEFONT2','Game font 2'),('GAMEFONT3','Game font 3'),('GAMEFONT4','Game font 4'),('compare','Compare all')),visible=SULTAN_ONLY+(('hud-speed-readout',True),),new=True),
     *[c for channel,title in AXIS_CHANNELS for c in _axis_controls(channel,title)],
@@ -149,8 +157,9 @@ CONTROLS=(
     Control('rate-throttle-ramp','float','Ramp rate','Speed setting change per second at full deflection.',1.,.1,3.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('rate-throttle-decay','float','Return to idle','Speed setting lost per second while centred. 0 holds speed.',0.,0.,1.,.05,'per-second',visible=NATIVE_HOSAS+(('hosas-stick-mode','rate'),)),
     Control('lever-controls','choice','Lever controls','Speed holds a forward speed along the nose, without braking lateral drift. Thrust commands acceleration. Coast disables either controller.','speed',choices=(('speed','Speed'),('thrust','Thrust')),visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
-    Control('lever-reverse-mode','choice','Reverse zone','Full gives full retro demand throughout the zone. Proportional increases smoothly towards the bottom.','full',choices=(('full','Full'),('proportional','Proportional')),visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
-    *[Control('lever-'+key,'float',label,'Lever position of this zone boundary. Boundaries stay ordered.',value,.005 if key=='reverse-end' else 0.,.995 if key=='boost-start' else 1.,.005,visible=HOTAS_ONLY+SULTAN_ONLY,new=True) for key,label,value in (
+    Control('lever-reverse-mode','choice','Reverse zone','Full gives full retro demand throughout the zone. Proportional increases smoothly towards the bottom. Off removes reverse from the lever: its travel joins the parking zone above, or coast if that is off too.','full',choices=(('full','Full'),('proportional','Proportional'),('off','Off')),visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
+    Control('lever-parking-enabled','bool','Parking zone','Brake to a stop and hold position while the lever sits in the parking zone, like the Parking brake button. Off joins this range to coast.',True,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
+    *[Control('lever-'+key,'float',label,'Lever position of this zone boundary. Boundaries stay ordered.',value,.005 if key=='reverse-end' else 0.,.995 if key=='boost-start' else 1.,.005,visible=HOTAS_ONLY+SULTAN_ONLY+LEVER_ZONE_ON.get(key,()),new=True) for key,label,value in (
         ('reverse-end','Reverse ends',.10),('parking-end','Parking ends',.18),('coast-end','Coast ends',.22),
         ('cruise-start','Cruise starts',.52),('cruise-end','Cruise ends',.58),('full-start','Full starts',.85),('boost-start','Boost starts',.90))],
     Control('lever-cruise-enabled','bool','Cruise zone','Hold the cruise level in the cruise zone. Off joins this range to the forward ramp.',True,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
@@ -163,7 +172,7 @@ CONTROLS=(
     Control('cursor-stick-enabled','bool','Stick moves cursor','While a dialog or menu is open, pitch and yaw move the mouse cursor; bind left click (Fire) to select. Needs Keyboard & mouse output. Never active in flight.',True,new=True),
     Control('cursor-speed','float','Cursor speed','Cursor speed at full stick deflection. Small deflections move much slower, for fine aiming.',1400.,200.,4000.,50.,'pixels',visible=(('cursor-stick-enabled',True),),new=True),
     Control('cursor-invert-y','bool','Invert cursor vertical','Reverse the cursor direction for pitch, without changing flight.',False,visible=(('cursor-stick-enabled',True),),new=True),
-    Control('parking-brake-mode','choice','Parking brake mode',"Latched: press the Parking brake button once to stop the ship and hold it there, press again to release. Hold to brake: the brake works only while you hold the button. Either way, translation input is ignored while it brakes; boost still gets through.",'hold',choices=(('toggle','Latched'),('hold','Hold to brake')),new=True),
+    Control('parking-brake-mode','choice','Parking brake mode',"Latched: press the Parking brake button once to stop the ship and hold it there, press again to release. Hold to brake: the brake works only while you hold the button. A latched brake ignores thrust and strafe until you release it. A held brake lets a little through (Held brake override on Flight Tuning), so the ship can creep against it. Boost is off while it brakes.",'hold',choices=(('toggle','Latched'),('hold','Hold to brake')),new=True),
     Control('eject-hold-time','float','Eject hold time','How long the Eject button must be held before you leave the ship. The HUD counts down while you hold it.',3.,1.,10.,.5,'seconds',new=True),
     Control('lever-boost-enabled','bool','Boost zone','Request Sultan boost above the boost boundary. Enable boost for the flown class in Flight Tuning; boost adds acceleration while leaving the speed cap unchanged.',False,visible=HOTAS_ONLY+SULTAN_ONLY,new=True),
 )
@@ -272,6 +281,7 @@ PROFILE_CONTROLS=(
     Control('tuning-boost-hot-zone','float','Hot zone starts','Heat where boost reaches full strength. Keep heat between here and overheat for the strongest boost.',.7,.1,.95,.05,visible=(('tuning-boost-enabled',True),),new=True),
     Control('tuning-boost-relight-level','float','Boost relight heat','Heat level that releases the overheat lockout. A held boost button can start boosting again once heat falls to this level.',.3,0.,.95,.05,visible=(('tuning-boost-enabled',True),),new=True),
     Control('tuning-brake-strength','float','Brake strength','Fraction of directional authority available to the parking brake.',1.,.05,1.,.05,new=True),
+    Control('tuning-brake-override','float','Held brake override',"How much of your thrust and strafe pushes through the parking brake while you hold its button (Hold to brake). The brake keeps pulling, so the ship creeps and stops when you let go. 0% holds fully. A latched brake and the lever's parking zone always hold fully.",.1,0.,.5,.05,new=True),
     Control('tuning-settle-time','float','Settle time','Parking brake response time near zero speed.',1.,.1,5.,.1,'seconds',new=True),
     Control('tuning-hold-threshold','float','Hold threshold','Near-zero speed used by the parking brake hold state.',.1,.001,5.,.01,'speed',new=True),
     Control('tuning-jerk-limit','float','Jerk limit','Maximum acceleration change per second. Zero disables smoothing.',0.,0.,5000.,25.,'jerk',new=True),
@@ -309,6 +319,7 @@ ORDERED_PAIRS=tuple((f'{ch}-deadzone',f'{ch}-saturation') for ch,_ in AXIS_CHANN
     ('throttle-deadzone','hosas-saturation'),('throttle-idle-plateau','throttle-detent-center'))
 LEVER_BOUNDARIES=('reverse-end','parking-end','coast-end','cruise-start','cruise-end','full-start','boost-start')
 ZONE_PAIRS=tuple(('lever-'+a,'lever-'+b) for a,b in zip(LEVER_BOUNDARIES,LEVER_BOUNDARIES[1:]))
+LEVER_IDS=tuple('lever-'+key for key in LEVER_BOUNDARIES)
 
 
 # Sultan baselines (T89, restyled T90; docs/SHIP-CLASS-BASELINES.md). Each class is a flight style
@@ -463,7 +474,36 @@ def flight_profile(source,class_id=4,native_thrust=1.,native_boost_thrust=None):
 
 
 def lever_zone_settings(values):
-    return {key.replace('-','_'):values['lever-'+key] for key in (*LEVER_BOUNDARIES,'cruise-level','cruise-enabled','boost-enabled','reverse-mode')}
+    return {key.replace('-','_'):values['lever-'+key] for key in (*LEVER_BOUNDARIES,'cruise-level','cruise-enabled','boost-enabled','reverse-mode','parking-enabled')}
+
+
+def lever_hidden(values):
+    """Boundaries of lever zones that are switched off (T123). They stay stored and ordered, so the zone
+    comes back where it was, but they never limit the boundaries still on the page."""
+    return {'lever-'+key for key,rule in LEVER_ZONE_ON.items()
+            if not all(values.get(k) in v if isinstance(v,tuple) else values.get(k)==v for k,v in rule)}
+
+
+def _lever_limits(control_id,values):
+    """(low, high) for a shown lever boundary: the nearest shown neighbours, leaving room for hidden ones between."""
+    hidden=lever_hidden(values);i=LEVER_IDS.index(control_id);low=high=None
+    below=i-1
+    while below>=0 and LEVER_IDS[below] in hidden:below-=1
+    low=(values[LEVER_IDS[below]] if below>=0 else 0.)+ZONE_MIN_GAP*(i-below)
+    above=i+1
+    while above<len(LEVER_IDS) and LEVER_IDS[above] in hidden:above+=1
+    if above<len(LEVER_IDS):high=values[LEVER_IDS[above]]-ZONE_MIN_GAP*(above-i)
+    return low,high
+
+
+def settle_lever(values):
+    """Move hidden lever boundaries back between their neighbours after a shown one moved; returns the ids changed."""
+    hidden=lever_hidden(values);before={i:values[i] for i in hidden}
+    for i in reversed(range(len(LEVER_IDS)-1)):
+        if LEVER_IDS[i] in hidden:values[LEVER_IDS[i]]=round(min(values[LEVER_IDS[i]],values[LEVER_IDS[i+1]]-ZONE_MIN_GAP),6)
+    for i in range(len(LEVER_IDS)):
+        if LEVER_IDS[i] in hidden:values[LEVER_IDS[i]]=round(max(values[LEVER_IDS[i]],(values[LEVER_IDS[i-1]] if i else 0.)+ZONE_MIN_GAP),6)
+    return {i for i in hidden if values[i]!=before[i]}
 
 
 def defaults():return {c.id:c.default for c in CONTROLS}
@@ -522,9 +562,13 @@ def coerce(control,value,values=None):
         for lower,upper in ORDERED_PAIRS:
             if control.id==lower:value=min(value,values[upper]-MIN_GAP)
             elif control.id==upper:value=max(value,values[lower]+MIN_GAP)
-        for lower,upper in ZONE_PAIRS:
-            if control.id==lower:value=min(value,values[upper]-ZONE_MIN_GAP)
-            elif control.id==upper:value=max(value,values[lower]+ZONE_MIN_GAP)
+        if control.id in LEVER_IDS and control.id not in lever_hidden(values):
+            low,high=_lever_limits(control.id,values)
+            value=max(value,low) if high is None else min(max(value,low),high)
+        else:
+            for lower,upper in ZONE_PAIRS:
+                if control.id==lower:value=min(value,values[upper]-ZONE_MIN_GAP)
+                elif control.id==upper:value=max(value,values[lower]+ZONE_MIN_GAP)
         value=min(control.high,max(control.low,value))
     return round(value,6)
 
@@ -722,7 +766,7 @@ class SettingsStore:
         if self.values[control_id]!=value:
             self.values[control_id]=value
             if control_id in PROFILE_KEYS:self.profiles[str(self.current_class)][PROFILE_KEYS[control_id]]=value
-            self._notify({control_id})
+            self._notify({control_id}|(settle_lever(self.values) if control_id in LEVER_IDS else set()))
         return value
 
     def assign_binding(self,binding_id,token,steal_from=None):

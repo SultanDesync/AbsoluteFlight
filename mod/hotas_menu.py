@@ -6,11 +6,12 @@ buttons, each opening one scrolling page of rows with Headers, native Back betwe
 help in the native description panel, values applied as they change and saved on leave.
 """
 from dataclasses import dataclass,field
-import math
+import math,time
 from hotas_settings import SULTAN_TUNING,AIR_CONTROLS,EXO_CONTROLS,EXO_LOOK,LANDING_CONTROLS,DAMAGE_CONTROLS,VISUAL_CONTROLS,AXIS_CHANNELS,BY_ID,CONTROLS,HEAD_CONTROLS,PROFILE_CONTROLS,SHIP_CLASSES,LEVER_BOUNDARIES,binding_conflict,describe_binding,is_visible,strafe_enabled
 from flight_shaping import bipolar,lever_thrust,shape_axis
 import hotas_buttons
 import keyboard_layout
+import tuning_guide
 import crash_damage
 import manual_landing
 from planetary_flight import AIR_CLASSES
@@ -39,24 +40,33 @@ AIR_STYLE_GROUPS=(('SPEED AND ENGINES',('air-terminal-speed','air-engine-loss','
                                'air-buffet','air-overspeed-penalty')))
 AIR_STYLE_KEYS=tuple(k for _,keys in AIR_STYLE_GROUPS for k in keys)
 HUD_GROUPS=((None,('hud-scale','hud-font')),
-            ('FLIGHT READOUTS',('hud-mode-tag','hud-speed-readout','hud-target-relative','hud-velocity-marker','hud-boost-gauge','hud-g-meter')),
+            ('FLIGHT READOUTS',('hud-mode-tag','hud-brake-warning','hud-speed-readout','hud-target-relative','hud-velocity-marker','hud-boost-gauge','hud-g-meter')),
             ('PLANETARY',('hud-planetary','hud-altitude','hud-vertical-speed','hud-atmosphere','hud-trim','hud-landing')))
 HUD_CONTROLS=tuple(k for _,keys in HUD_GROUPS for k in keys)
 ROUTE_TITLES={ROOT:'Absolute Flight',**{r:t for r,t,_ in ROUTES}}
+VR_REPORT_HELP=('For VR testers: after flying the steps in VR-TESTING.md (in the mod folder), save this and send the zip. It is the '
+                'support bundle plus a summary of what the mod saw in the headset, and goes in the same support folder. Nothing is sent anywhere.')
 SUPPORT_HELP=('Save your settings and recent logs as one zip to attach to a bug report. It goes in the support folder '
               'under %LOCALAPPDATA%\\AbsoluteHOTAS (config\\support in a dev install). Nothing is sent anywhere.')
 CAPTURE_PROMPT='Move an axis... (Delete clears, Back cancels)'
 BUTTON_PROMPT='Press a button or hat... (Delete clears, Back cancels)'
 KEY_PROMPT='Press a keyboard key... (Back to cancel)'
+# T122 (user 2026-11-13): pages whose binding prompts and button conflicts go in a pane instead of rows in the list,
+# so the rows never move. The pane is drawn, not clickable, so a conflict is answered with the stick: the capture
+# keeps listening. It shows only while there is a prompt or a conflict, over the game's own description panel.
+PANE_ROUTES=('buttons',)
+CAPTURE_SECONDS=10  # hotas_input.CAPTURE_TIMEOUT, for the pane's text
+CONFIRM_TIMEOUT=30.  # seconds a button conflict waits for its answer; then the current binding stays
+CONFIRM_GUARD=.35  # the same button again sooner than this is switch bounce, not an answer
 PEDAL_INVERT={'bind-exo-throttle-axis':'exo-throttle-inverted','bind-exo-brake-axis':'exo-brake-inverted'}
 # Mod actions the release runtime acts on (same list as button_actions.LIVE_MOD_ACTIONS).
 LIVE_MOD_ACTIONS=('mod.parking-brake','mod.gear','mod.boost',
                   'mod.strafe-left','mod.strafe-right','mod.strafe-up','mod.strafe-down',
                   'mod.thrust-forward','mod.thrust-back','mod.vanilla-mode','mod.trim-up','mod.trim-down','mod.trim-hover','mod.trim-reset',
-                  'mod.flight-model-next','mod.flight-model-toggle','mod.lever-mode-toggle',
+                  'mod.flight-model-next','mod.flight-model-toggle','mod.lever-mode-toggle','mod.coupled-toggle',
                   'mod.pip-toggle',
                   'mod.head-tracking-toggle','mod.head-recentre','mod.head-tracking-on','mod.head-tracking-off',
-                  'mod.power-next','mod.power-previous','mod.power-balanced','mod.power-weapons','mod.power-engines','mod.power-shields','mod.eject')
+                  'mod.power-next','mod.power-previous','mod.power-balanced','mod.power-weapons','mod.power-engines','mod.power-shields','mod.eject','mod.vr-recentre')
 # Bound on the Head Tracking page (user, 2026-10-16), not in the Buttons page's FLIGHT list.
 HEAD_ACTIONS=('mod.head-recentre','mod.head-tracking-toggle','mod.head-tracking-on','mod.head-tracking-off')
 # Feature-specific bindings live beside their tuning, as on Head Tracking.
@@ -78,7 +88,7 @@ G_CONTROLS=('g-effects-enabled','g-blackout-controls','g-tolerance-up','g-tolera
 CRASH_CONTROLS=('crash-damage','crash-safe-speed','crash-damage-per-us','crash-glancing','crash-break-speed','crash-disable-speed')
 ALARM_CONTROLS=('alarm-sounds','alarm-voice-volume','alarm-lights')
 # Sultan HOTAS lever, bottom to top: each zone's switch sits with its boundaries.
-LEVER_ORDER=('lever-controls','lever-reverse-mode','lever-reverse-end','lever-parking-end','lever-coast-end',
+LEVER_ORDER=('lever-controls','lever-reverse-mode','lever-reverse-end','lever-parking-enabled','lever-parking-end','lever-coast-end',
              'lever-cruise-enabled','lever-cruise-start','lever-cruise-end','lever-cruise-level','lever-full-start',
              'lever-boost-enabled','lever-boost-start')
 
@@ -113,16 +123,22 @@ def _scale(control):return 100. if control.unit=='percent' else 1.
 def _suffix(control):return {'percent':' %','multiplier':'x','per-second':' /s','speed':' u/s','acceleration':' u/s²','seconds':' s','jerk':' u/s³','pixels':' px/s','degrees':' deg','number':'','g':' g','distance':' u'}[control.unit]
 
 
+def row_help(control):
+    """A setting's help for the game's description panel: the Flight Tuning and Atmosphere Flight settings say what
+    they do to the ship's performance (tuning_guide, T122); every other setting has its own help."""
+    return tuning_guide.paragraph(control.id) or control.help
+
+
 def control_row(control,values,device_names=None):
-    v=values[control.id]
-    if control.kind=='bool':return Row('bool',control.id,control.label,control.help,value=v)
+    v=values[control.id];help_text=row_help(control)
+    if control.kind=='bool':return Row('bool',control.id,control.label,help_text,value=v)
     if control.kind=='choice':
         keys=[k for k,_ in control.choices]
-        return Row('choice',control.id,control.label,control.help,value=keys.index(v),options=tuple(l for _,l in control.choices))
+        return Row('choice',control.id,control.label,help_text,value=keys.index(v),options=tuple(l for _,l in control.choices))
     if control.kind=='axis-binding':
-        return Row('binding',control.id,control.label,control.help,value=describe_binding(v,device_names))
+        return Row('binding',control.id,control.label,help_text,value=describe_binding(v,device_names))
     s=_scale(control)
-    return Row('float',control.id,control.label,control.help,value=round(v*s,4),low=control.low*s,high=control.high*s,step=control.step*s,suffix=_suffix(control))
+    return Row('float',control.id,control.label,help_text,value=round(v*s,4),low=control.low*s,high=control.high*s,step=control.step*s,suffix=_suffix(control))
 
 
 def _footer(route):
@@ -148,7 +164,11 @@ def throttle_meter(values,live=None,focused=None):
     if values['throttle-style']=='hotas':
         if sultan:
             r,p,c,cs,ce,f,b=(values['lever-'+key] for key in LEVER_BOUNDARIES)
-            zones=[(0.,r,'REVERSE'),(r,p,'PARK'),(p,c,'COAST')]
+            # T123: a zone that is off joins the one above (reverse into parking, parking into coast).
+            zones=[];low=0.
+            if values['lever-reverse-mode']!='off':zones.append((0.,r,'REVERSE'));low=r
+            if values['lever-parking-enabled']:zones.append((low,p,'PARK'));low=p
+            zones.append((low,c,'COAST'))
             if values['lever-cruise-enabled']:zones.extend(((c,cs,'FORWARD'),(cs,ce,'CRUISE'),(ce,f,'FORWARD')))
             else:zones.append((c,f,'FORWARD'))
             if values['lever-boost-enabled']:zones.extend(((f,b,'FULL'),(b,1.,'BOOST')))
@@ -206,6 +226,63 @@ GAME_PATH_STATES={'direct':'SENDING: GAME ACTIONS','keys':'SENDING: KEYS','fallb
 KEY_OUTPUT_STATES={'unqualified':'OFF: TURN ON THE SWITCH ABOVE','unfocused':'WAITING: NMS NOT FOCUSED','active':'ON','idle':'ON'}
 
 
+def _input_name(token,layer=None,device_names=None):
+    return hotas_buttons.describe_input(token,device_names)+('  + shift' if layer=='shift' else '')
+
+
+def button_pane(buttons,device_names=None,modal=None):
+    """The Buttons page's pane (T122, user 2026-11-13: "do binding collision reconciliation on the right ... instead of
+    writing it inline ... keep the main right pane's lines in the same order/position"). Drawn by
+    hotas_draw.MeterPainter.side_panel over the game's description panel, and only while it has something that panel
+    doesn't: states capture (what the page is listening for) and conflict (what the button is bound to, and the
+    choices). Idle is empty and nothing is drawn (user 2026-11-13, after seeing an always-on pane in game: "they
+    overlap existing descriptions"). options: (what to do, what it does); nothing here is clickable."""
+    buttons=buttons or {};modifier=buttons.get('modifier');bound={b['action']:b for b in buttons.get('bindings',())}
+    pane={'kind':'side-panel','state':'idle','title':'','lines':[],'options':[],'footer':None}
+    capture=(modal or {}).get('capture');conflict=(modal or {}).get('conflict')
+    if capture:
+        pane.update(state='capture',footer=f'Stops listening after {CAPTURE_SECONDS} seconds.')
+        if capture.get('key'):
+            pane['title']='ADD CUSTOM KEY'
+            pane['options']=[('PRESS A KEYBOARD KEY','the key your button will send. Then press the button.')]
+        elif capture.get('modifier'):
+            pane['title']='SETTING: SHIFT BUTTON'
+            pane['lines']=['Set now: '+_input_name(modifier,None,device_names)] if modifier else ['Not set yet.']
+            pane['options']=[('PRESS A BUTTON OR HAT','make it the shift button')]
+            if modifier:pane['options'].append(('PRESS IT AGAIN, OR DELETE','clear the shift button'))
+        else:
+            action_id=capture['action'];b=bound.get(action_id);title=_action_title(action_id)
+            pane['title']='BINDING: '+title.upper()
+            pane['lines']=['Bound now: '+_input_name(b['token'],b['layer'],device_names)] if b else ['Not bound yet.']
+            pane['options']=[('PRESS A BUTTON OR HAT',f'bind it to {title}')]
+            if modifier:pane['options'].append(('HOLD SHIFT AND PRESS','bind it on the shift layer'))
+            if b:pane['options'].append(('PRESS THE BOUND BUTTON AGAIN, OR DELETE','clear this binding'))
+        pane['options'].append(('SELECT ANOTHER BINDING','cancel'))
+    elif conflict:
+        c=conflict;shift_owner=c['owner']=='modifier';owner=_action_title(c['owner'])
+        target='the shift button' if c.get('modifier') else _action_title(c['action'])
+        pane.update(state='conflict',
+                    title=_input_name(c['token'],c.get('layer'),device_names).upper()+(' IS THE SHIFT BUTTON' if shift_owner else ' IS ALREADY BOUND'),
+                    footer=f"No answer in {CONFIRM_TIMEOUT:.0f} seconds keeps it {'as' if shift_owner else 'on'} {owner}.")
+        pane['lines']=['Bound to: '+owner] if not shift_owner else []
+        pane['lines'].append(('Setting: ' if c.get('modifier') else 'Binding: ')+target)
+        left='No shift button is left set.' if shift_owner else f'{owner} is left unbound.'
+        pane['options']=[('PRESS IT AGAIN',(f'make it the shift button. {left}' if c.get('modifier') else f'move it to {target}. {left}'))]
+        if modifier and not c.get('modifier') and not shift_owner and c.get('layer','normal')=='normal':
+            pane['options'].append(('HOLD SHIFT AND PRESS IT',f'put {target} on its shift layer and keep both'))
+        pane['options'].append(('PRESS ANOTHER BUTTON','make that the shift button instead' if c.get('modifier') else f'bind that to {target} instead'))
+        pane['options'].append(('DELETE, OR SELECT ANOTHER BINDING',f"keep it {'as' if shift_owner else 'on'} {owner}"))
+    return pane
+
+
+# Pages with a pane (T122): route -> content(context), context {'buttons','device_names','modal','values',
+# 'editing_class'}. The pane has no row of its own: build_page hangs it on the page's first header, whose native
+# row tells the runtime where the list is on screen, so the list is exactly what it would be without a pane. A pane
+# is content only ({'kind':'side-panel','state','title','lines','options','footer'}); state 'idle' draws nothing.
+# PANE_ROUTES (above) is separate: the pages whose binding prompts use their pane.
+PANES={'buttons':lambda c:button_pane(c['buttons'],c['device_names'],c['modal'])}
+
+
 def button_rows(buttons,values,device_names=None,live=None):
     """Buttons page (T61). buttons: {'bindings': [...], 'modifier': token or None}."""
     bound={b['action']:b for b in buttons.get('bindings',())}
@@ -233,6 +310,8 @@ def button_rows(buttons,values,device_names=None,live=None):
         for action_id,label in presets:
             rows+=_action_rows(action_id,label,"Presses the game's own action, or sends this key (Button output).",bound.get(action_id),device_names,modifier is not None)
     rows.append(Row('header','buttons-key-header','KEYBOARD & MOUSE'))
+    if (live or {}).get('vr'):  # T125 (user 2026-11-13: 'No Man's Sky natively disables keyboard/mouse input in VR')
+        rows.append(Row('header','buttons-vr-keys',"VR: THE GAME TAKES NO KEYBOARD OR MOUSE. THE ROWS ABOVE PRESS THE GAME'S OWN ACTIONS; KEY ROWS BELOW DO NOTHING"))
     rows.append(control_row(BY_ID['key-output-enabled'],values))
     status=(live or {}).get('key-output')
     if status:
@@ -268,14 +347,16 @@ KEYBOARD_MORE=(('keyboard-trim-header','TRIM',(('mod.trim-up','Trim up'),('mod.t
                                                 ('mod.trim-reset','Trim reset'))),
                ('keyboard-model-header','FLIGHT MODEL AND LEVER',(('mod.flight-model-next','Next flight model'),
                                                                   ('mod.flight-model-toggle','Flight model toggle'),
-                                                                  ('mod.lever-mode-toggle','Lever: speed / thrust'))),
+                                                                  ('mod.lever-mode-toggle','Lever: speed / thrust'),
+                                                                  ('mod.coupled-toggle','Coupled flight on/off'))),
                ('keyboard-head-header','HEAD TRACKING',(('mod.head-tracking-toggle','Head tracking on/off'),('mod.head-recentre','Recentre head tracking'),
                                                         ('mod.head-tracking-on','Head tracking on'),('mod.head-tracking-off','Head tracking off'))),
                ('keyboard-combat-header','COMBAT',(('mod.pip-toggle','Switch lead / lag pip'),)),
                ('keyboard-ship-header','SHIP',(('mod.power-next','Power: next mode'),('mod.power-previous','Power: previous mode'),
                                                ('mod.power-balanced','Power: balanced'),('mod.power-weapons','Power: weapons'),
                                                ('mod.power-engines','Power: engines'),('mod.power-shields','Power: shields'),
-                                               ('mod.eject','Eject (hold)'))))
+                                               ('mod.eject','Eject (hold)'))),
+               ('keyboard-vr-header','VR',(('mod.vr-recentre','Recentre VR view'),)))
 KEYBOARD_SECTIONS=(('keyboard-flight-header','FLIGHT',KEYBOARD_FLIGHT),('keyboard-game-header','GAME ACTIONS',KEYBOARD_GAME))+KEYBOARD_MORE
 KEYBOARD_ALL=tuple(row for _,_,actions in KEYBOARD_SECTIONS for row in actions)
 
@@ -435,7 +516,7 @@ def throttle_controls():
 
 
 def route_controls(route):
-    if route=='flight-model':return ['flight-controls-enabled','flight-model','sultan-power-modes']
+    if route=='flight-model':return ['flight-controls-enabled','vr-experimental','vr-flat-input','flight-model','sultan-coupled','sultan-power-modes']
     if route=='flight-axes':
         return (['turn-rate-scale','strafe-authority']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
                 +throttle_controls())
@@ -483,12 +564,17 @@ def _throttle_rows(values,live,focused,device_names):
 
 def build_page(route,values,live=None,focused=None,modal=None,device_names=None,editing_class=4,buttons=None,tuning=None):
     """Rows for route. live: calibrated units by channel ('pitch', ..., 'throttle'), None = no data."""
+    # T125 (first VR flight 2026-11-13: "my sticks have no authority", with Experimental VR off): say so where the player looks.
+    vr_off=(live or {}).get('vr')=='off'
     if route==ROOT:
-        rows=[Row('button',f'open-{r}',t,reason or '',enabled=reason is None) for r,t,reason in ROUTES if r not in SULTAN_ROUTES or values['flight-model']=='sultan']
+        rows=[Row('header','vr-off-root','VR: HOTAS FLIGHT IS OFF. FLIGHT MODEL > EXPERIMENTAL VR TURNS IT ON')] if vr_off else []
+        rows+=[Row('button',f'open-{r}',t,reason or '',enabled=reason is None) for r,t,reason in ROUTES if r not in SULTAN_ROUTES or values['flight-model']=='sultan']
         rows.append(Row('button','support-bundle','Save support bundle',SUPPORT_HELP))
+        if (live or {}).get('vr'):rows.append(Row('button','vr-test-report','Save VR test report',VR_REPORT_HELP))  # T125
         return Page(ROOT,ROUTE_TITLES[ROOT],rows,modal)
     rows=[]
     if route=='flight-model':
+        if vr_off:rows.append(Row('header','vr-off-flight-model','VR: HOTAS FLIGHT IS OFF UNTIL EXPERIMENTAL VR IS ON'))
         rows+=_visible_rows(route_controls(route),values)
     elif route=='hud':
         for title,keys in HUD_GROUPS:
@@ -551,7 +637,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                 ('SPEED',('speed-cap','speed-cap-multiplier','speed-hold-gain','accel-fade-exponent','brake-floor','momentum','overspeed-bleed-time')),
                 ('ROTATION',('pitch-rate','yaw-rate','roll-rate','turn-response','additive-pitch-yaw','rotation-in-combat','auto-bank-on-yaw')),
                 ('BOOST',('boost-enabled','boost-source','boost-multiplier','boost-heat-time','boost-cool-time','boost-cold-strength','boost-hot-zone','boost-relight-level')),
-                ('PARKING BRAKE',('brake-strength','settle-time','hold-threshold')))
+                ('PARKING BRAKE',('brake-strength','brake-override','settle-time','hold-threshold')))
         for group,keys in groups:
             rows.append(Row('header','tuning-group-'+keys[0],group))
             rows+=_visible_rows(['tuning-'+k for k in keys],values)
@@ -686,6 +772,10 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
     if route=='flight-tuning':rows[-1].label='Reset class';rows[-1].help='Restore the starting profile for the class you are flying.'
     if route=='keyboard':rows[-1].label='Reset keyboard layout';rows[-1].help='Put every key back on the default layout. Revert restores the saved one.'
     if route=='buttons':rows[-1].label='Clear all button bindings';rows[-1].help='Remove every button binding. Revert restores the saved ones.'
+    if route in PANES:
+        anchor=next((r for r in rows if r.kind=='header' and r.label),None)
+        if anchor is not None:
+            anchor.meter=PANES[route]({'buttons':buttons,'device_names':device_names,'modal':modal,'values':values,'editing_class':editing_class})
     return Page(route,ROUTE_TITLES[route],rows,modal)
 
 
@@ -702,6 +792,7 @@ class MenuController:
     capture:dict=None
     conflict:dict=None
     on_action:object=None  # runtime callback for one-shot actions ('head-recentre')
+    now:object=time.monotonic
 
     @property
     def route(self):return self.stack[-1]
@@ -714,6 +805,7 @@ class MenuController:
             text=KEY_PROMPT if c.get('key') or c.get('keyboard') else BUTTON_PROMPT if (c.get('action') or c.get('modifier')) else CAPTURE_PROMPT
             if c.get('action','').startswith(('key.','mouse.')):text=f'{_action_title(c["action"])}: '+text
             modal={'kind':'capture','text':text,'binding':c['id'],'clearable':self._bound(c)}
+            if self.route in PANE_ROUTES:modal.update(pane=True,capture=c)
         elif self.conflict:
             c=self.conflict
             if c.get('modifier'):
@@ -726,6 +818,7 @@ class MenuController:
                     # Toe brakes on one axis, one per half (Olorin, 2026-10-29): Centre stop already splits it.
                     text+=' Two pedals on one axis: keep it on Throttle and set Throttle style to Centre stop.'
             modal={'kind':'conflict','binding':c['id'],'text':text,'options':('Move binding','Keep current')}
+            if c.get('confirm'):modal.update(pane=True,conflict=c)
         buttons={'bindings':getattr(self.store,'buttons',[]),'modifier':getattr(self.store,'button_modifier',None),
                  'keyboard':getattr(self.store,'keyboard',[])}
         return build_page(self.route,self.store.values,live,focused,modal,device_names,self.store.current_class,buttons,self._tuning())
@@ -756,10 +849,15 @@ class MenuController:
         return self.store.set(row_id,display_value)
 
     def activate(self,row_id):
-        if self.capture:return 'busy'  # a capture times out by itself (CAPTURE_TIMEOUT)
+        if self.capture:
+            # A capture times out by itself (CAPTURE_TIMEOUT). On a pane page there is no Cancel row to click, so
+            # selecting a binding ends the capture and acts on the row selected (T122).
+            if self.route not in PANE_ROUTES:return 'busy'
+            self.capture=None
+            if self.capture_cancel:self.capture_cancel()
         # A pending conflict never blocks the page: choosing another row keeps the current binding
         # (alpha 2026-10-22: the prompt was off-screen on long pages and every row looked dead).
-        if self.conflict:self.conflict=None
+        self._drop_conflict()
         if row_id.startswith('open-'):
             route=row_id[5:]
             if dict((r,reason) for r,_,reason in ROUTES).get(route,'missing') is not None:return 'unavailable'
@@ -769,9 +867,9 @@ class MenuController:
         if row_id=='head-recentre':
             if self.on_action is None:return 'unavailable'
             self.on_action('head-recentre');return 'recentred'
-        if row_id=='support-bundle':
+        if row_id in ('support-bundle','vr-test-report'):
             if self.on_action is None:return 'unavailable'
-            self.on_action('support-bundle');return 'saving'
+            self.on_action(row_id);return 'saving'
         if row_id=='keyboard-move-game-keys':
             if self.on_action is None:return 'unavailable'
             self.on_action('keyboard-move-game-keys');return 'moved'
@@ -801,7 +899,43 @@ class MenuController:
             self.capture={'id':row_id};self.capture_start(row_id);return 'capturing'
         return 'ignored'
 
+    def _drop_conflict(self):
+        """Forget a pending conflict; one that is listening for its answer stops listening."""
+        c,self.conflict=self.conflict,None
+        if c and c.get('confirm') and self.capture_cancel:self.capture_cancel()
+        return c
+
+    def _ask(self,conflict,capture):
+        """A capture hit a binding. On a pane page a button conflict keeps listening (T122): the same button again moves
+        it, another button is bound instead, Delete or another row keeps the current binding."""
+        self.conflict=conflict
+        if self.route in PANE_ROUTES and self.capture_start is not None and not conflict.get('keyboard') and (conflict.get('action') or conflict.get('modifier')):
+            conflict.update(confirm=True,capture=capture,at=self.now());self.capture_start(conflict['id'])
+        return 'conflict'
+
+    def _confirm(self,token):
+        """The answer to a listening conflict."""
+        c=self.conflict
+        name,_,suffix=token.partition('+') if isinstance(token,str) else (token,'','')
+        try:same=hotas_buttons.canonical(name)==hotas_buttons.canonical(c['token'])
+        except (ValueError,AttributeError,TypeError):same=False
+        if same and not c.get('modifier'):same=('shift' if suffix=='shift' else 'normal')==c.get('layer','normal')
+        if not same:
+            # Another button (or the same one on the other layer): bind that to the same row instead.
+            self.conflict=None;self.capture=c['capture'];return self.capture_result(token)
+        if self.now()-c['at']<CONFIRM_GUARD:self.capture_start(c['id']);return 'conflict'
+        return self.resolve_conflict(True)
+
+    def capture_timeout(self):
+        """The bus stopped listening: a capture ends, a listening conflict keeps the current binding."""
+        self.capture=None
+        if self.conflict and self.conflict.get('confirm'):self.resolve_conflict(False)
+
     def capture_result(self,token):
+        if self.conflict and self.conflict.get('confirm'):return self._confirm(token)
+        return self._capture_result(token)
+
+    def _capture_result(self,token):
         if not self.capture:return 'stale'
         capture=self.capture;binding_id=capture['id'];action_id=capture.get('action');self.capture=None
         if capture.get('key'):
@@ -816,13 +950,13 @@ class MenuController:
             if self.store.button_modifier is not None and owner is None and hotas_buttons.canonical(token)==self.store.button_modifier:
                 self.store.clear_modifier();return 'cleared'
             if owner is None:self.store.set_modifier(token);return 'bound'
-            self.conflict={'id':binding_id,'modifier':True,'token':token,'owner':owner};return 'conflict'
+            return self._ask({'id':binding_id,'modifier':True,'token':token,'owner':owner},capture)
         if capture.get('keyboard'):
             if not hotas_buttons.is_keyboard(token):return 'stale'
             owner=self.store.key_conflict(action_id,token);current=self.store.key_for(action_id)
             if current and current['token']==hotas_buttons.canonical(token):self.store.clear_key(action_id);return 'cleared'
             if owner is None:self.store.assign_key(action_id,token);return 'bound'
-            self.conflict={'id':binding_id,'action':action_id,'token':token,'owner':owner,'keyboard':True};return 'conflict'
+            return self._ask({'id':binding_id,'action':action_id,'token':token,'owner':owner,'keyboard':True},capture)
         if action_id:
             try:owner=self.store.button_conflict(action_id,token,layer)
             except ValueError:return 'stale'  # not a button token
@@ -834,11 +968,11 @@ class MenuController:
                 # A hidden Landing gear binding gives its button up without asking (user 2026-10-25: binding Land
                 # asked to move a binding they could no longer see).
                 self.store.assign_button(action_id,token,steal_from=owner,layer=layer);return 'bound'
-            self.conflict={'id':binding_id,'action':action_id,'token':token,'layer':layer,'owner':owner};return 'conflict'
+            return self._ask({'id':binding_id,'action':action_id,'token':token,'layer':layer,'owner':owner},capture)
         owner=binding_conflict(self.store.values,binding_id,token)
         if owner is None:
             self.store.assign_binding(binding_id,token);self._pedal_direction(binding_id,suffix=='down');return 'bound'
-        self.conflict={'id':binding_id,'token':token,'owner':owner,'down':suffix=='down'};return 'conflict'
+        return self._ask({'id':binding_id,'token':token,'owner':owner,'down':suffix=='down'},capture)
 
     def _pedal_direction(self,binding_id,down):
         """A pedal or lever bound by pressing it: Invert follows the way it moved, so a pedal that reads full at rest
@@ -849,7 +983,7 @@ class MenuController:
 
     def resolve_conflict(self,move):
         if not self.conflict:return 'stale'
-        c=self.conflict;self.conflict=None
+        c=self._drop_conflict()
         if move and c.get('modifier'):self.store.set_modifier(c['token'],steal_from=c['owner']);return 'moved'
         if move and c.get('keyboard'):self.store.assign_key(c['action'],c['token'],steal_from=c['owner']);return 'moved'
         if move and c.get('action'):self.store.assign_button(c['action'],c['token'],steal_from=c['owner'],layer=c.get('layer'));return 'moved'
@@ -866,6 +1000,7 @@ class MenuController:
 
     def clear_capture(self):
         """The capture prompt's Clear binding button: unbind the row and end the capture."""
+        if not self.capture and self.conflict and self.conflict.get('confirm'):return self.resolve_conflict(False)  # Delete: keep
         c=self.capture
         if not c or not self._bound(c):return 'stale'
         self.capture=None
@@ -882,7 +1017,7 @@ class MenuController:
             self.capture=None
             if self.capture_cancel:self.capture_cancel()
             return True
-        if self.conflict:self.conflict=None;return True
+        if self.conflict:self._drop_conflict();return True
         if len(self.stack)>1:self.stack.pop();self.store.save();return True
         self.store.save();return False
 

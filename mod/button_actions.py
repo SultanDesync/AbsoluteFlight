@@ -23,11 +23,11 @@ import ship_power
 LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost',
                     'mod.strafe-left', 'mod.strafe-right', 'mod.strafe-up', 'mod.strafe-down',
                     'mod.thrust-forward', 'mod.thrust-back', 'mod.vanilla-mode', 'mod.trim-up', 'mod.trim-down', 'mod.trim-hover', 'mod.trim-reset',
-                    'mod.flight-model-next', 'mod.flight-model-toggle', 'mod.lever-mode-toggle',
+                    'mod.flight-model-next', 'mod.flight-model-toggle', 'mod.lever-mode-toggle', 'mod.coupled-toggle',
                     'mod.pip-toggle',
                     'mod.head-tracking-toggle', 'mod.head-recentre', 'mod.head-tracking-on', 'mod.head-tracking-off',
                     'mod.power-next', 'mod.power-previous', 'mod.power-balanced', 'mod.power-weapons', 'mod.power-engines',
-                    'mod.power-shields', 'mod.eject')
+                    'mod.power-shields', 'mod.eject', 'mod.vr-recentre')
 KEY_LANES = ('key', 'mouse')
 # Runtime disarm reasons under which mod actions still act. A receipt stall disarms the axes, but the
 # buttons stay live (alpha.18, 2026-10-23: braked to a stop, the game's flight updates stalled for up to
@@ -41,6 +41,12 @@ EMPTY = ButtonState(frozenset(), (), frozenset())
 # T112: whenever Sultan isn't flying the ship (pulse, the game's boost, landing, another flight model), the thrust keys
 # press the game's own Thrust and Brake, so a key keeps one meaning (D26).
 GAME_THRUST = {'mod.thrust-forward': 0x1B, 'mod.thrust-back': 0x1C}
+# T125: Recentre VR view holds the game's HMD_Recenter and HMD_Recenter2 (cGcInputActions 0xF5, 0xF6; build 185034,
+# research/re-log/2026-11-13_claude_vr-first-look.md section 8). The application update reads both as Held through the
+# input manager's slot +0x20, the call the game-action lane answers, and recentres once both have been down for its
+# own hold time. It only does so in VR, so the binding is inert in flat play.
+VR_RECENTRE = 'mod.vr-recentre'
+VR_RECENTRE_NATIVES = frozenset((0xF5, 0xF6))
 STRAFE_RAMP = .2  # seconds from 0 to full strafe (and back) on a strafe button, so a hat eases in rather than snapping
 
 
@@ -76,8 +82,9 @@ def native_id(action_id):
 
 
 def is_focus_action(action_id):
-    """Actions live whenever NMS has focus: keys and mouse, game-control rows included."""
-    return is_key_action(action_id)
+    """Actions live whenever NMS has focus: keys and mouse, game-control rows included, and the VR recentre
+    (wanted on foot and in menus too, and while the flight controls are disarmed)."""
+    return is_key_action(action_id) or action_id == VR_RECENTRE
 
 
 class ButtonActions:
@@ -104,6 +111,7 @@ class ButtonActions:
         self.on_head_recentre = None  # HeadTracker.recentre; takes only the tracker's own lock
         self.on_power = None  # T121: runtime callback, takes a ship_power.ACTIONS request ('next', 'previous' or 0..3)
         self.synthetic_keys = frozenset()  # key actions the mod holds itself (T101 touchdown: the game's Land key)
+        self.vr = False  # set by the runtime each tick: the display is a headset, where the game ignores keys and mouse (T125)
         self.reload()
 
     def reload(self):
@@ -127,6 +135,16 @@ class ButtonActions:
     @property
     def parking(self):
         return 'mod.parking-brake' in self.state.held
+
+    @property
+    def parking_latched(self):
+        """T126: the brake's latch is set (Latched mode), so it holds with no button down."""
+        return 'mod.parking-brake' in self.flight.latched
+
+    @property
+    def parking_held(self):
+        """T126: the brake is on from a held button (Hold to brake), which gives way a little to thrust."""
+        return self.parking and not self.parking_latched
 
     @property
     def gear(self):
@@ -202,12 +220,13 @@ class ButtonActions:
         self.state = self.flight.step(read, now, flight_eligible)
         self.strafe_buttons.step(self.state.held, now)
         self.key_state = self.keys.step(read, now, keys_eligible)
-        direct = self.store.values.get('button-output', 'direct') == 'direct'
+        # In VR the game takes no keyboard or mouse, so game-control rows always press the game's own action there.
+        direct = self.store.values.get('button-output', 'direct') == 'direct' or self.vr
         native = self.native_lane if direct else None
         self.path = 'direct' if native is not None else 'fallback' if direct else 'keys'
         free_keys = bool(self.store.values.get('key-output-enabled'))
         # Game-control rows go one way only: their game action, or their key. Other keys need Keyboard & mouse output.
-        keyed = {a for a in self.key_state.held if (native is None if a in NATIVE_FOR else free_keys)}
+        keyed = {a for a in self.key_state.held if a != VR_RECENTRE and (native is None if a in NATIVE_FOR else free_keys)}
         if self.key_lane is not None:
             self.key_lane.qualified = free_keys or native is None and any(a in NATIVE_FOR for a in self.keys.bindings_actions())
             held = keyed | (self.synthetic_keys if free_keys else frozenset()) if keys_eligible else keyed
@@ -216,7 +235,10 @@ class ButtonActions:
             # Exocraft buttons have only the game's action, whichever Button output is chosen.
             self.native_lane.step(({NATIVE_FOR[a] for a in self.key_state.held if a in NATIVE_FOR} if native is not None and keys_eligible
                                    else set()) | set(self.exo_natives) | (set(self.axis_natives) if driving else set())
-                                  | (set(self.flight_natives) if native is not None else set()), int(now*1000))
+                                  | (set(self.flight_natives) if native is not None else set())
+                                  # The VR recentre has only the game's actions, whichever Button output is chosen.
+                                  | (set(VR_RECENTRE_NATIVES) if VR_RECENTRE in self.key_state.held and keys_eligible else set()),
+                                  int(now*1000))
         values = self.store.values
         for action in self.state.pressed:
             if action == 'mod.flight-model-next':
@@ -238,6 +260,8 @@ class ButtonActions:
             elif action == 'mod.lever-mode-toggle':
                 current = self._pending('lever-controls', values)
                 self.changes.append(('lever-controls', 'thrust' if current == 'speed' else 'speed'))
+            elif action == 'mod.coupled-toggle':  # T128
+                self.changes.append(('sultan-coupled', not self._pending('sultan-coupled', values)))
             elif action == 'mod.pip-toggle':
                 current = self._pending('pip-mode', values)
                 self.changes.append(('pip-mode', 'lag' if current == 'lead' else 'lead'))
@@ -279,9 +303,9 @@ class ButtonActions:
         native = self.native_lane
         direct = self.path == 'direct'
         return {'output': lane.status if lane is not None else 'no lane', 'path': self.path,
-                'held': sorted(a for a in self.key_state.held if not (direct and a in NATIVE_FOR)),
+                'held': sorted(a for a in self.key_state.held if a != VR_RECENTRE and not (direct and a in NATIVE_FOR)),
                 'native': native.status() if native is not None else None,
-                'native_held': sorted(a for a in self.key_state.held if direct and a in NATIVE_FOR),
+                'native_held': sorted(a for a in self.key_state.held if a == VR_RECENTRE and native is not None or direct and a in NATIVE_FOR),
                 'send_failures': getattr(getattr(lane, 'sender', None), 'failures', 0),
                 'cursor': self.cursor.state, 'frontend_flag': self.frontend}
 

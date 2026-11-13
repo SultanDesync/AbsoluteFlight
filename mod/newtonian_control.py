@@ -39,10 +39,12 @@ class TranslationPublisher:
         self.reasons = dict.fromkeys(self.armed, reason)
 
     def step(self, table, values, eligible, now_tick, zone_values, parking_brake=False, boost=False, strafe_buttons=(0., 0.),
-             thrust_buttons=0.):
+             thrust_buttons=0., parking_yields=False):
         """parking_brake: the bound parking-brake button (T61); it overrides throttle demand.
         strafe_buttons: (lateral, vertical) from the strafe buttons (T111), added to the strafe axes.
-        thrust_buttons: -1..1 from the thrust keys (T112); while nonzero it is the thrust demand, over the lever."""
+        thrust_buttons: -1..1 from the thrust keys (T112); while nonzero it is the thrust demand, over the lever.
+        parking_yields: the brake button is held, not latched (T126): the demand keeps the pilot's thrust so the
+        flight law can let a share of it through. The lever's own parking zone is a full hold and never yields."""
         self.generation += 1
         signature = tuple(values.get(k) for k in (
             'flight-model', 'throttle-style', 'throttle-inverted', 'lever-controls',
@@ -84,8 +86,11 @@ class TranslationPublisher:
             self.reasons['throttle'] = 'armed'
         if thrust_buttons and math.isfinite(thrust_buttons):
             demand = ThrottleDemand(max(-1., min(1., float(thrust_buttons))), 'thrust')
+        if values.get('sultan-coupled') and not demand.parking:
+            demand = replace(demand, coupled=True)  # T128: the flight law reads value as a share of top speed
         if parking_brake:
-            demand = ThrottleDemand(zone='parking', parking=True)
+            yields = bool(parking_yields and not demand.parking)
+            demand = ThrottleDemand(demand.value if yields else 0., 'parking', parking=True, yielding=yields)
         elif boost and not demand.parking:
             demand = replace(demand, boost_requested=True)
         return TranslationCommand(self.generation, now_tick + 100, True, *out, demand)

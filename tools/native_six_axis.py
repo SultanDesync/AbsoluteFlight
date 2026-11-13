@@ -113,7 +113,7 @@ def provenance(c, frame, reject='out'):
 
 
 def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limit=.25,throttle_limit=.5,turn_scale=1.,
-               allow_planetary_input=False,allow_combat_input=False,allow_power_input=False):
+               allow_planetary_input=False,allow_combat_input=False,allow_power_input=False,allow_poi_input=False):
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
@@ -155,7 +155,16 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
         elif kind=='throttle':
             # Exact normal target branch and endpoint ownership from D10.
             c.emit(bytes.fromhex('48 8d 86 84 66 00 00 48 39 c3'));c.relative(b'\x0f\x85','out')
-            c.emit(bytes.fromhex('83 bc 24 20 01 00 00 ff'));c.relative(b'\x0f\x85','out')
+            # Native [RSP+0x60] is the space-POI selector app+0x57AB24 (185034; -1 = none). Near a POI native only
+            # swaps the speed spring (0x17941DA), as combat does. Research stays on the default branch. The release
+            # (T124) admits it: rejecting here also withheld the throttle receipt that roll and MAV need, so roll,
+            # throttle and strafe went native near salvage hulks and asteroid belts. Tagged test commands stay strict.
+            if allow_poi_input:
+                c.emit(bytes.fromhex('83 bc 24 20 01 00 00 ff'));c.relative(b'\x0f\x84','poi_checked')
+                check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',STRICT_ROTATION))
+                c.label('poi_checked')
+            else:
+                c.emit(bytes.fromhex('83 bc 24 20 01 00 00 ff'));c.relative(b'\x0f\x85','out')
             c.emit(bytes.fromhex('8b 85 80 41 00 00'));c.relative(b'\x89\x05',frame+144)
             # Native u is a conflict only on a frame that substitutes throttle. The game's own
             # u writers (launch/station auto-boost latch, 0x1759500 on 180836, holds u=1) otherwise pass
@@ -216,7 +225,7 @@ def mav_guard(c, frame, mailbox, tick, pilot, global_slot, reject='publish', all
 
 class SixAxisPatches:
     def __init__(self,pm,pid,frame,mailbox,tick,pilot,steering_limit=.25,throttle_limit=.5,turn_scale=1.,
-                 allow_planetary_input=False,allow_combat_input=False,allow_power_input=False):
+                 allow_planetary_input=False,allow_combat_input=False,allow_power_input=False,allow_poi_input=False):
         self.pm,self.pid,self.items=pm,pid,{}
         base=pm.process_base.lpBaseOfDll
         for kind,rva in zip(('latch','processed','throttle','roll'),SITES):
@@ -224,7 +233,7 @@ class SixAxisPatches:
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
             code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f6c288,steering_limit,throttle_limit,turn_scale,
-                            allow_planetary_input,allow_combat_input,allow_power_input)
+                            allow_planetary_input,allow_combat_input,allow_power_input,allow_poi_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')
             if not K.FlushInstructionCache(pm.process_handle,cave,len(code)):raise OSError('Cache flush')

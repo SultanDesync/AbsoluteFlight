@@ -14,6 +14,9 @@ RenderHeadsUp calls NGui_RenderFrame at 0x9D7E97):
 - target-relative instruments (T79 read-only sample from weapon_lead): range, closing speed and
   relative speed under the speed readout, and a violet diamond along -dv, where the ship drifts
   relative to the target (dv = target velocity - own velocity);
+- T126 parking brake warning above the reticle, red: PARKING BRAKE LATCHED on a plate between two red
+  bars while the latch is set, plain PARKING BRAKE while a held button or the lever's zone brakes;
+- T128 COUPLED tag above the speed readout while the coupled assist flies the ship;
 - T87 planetary layer (planetary_hud): altitude above sea level, vertical speed with a trend arrow
   and ATM/VAC right of the reticle, fading in near a planet, and a mode tag (SULTAN / NATIVE).
 
@@ -120,6 +123,24 @@ def boost_gauge(status,profile):
     state='OVERHEAT' if overheated else 'HOT' if heat>=hot else 'BOOST' if status.get('boost_active') else 'COLD' if heat<=.01 else 'WARM'
     return {'heat':min(1.,max(0.,heat)),'hot':hot,'relight':float(profile.get('boost_relight_level',.3)),
             'overheated':overheated,'active':bool(status.get('boost_active')),'state':state}
+
+
+def brake_warning(status,values,button=False,latched=False):
+    """T126 parking brake warning plan, or None (user 2026-11-13: 'a red hud warning for break latched').
+
+    status: the flight consumer's latest record ('parking' is true only while Sultan applies the brake).
+    button: the Parking brake button holds the brake this tick; latched: its latch is set (Latched mode).
+    A set latch warns even while the game flies the ship (low height, landing): the brake takes hold
+    again as soon as Sultan does. A held button or the lever's parking zone warns only while it brakes."""
+    if not values.get('hud-brake-warning',True):return None
+    if latched:return {'text':'PARKING BRAKE LATCHED','latched':True}
+    if not status or not status.get('parking'):return None
+    return {'text':'PARKING BRAKE' if button else 'PARKING BRAKE  LEVER','latched':False}
+
+
+def coupled_tag(status,values):
+    """T128: whether to draw COUPLED: the assist flew this frame and the Flight mode tag is on."""
+    return bool(status and status.get('coupled') and values.get('hud-mode-tag',True))
 
 
 G_LEVEL_COLORS={'ok':'prograde','warn':'heat','over':'overheat'}
@@ -390,6 +411,17 @@ class HudPainter:
     def _rect(self,ctx,x,y,w,h,color):
         a=self.api;a['nvgBeginPath'](ctx);a['nvgFillColor'](ctx,self._paint(color));a['nvgRect'](ctx,x,y,w,h);a['nvgFill'](ctx)
 
+    def brake(self,ctx,b,width,height,font=None):
+        """T126 brake_warning() plan, centred above the reticle in the overheat red. Latched: larger, on a dark plate
+        between two red bars. Held button or lever zone: the plain red line."""
+        h=height*self.scale;cx=width/2;y=height/2-.08*h
+        self.api['nvgTextAlign'](ctx,2|64)  # NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE
+        if not b['latched']:self.label(ctx,cx,y,b['text'],.018*h,'overheat',font);return
+        size=.024*h;half=.17*h;top=y-1.15*size;tall=1.6*size;bar=max(1.5,.003*h)
+        self._rect(ctx,cx-half,top,2*half,tall,'shadow')
+        for edge in (top,top+tall-bar):self._rect(ctx,cx-half,edge,2*half,bar,'overheat')
+        self.label(ctx,cx,y,b['text'],size,'overheat',font)
+
     def gauge(self,ctx,g,width,height,font=None):
         """Vertical heat bar right of the reticle, mirroring the speed readout on the left."""
         h=height*self.scale;w=.011*h;tall=.13*h;x=width/2+.2*h;bottom=height/2+.065*h;top=bottom-tall
@@ -639,6 +671,12 @@ class HudPainter:
         self.api['nvgTextAlign'](ctx,4|64)  # NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE
         self.label(ctx,x,y,text,.014*h,'prograde' if text=='SULTAN' else 'heat',font)
 
+    def coupled(self,ctx,width,height,font=None):
+        """T128: the coupled assist is flying. One line above the mode tag, in the readout's own colour."""
+        h=height*self.scale;x=width/2-.2*h;y=height/2-.052*h
+        self.api['nvgTextAlign'](ctx,4|64)  # NVG_ALIGN_RIGHT | NVG_ALIGN_BASELINE
+        self.label(ctx,x,y,'COUPLED',.014*h,'text',font)
+
     def compare(self,ctx,r,width,height,fonts):
         """One sample line per game font, labelled, so the user can pick by eye."""
         h=height*self.scale;x=width/2-.2*h;y=height/2-.06*h
@@ -669,16 +707,20 @@ class HudPainter:
             a['nvgLineTo'](ctx,cx,bottom);a['nvgFill'](ctx)
 
     def draw(self,ctx,plan,width,height,scale=1.,font=None,fonts=None,gauge=None,gmeter=None,target=None,
-             planet=None,mode=None,purge=None,landing=None):
+             planet=None,mode=None,purge=None,landing=None,brake=None,coupled=False):
         """fonts (name -> id) switches the readout to the font comparison; gauge: boost_gauge() plan;
         gmeter: g_meter() plan; target: target_readout() plan; planet: planetary_layout() plan;
-        mode: mode_tag() text; landing: manual_landing.panel() plan. plan None draws no instruments."""
+        mode: mode_tag() text; landing: manual_landing.panel() plan; brake: brake_warning() plan;
+        coupled: draw the COUPLED tag (coupled_tag()).
+        plan None draws no instruments."""
         self.scale=scale
         if plan is None:return
         if planet is not None:self.planetary(ctx,planet,width,height,font)
         if purge is not None:self.purge(ctx,purge,width,height,font)
+        elif brake is not None:self.brake(ctx,brake,width,height,font)  # the purge block sits there; engines out, no brake
         if landing is not None:self.landing(ctx,landing,width,height,font)
         if mode is not None and fonts is None:self.mode(ctx,mode,width,height,font)
+        if coupled and fonts is None:self.coupled(ctx,width,height,font)
         if gauge is not None:self.gauge(ctx,gauge,width,height,font)
         if gmeter is not None and purge is None:self.g_meter(ctx,gmeter,width,height,font)  # the purge arrows sit there
         if target is not None:

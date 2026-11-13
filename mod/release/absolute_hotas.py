@@ -47,7 +47,8 @@ from hotas_input import AxisCapture,BusReader,ButtonCapture,ClearableCapture,Dev
 from key_lane import win32_lane
 from button_actions import ButtonActions,flight_buttons_live
 from g_effects import GEffects
-from flight_telemetry import APP_GATES,GATE_FIELDS,SHIP_FIELDS,TelemetryWriter,build_row,decode_receipt
+from flight_telemetry import APP_GATES,GATE_FIELDS,SHIP_FIELDS,SPACE_POI,TelemetryWriter,build_row,decode_receipt
+from flight_watchdog import FlightWatchdog,deliberate as watchdog_regimes
 from hotas_settings import SettingsStore
 from hotas_settings import lever_zone_settings
 from newtonian_control import TranslationPublisher
@@ -87,6 +88,7 @@ import code_patch
 import support_bundle
 import flight_tunings
 import ship_power
+import vr_mode
 import rotation_validation
 import additive_rotation
 
@@ -99,6 +101,7 @@ LOGS=DATA/'logs'
 LEASE_MS=1000
 TICK_SECONDS=.004
 CODE_WRITE_SECONDS=1.  # flight thread must take a queued code write within this, else fall back
+WATCHDOG_PERIOD=.05  # T124: the flight watchdog looks 20 times a second
 FRAME_SIZE=512
 MAV_FORCE=256
 MINOR_NOTICE=10.  # seconds a minor key-overlap notice stays on the cockpit (user 2026-10-31: time it out)
@@ -233,6 +236,11 @@ class AbsoluteHOTAS(Mod):
             try:self.log(name+': '+str(adapter.verify()))
             except BaseException as error:self.log(name+' unavailable: '+repr(error))
         self.telemetry=self._telemetry_writer()
+        self.watchdog=self._flight_watchdog();self.watchdog_due=0.
+        # T125: is the display a headset, and is Experimental VR on. (vr, on); read by hooks on other threads.
+        self.vr=None;self.vr_state=(False,False);self.vr_logged=None;self.vr_input=None;self.vr_input_failed=False
+        try:self.vr=vr_mode.VrMode(int(_internal.BASE_ADDRESS))
+        except BaseException as error:self.log('VR detection unavailable (treated as flat): '+repr(error))
         self.box.publish((0.,)*6,K.GetTickCount64(),enabled=False)
         self.ui=threading.local();self.menu=None;self.pause_root=None;self.ui_api={};self.originals={};self.roots={};self.ui_layout=None;self.draw_errors=0
         self.meters_enabled=True;self.last_options=0.;self.trace_key=None;self.trace_seen=set()
@@ -339,7 +347,7 @@ class AbsoluteHOTAS(Mod):
 
     def _aiming_eligible(self):
         return (self.active and self._aiming_requested() and self.store.values.get('flight-controls-enabled',False)
-                and self.store.values.get('flight-model')=='sultan'
+                and self.store.values.get('flight-model')=='sultan' and not getattr(self,'vr_state',(False,False))[0]  # one flat camera (T125)
                 and self._eligible_native(K.GetTickCount64(),allow_combat_flight=True))
 
     # ---------- hooks (validated in D12/D16; build-pinned callers) ----------
@@ -545,7 +553,7 @@ class AbsoluteHOTAS(Mod):
     def head_pose(self,this,output,base,parameter4,limits,dt,_result_):
         """All gates, the lease and the write live in HeadTracker.camera; this only supplies the flight clock."""
         head=getattr(self,'head',None)
-        if head is None or not head.enabled or not self.active:return None
+        if head is None or not head.enabled or not self.active or getattr(self,'vr_state',(False,False))[0]:return None  # the headset is the head tracker (T125)
         try:
             recovering=getattr(self,'pilot_recovery',None) is not None
             head.camera(this,output,base,_result_,self.head_pose.caller_address(),
@@ -559,7 +567,7 @@ class AbsoluteHOTAS(Mod):
                  func_def=FUNCDEF(None,[C.c_void_p,C.c_float,C.c_void_p]),detour_time='after')
     def head_first_person(self,this,dt,output):
         head=getattr(self,'head',None)
-        if head is None or not head.enabled or not self.active:return None
+        if head is None or not head.enabled or not self.active or getattr(self,'vr_state',(False,False))[0]:return None
         try:head.vehicle_camera(this,output)
         except BaseException:self.hook_errors+=1
         return None
@@ -606,7 +614,7 @@ class AbsoluteHOTAS(Mod):
         self.pilot_boundary=PilotBoundary()
         self.block.ship=0;self.rigid=0;self.controller=0;self.ship_class=None
         self.flight_consumer=FlightConsumer(boost=self.flight_consumer.boost)
-        self.newtonian_retry=0.;self.newtonian_failure='reacquiring player ship'
+        self.newtonian_retry=0.;self.newtonian_failure='reacquiring player ship';self.newtonian_refresh_failed=False
         self.newtonian_last_sequence=0;self.newtonian_transition=None
         self.conflicts=0
         self.box.publish((0.,)*6,K.GetTickCount64(),enabled=False)
@@ -739,7 +747,8 @@ class AbsoluteHOTAS(Mod):
         C.memmove(self.frame,bytes(state),FRAME_SIZE)
         self.controller=q(q(ship+0x60c0))
         patches=SixAxisPatches(pm,pid,self.frame,self.box.address,tick,pilot,1.,1.,turn_scale,
-                               allow_planetary_input=True,allow_combat_input=True,allow_power_input=True)
+                               allow_planetary_input=True,allow_combat_input=True,allow_power_input=True,
+                               allow_poi_input=True)  # T124: axes stay live near space points of interest
         mav=MavPatch(pm,pid,ship,tick,lease,LOGS/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')+'-mav.json'),
                      NATIVE_LIMITS[2],{'frame':self.frame,'mailbox':self.box.address,'pilot':pilot,'allow_planetary_input':True,
                                        'allow_combat_input':True,'allow_power_input':True})
@@ -816,6 +825,12 @@ class AbsoluteHOTAS(Mod):
         geffects=getattr(self,'geffects',None)
         if geffects is not None and geffects.lanes:
             results['g_effects']=geffects.uninstall(self.pm,os.getpid(),self._external_write_code)
+        flat=getattr(self,'vr_input',None)
+        if flat is not None:  # T125: the game's own VR branches go back before the axis patches do
+            try:
+                results['vr_input']=flat.restore(self._write_code,self.pm,os.getpid(),self._external_write_code)
+                if restored(results['vr_input']):self.vr_input=None
+            except BaseException as error:results['vr_input']=repr(error)
         if self.mav:
             try:results['mav']=self.mav.restore(self._write_code)
             except BaseException as e:results['mav']=repr(e)
@@ -1164,7 +1179,8 @@ class AbsoluteHOTAS(Mod):
         if not isinstance(bindings,list) or not isinstance(values,dict):return
         # Exocraft controls hold Vehicle_Reverse as a game button too, so they need the lane with no button bound.
         exo=bool(values.get('exo-enabled'))
-        game=values.get('button-output','direct')=='direct' and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict))
+        game=((values.get('button-output','direct')=='direct' or getattr(self,'vr_state',(False,False))[0])  # VR: keys do nothing (T125)
+              and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict)))
         if not (exo or game):return  # nothing bound, nothing patched (Exocraft buttons have only the game's action)
         lane=None
         try:
@@ -1787,6 +1803,67 @@ class AbsoluteHOTAS(Mod):
         if not hz>0:return None
         return TelemetryWriter(LOGS/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-telemetry.csv'),hz)
 
+    # ---------- T124 flight watchdog (decision in mod/flight_watchdog.py) ----------
+    def _flight_watchdog(self):
+        """runtime.json "flight_watchdog": false turns it off (default on)."""
+        try:on=runtime_config.load(ROOT).get('flight_watchdog',True) is not False
+        except (OSError,ValueError):on=True
+        return FlightWatchdog() if on else None
+
+    def _watchdog_fields(self):
+        """The fields the caves gate on, keyed by telemetry column, plus the space-POI selector. Raw reads on the
+        worker, only called while flight is eligible (our own installed ship, fresh receipts)."""
+        ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+APP_GLOBAL)
+        if not ship or not manager:return None
+        def read(base,offset,fmt):return struct.unpack(fmt,C.string_at(base+offset,struct.calcsize(fmt)))[0]
+        state={name:read(ship,offset,fmt) for name,offset,fmt in GATE_FIELDS}
+        state.update({name:read(manager,offset,fmt) for name,offset,fmt in APP_GATES+(SPACE_POI,)})
+        state.update(gate_674c=read(ship,0x675C,'<I'),gate_6720=read(ship,0x6730,'<B'),
+                     frontend_state=read(manager,0x89BEA8,'<I'),combat_active=read(manager,0x57AA6D,'<B'))
+        return state
+
+    def _watchdog_step(self,now,reason,values):
+        """Worker, under self.lock, before the mailbox publication. True when a flight-model reset was requested:
+        the same detach and reinstall as after a warp (_recover_pilot runs on the next tick)."""
+        dog=getattr(self,'watchdog',None)
+        if dog is None or now<getattr(self,'watchdog_due',0.):return False
+        self.watchdog_due=now+WATCHDOG_PERIOD
+        eligible=(reason is None and self.patches is not None and getattr(self,'agent_test',None) is None
+                  and getattr(self,'pilot_recovery',None) is None)
+        fields=self._watchdog_fields() if eligible else None
+        regimes=receipt=published=sultan=None;latched=False
+        if fields is None:eligible=False
+        else:
+            regimes=watchdog_regimes(fields,getattr(self,'planetary_on',False))
+            if getattr(self,'corvette_autopilot',False):regimes+=('corvette_autopilot',)
+            raw=self._receipt_raw()
+            if raw is not None:receipt=(raw[0],struct.unpack_from('<I',raw[1],200)[0],struct.unpack_from('<I',raw[1],56)[0])
+            control=self.control
+            published={c:v for c,v in zip(MAILBOX_ORDER,values) if control.armed.get(c) and c not in control.ramp}
+            bridge=self.newtonian
+            if self.store.values['flight-model']=='sultan' and getattr(self.translation_command,'enabled',False):
+                native=bridge.sample() if bridge is not None else {}
+                sultan={'selected':True,'installed':bridge is not None,
+                        'latched':bridge is None and self.newtonian_retry==float('inf'),
+                        'invocation':native.get('invocation'),'reason':native.get('reason_name')}
+            addon=getattr(self,'additive_rotation',None)
+            latched=bool(addon is not None and addon.stopped.is_set() and addon.state=='native fallback')
+        action=dog.step(now,eligible=eligible,context=self.block.ship,regimes=regimes or (),receipt=receipt,
+                        published=published,sultan=sultan,rotation_latched=latched)
+        for line in dog.drain():self.log('watchdog: '+line)
+        if action is None:return False
+        addon=getattr(self,'additive_rotation',None)
+        context={'applied_mask':receipt[1] if receipt else None,'space_poi':fields.get('space_poi'),
+                 'flight_model':self.store.values['flight-model'],'ship_class':self.ship_class,
+                 'sultan':(sultan or {}).get('reason') or self.newtonian_failure,
+                 'rotation':f'{addon.state}: {addon.reason}' if addon is not None else None,
+                 'published':{c:round(v,3) for c,v in (published or {}).items() if v}}
+        self.log(f'watchdog: {action.line}; {context}')
+        if action.kind=='retry_sultan':
+            self.newtonian_retry=0.;return False
+        self._request_pilot_recovery(self.block.ship,self.pilot_boundary.thread)
+        return True
+
     def _record(self,reason,values):
         v=self.store.values;ship=self.block.ship
         fields={name:struct.unpack(fmt,C.string_at(ship+offset,struct.calcsize(fmt)))[0] for name,offset,fmt in SHIP_FIELDS+GATE_FIELDS}
@@ -1825,9 +1902,12 @@ class AbsoluteHOTAS(Mod):
                 if manager:
                     state['combat_active']=pm.read_bytes(manager+0x57aa6d,1)[0]
                     state['frontend_state']=struct.unpack('<I',pm.read_bytes(manager+0x89bea8,4))[0]
-                    for name,offset,fmt in APP_GATES:state[name]=struct.unpack(fmt,pm.read_bytes(manager+offset,struct.calcsize(fmt)))[0]
+                    for name,offset,fmt in APP_GATES+(SPACE_POI,):state[name]=struct.unpack(fmt,pm.read_bytes(manager+offset,struct.calcsize(fmt)))[0]
             except BaseException:pass # Missing diagnostic reads never affect controls.
         state['newtonian_requalifications']=getattr(self,'newtonian_refresh_count',0)
+        dog=getattr(self,'watchdog',None)
+        if dog is not None:state.update(watchdog_resets=dog.total,watchdog_cause=dog.last_cause)
+        state['vr']=sum(getattr(self,'vr_state',(False,False)))
         rotation=additive_rotation.status(self);native=rotation.get('native') or {}
         state.update(rotation_state=rotation.get('state',''),rotation_mode=rotation.get('mode') or '',
                      rotation_applied=(int(all(native.get(k)==1 for k in ('override_applied','admitted','fresh','qualified','complete')))
@@ -1943,8 +2023,80 @@ class AbsoluteHOTAS(Mod):
         self.axis_state_lines=getattr(self,'axis_state_lines',0)+1
         if self.axis_state_lines<=3000:self.log('axes: '+', '.join(f'{c} {r}' for c,r in sorted(changed.items())))
 
-    def _focused(self):
+    def _window_focused(self):
         pid=C.c_ulong();U.GetWindowThreadProcessId(U.GetForegroundWindow(),C.byref(pid));return pid.value==os.getpid()
+
+    def _focused(self):
+        """The player is at the game. T125: with Experimental VR on in a headset the display is the headset, and the
+        desktop window is often not in front (first VR boot 2026-11-13: 'game not focused' for a whole flight). Real
+        keys and mouse moves still need the window itself (key_lane checks it; keyboard flight uses _window_focused)."""
+        return getattr(self,'vr_state',(False,False))[1] or self._window_focused()
+
+    # ---------- T125 VR (mod/vr_mode.py) ----------
+    def _vr_step(self):
+        """Worker, each tick: (display is VR, Experimental VR on). Logs each change once."""
+        vr=False
+        if getattr(self,'vr',None) is not None:
+            try:vr=self.vr.vr()
+            except BaseException:vr=False
+        state=(vr,vr and bool(self.store.values.get('vr-experimental')))
+        self.vr_state=state
+        if state!=getattr(self,'vr_logged',None):
+            self.vr_logged=state
+            self.log('display: '+("VR; Experimental VR on: HOTAS flight, the mod's HUD, head tracking, lag pip and stick cursor off" if state[1]
+                                  else 'VR; Experimental VR off: flight is left to the game (Flight Model page turns it on)' if vr else 'flat'))
+        return state
+
+    def _vr_input_step(self,want):
+        """Worker, under self.lock like _install: put the game on its flat-screen stick and throttle branches while
+        Experimental VR flies the ship, and back when it doesn't. One failure switches it off for the session."""
+        flat=getattr(self,'vr_input',None)
+        if want and flat is None and not getattr(self,'vr_input_failed',False):
+            try:
+                flat=vr_mode.FlatInput(int(_internal.BASE_ADDRESS))
+                flat.install(self._write_code,self.pm,os.getpid(),self._external_write_code);self.vr_input=flat
+                self.log('VR input: the game takes its flat-screen stick and throttle branches; the HOTAS replaces the in-world controls'
+                         +('; fire no longer waits for the VR hands' if flat.switched('fire') else '; fire left native: '+str(flat.skipped.get('fire'))))
+            except BaseException as error:
+                self.vr_input_failed=True;self.errors+=1;self.log('VR input switch failed, flight stays native in VR: '+repr(error))
+        elif not want and flat is not None:
+            try:
+                result=flat.restore(self._write_code,self.pm,os.getpid(),self._external_write_code)
+                if all(v is True for v in result.values()):self.vr_input=None;self.log("VR input: the game's in-world controls restored")
+                else:self.vr_input_failed=True;self.log('VR input restore incomplete: '+json.dumps(result,default=str))
+            except BaseException as error:self.vr_input_failed=True;self.log('VR input restore failed: '+repr(error))
+
+    def _vr_flat_step(self,flying):
+        """Worker: hold the game's 'VR hands are the active input' test at false only while the player is piloting,
+        out of every menu, with the setting on (T125; vr_mode 'hands'). Any other moment gets the game's own bytes
+        back, so VR menus and everything outside the seat are untouched."""
+        flat=getattr(self,'vr_input',None)
+        if flat is None:return
+        want=bool(flying and self.store.values.get('vr-flat-input',True) and not self.menu_open and self.capture is None
+                  and self._frontend()==0)
+        if want==flat.switched('hands') or (want and 'hands' in flat.skipped):return
+        ok=flat.hold('hands',want,self._external_write_code,self.pm,os.getpid())
+        if want!=getattr(self,'vr_flat_logged',None) or not ok:
+            self.vr_flat_logged=want
+            self.log(('VR flat-screen input in flight: on (the game no longer waits for the VR hands)' if want else 'VR flat-screen input in flight: off (menu or out of the seat)')
+                     if ok else 'VR flat-screen input left native: '+str(flat.skipped.get('hands')))
+
+    def _vr_hands_step(self):
+        """Worker, while piloting in VR: log the game's VR hand-control fields when they change (read-only; what the
+        fire test looks at). Capped, so a flickering field can't flood the log."""
+        try:now=vr_mode.hands(int(_internal.BASE_ADDRESS))
+        except BaseException:now=None
+        if now is None or now==getattr(self,'vr_hands',None):return
+        self.vr_hands=now;self.vr_hands_lines=getattr(self,'vr_hands_lines',0)+1
+        if self.vr_hands_lines<=60:self.log(f'VR hands: states {now[0]}, {now[1]}; mode {now[2]}')
+
+    def _vr_status(self):
+        vr,on=getattr(self,'vr_state',(False,False));flat=getattr(self,'vr_input',None)
+        detail=self.vr.status() if getattr(self,'vr',None) is not None else {'display':'flat','pinned':False}
+        fire=('switched' if flat.switched('fire') else flat.skipped.get('fire','native')) if flat is not None else 'native'
+        return {**detail,'experimental':on,'input':'failed' if getattr(self,'vr_input_failed',False) else 'flat branches' if flat is not None else 'native',
+                'fire':fire,'flat_input':('on' if flat.switched('hands') else flat.skipped.get('hands','off')) if flat is not None else 'off',
+                'hands':list(getattr(self,'vr_hands',None) or ()) or None}
 
     def _run(self):
         last=time.monotonic();bus_retry=0.;fault_until=0.;last_status=0.;last_seq=None;seq_time=last;hooks_due=last+5
@@ -1980,6 +2132,7 @@ class AbsoluteHOTAS(Mod):
                         last_seq=0;seq_time=now;fault_until=0.
                     recovering=getattr(self,'pilot_recovery',None) is not None
                     piloting=self.block.pilot_until>tick and self.block.ship!=0
+                    vr,vr_on=self._vr_step()
                     if piloting and self.patches is None and self.bus is not None and now>=fault_until:
                         try:self._install(self.block.ship)
                         except BaseException as e:
@@ -1996,7 +2149,7 @@ class AbsoluteHOTAS(Mod):
                     receipt=self._receipt() if self.patches is not None and not recovering else None
                     if receipt and receipt[0]!=last_seq:last_seq,seq_time=receipt[0],now
                     native_u=receipt[2] if receipt else None
-                    reason=('stopping' if self.stopping.is_set() else 'reacquiring player ship' if recovering else 'not piloting' if not piloting else 'game not focused' if not self._focused() else 'menu open' if self.menu_open
+                    reason=('stopping' if self.stopping.is_set() else 'reacquiring player ship' if recovering else 'not piloting' if not piloting else 'VR: Experimental VR is off' if vr and not vr_on else 'game not focused' if not self._focused() else 'menu open' if self.menu_open
                             else 'binding capture' if self.capture is not None else 'starting' if self.patches is None
                             else 'player ship changed' if self.installed_ship!=self.block.ship
                             else 'waiting for flight receipt' if receipt is None
@@ -2009,6 +2162,11 @@ class AbsoluteHOTAS(Mod):
                                          C.addressof(self.block)+24,self._external_write_code,allocate_near)
                     self._ensure_newtonian(now,piloting and not recovering and not self.stopping.is_set()
                                            and self.installed_ship==self.block.ship)
+                    if self.patches is not None and not recovering and piloting:
+                        # T125: only with the axis patches in and the flight thread there to take the writes.
+                        self._vr_input_step(vr_on and bool(self.store.values.get('flight-controls-enabled')))
+                        if vr:self._vr_hands_step()
+                    self._vr_flat_step(vr_on and piloting and not recovering)
                     if getattr(self,'pilot_recovery',None) is not None:
                         recovering=True;reason='reacquiring player ship'
                     elif self.stopping.is_set():reason='stopping'
@@ -2028,7 +2186,8 @@ class AbsoluteHOTAS(Mod):
                             self.conflicts+=1
                             if self.conflicts>=25:
                                 fault_until=now+2;self.conflicts=0
-                                self.log('native input conflict: NMS is also reading a bound device (HOTAS bound in Steam Input?)')
+                                self.log('native input conflict: the game is flying on its own VR controls' if vr else
+                                         'native input conflict: NMS is also reading a bound device (HOTAS bound in Steam Input?)')
                         elif receipt:self.conflicts=0
                         stall=self.stall.check(now,seq_time,armed,self._frontend,self._stall_context)
                         if stall:  # 'game menu' or 'native receipts stale'; stick channels re-arm off-centre with a ramp
@@ -2040,6 +2199,10 @@ class AbsoluteHOTAS(Mod):
                     elif getattr(self,'aim_slowdown',None) is not None:self.aim_slowdown.disable()
                     self._step_crash_damage(tick,piloting,recovering)
                     self._ensure_native_actions()
+                    lane=getattr(self,'native_actions',None)
+                    if getattr(self,'buttons',None) is not None:self.buttons.vr=vr
+                    if lane is not None and getattr(self,'vr_ports',None)!=vr_on:  # T125: VR may ask on another port
+                        lane.set_any_port(vr_on);self.vr_ports=vr_on
                     self._step_wreck_fall(tick,piloting)
                     self._step_eject_retry(tick,piloting,recovering)
                     # T93: a ditch knocks the engines out. The pilot blacks out once per crash (user 2026-10-19:
@@ -2076,10 +2239,15 @@ class AbsoluteHOTAS(Mod):
                         manager=q(_internal.BASE_ADDRESS+APP_GLOBAL)
                         g_scale=geffects.tick(self.store.values,dt,tick,accel,
                                               (manager,self.block.ship,q(manager+0x72cf48) if manager else 0))['control']
+                        if vr:g_scale=1.  # T125: nothing shows the strain in a headset, so it must not take the controls
                         if g_scale<1.:values=tuple(v if c=='throttle' else v*g_scale for c,v in zip(MAILBOX_ORDER,values))
                     if control_share<1.:values=tuple(v*control_share for v in values)
                     if condition is not None and condition.falling:  # the wreck tumbles as it falls (user 2026-10-25)
                         values=condition.tumble(self.flight_consumer.latest.get('speed'))+tuple(values[3:])
+                    if self._watchdog_step(now,reason,values):
+                        # T124: a stuck fail-safe. Hand back this tick; the warp restore reinstalls on the next ones.
+                        self.control.disarm_all('watchdog reset')
+                        values=(0.,)*6;armed=False;recovering=True;reason='reacquiring player ship'
                     if getattr(self,'agent_test',None) is None:
                         self.box.publish(values,tick,enabled=armed and self.patches is not None,ttl_ms=100)
                     # Keys and mouse also serve the quick menu, dialogs and pause menu, so they need
@@ -2091,18 +2259,20 @@ class AbsoluteHOTAS(Mod):
                     self._log_axis_states()
                     keys_live=self.capture is None and not self.menu_open and self._focused()
                     driving=self._driving()
-                    read=self._keyboard_step(keys_live and not driving and self._in_ship(piloting))
+                    # Keyboard flight reads the real keyboard, so it needs the real window even in VR (T125).
+                    read=self._keyboard_step(keys_live and (not vr_on or self._window_focused()) and not driving and self._in_ship(piloting))
                     self.buttons.step(read,now,flight_buttons_live(reason),keys_live,driving)
                     self._step_exocraft(driving and keys_live)
                     self._eject_hold(now,tick,reason is None)
                     # Dialogs and menus: the free stick drives the cursor (the frontend flag also releases flight axes).
                     v=self.store.values
                     self.buttons.step_cursor(self.table.unit(v['bind-pitch-axis']),self.table.unit(v['bind-yaw-axis']),dt,
-                                             self._focused(),self.menu_open or self.capture is not None,self._frontend())
+                                             self._focused() and not vr,self.menu_open or self.capture is not None,self._frontend())  # no stick cursor in VR (T125)
                     with self.newtonian_lock:
                         self.translation_command=self.translation.step(self.table,self.store.values,reason is None,tick,
                                                                        lever_zone_settings(self.store.values),self.buttons.parking,boost=self.buttons.boost,
-                                                                       strafe_buttons=self.buttons.strafe,thrust_buttons=self.buttons.thrust)
+                                                                       strafe_buttons=self.buttons.strafe,thrust_buttons=self.buttons.thrust,
+                                                                       parking_yields=self.buttons.parking_held)
                         # T93: raw controls for the thruster purge, before any engines-out scaling.
                         raw=self.translation_command
                         self.purge_inputs={'throttle':raw.throttle.value,'vertical':raw.vertical,'lateral':raw.lateral,'boost':self.buttons.boost}
@@ -2177,9 +2347,10 @@ class AbsoluteHOTAS(Mod):
                                  'black_space':self.black_space.status() if getattr(self,'black_space',None) else {'state':'not initialized'},
                                  'terrain_lookahead':self.terrain.status() if getattr(self,'terrain',None) else {'state':'not initialized'},
                                  'player_recoveries':getattr(self,'pilot_recoveries',0),
+                                 'watchdog':self.watchdog.status() if getattr(self,'watchdog',None) is not None else {'state':'off'},
                                  'agent_test':self.agent_test.status() if getattr(self,'agent_test',None) else {'enabled':False},
                                  'player_recovery':getattr(self,'pilot_recovery',None),
-                                 'buttons':sorted(self.buttons.state.held),'key_output':self.buttons.key_status(),'g':self.geffects.status(),
+                                 'buttons':sorted(self.buttons.state.held),'key_output':self.buttons.key_status(),'g':self.geffects.status(),'vr':self._vr_status(),
                                  'crash_damage':self._crash_damage_status(),'ship_alarms':self.alarms.status() if getattr(self,'alarms',None) else None,
                                  'head_tracking':self.head.status() if self.head is not None else {'state':'not initialized'}}
                     try:(DATA/'hotas-status.json').write_text(json.dumps(self.status,indent=1),encoding='utf-8')
@@ -2385,6 +2556,7 @@ class AbsoluteHOTAS(Mod):
 
     def _live(self):
         v=self.store.values;live={}
+        vr,vr_on=getattr(self,'vr_state',(False,False));live['vr']='on' if vr_on else 'off' if vr else None  # T125: the menu's VR notice
         for c in ('pitch','yaw','roll','strafe-lateral','strafe-vertical','throttle','exo-steer','exo-throttle','exo-brake','exo-look-x','exo-look-y'):live[c]=self.table.unit(v[f'bind-{c}-axis'])
         # The page shows only with the pause menu open, when the game's set is FRONTEND and nothing is answered
         # (0.2.3-dev.8 live: it never left NOT DRIVING), so report whether the last drive was answered.
@@ -2610,7 +2782,8 @@ class AbsoluteHOTAS(Mod):
         try:
             stack=getattr(self.ui,'hud_stack',None)
             if stack is None or len(stack)>8:stack=self.ui.hud_stack=[]
-            ours=self.hud_state=='ready' and self.hud_frame_enter.caller_address()==flight_hud.HUD_FRAME_RETURN
+            ours=(self.hud_state=='ready' and self.hud_frame_enter.caller_address()==flight_hud.HUD_FRAME_RETURN
+                  and not getattr(self,'vr_state',(False,False))[0])  # flat 2D drawing for one camera (T125)
             stack.append(ours)
             if ours:
                 self.ui.hud_ctx=0;self.ui.hud_size=None
@@ -2677,12 +2850,15 @@ class AbsoluteHOTAS(Mod):
             size=getattr(self.ui,'hud_size',None)
             if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
             layers=flight_hud.tunnel_layers(tunnel,size[0],size[1],fade)
-            plan=gauge=gmeter=target=planet=mode=purge=landing=None
+            plan=gauge=gmeter=target=planet=mode=purge=landing=brake=None;coupled=False
             if not blackout:
                 readout,marker=v['hud-speed-readout'],v['hud-velocity-marker']
                 latest=self.flight_consumer.latest
                 gauge=flight_hud.boost_gauge(latest,self.translation_profiles.get(latest.get('ship_class'))) if v['hud-boost-gauge'] else None
                 gmeter=flight_hud.g_meter(geffects.strain.g,v,geffects.strain.strain) if v['hud-g-meter'] and geffects is not None else None
+                coupled=flight_hud.coupled_tag(latest,v)  # T128
+                buttons=getattr(self,'buttons',None)  # T126: red while the parking brake is on
+                brake=flight_hud.brake_warning(latest,v,bool(getattr(buttons,'parking',False)),bool(getattr(buttons,'parking_latched',False)))
                 # T79: copied read-only target record, None when no lock or older than its 150 ms lifetime.
                 tsample=self.weapon_lead.target_sample(ship=self.block.ship) if v['hud-target-relative'] and self.block.ship else None
                 now=K.GetTickCount64();sample=self.hud_sample;source='sultan'
@@ -2704,7 +2880,7 @@ class AbsoluteHOTAS(Mod):
                 self.hud_live={'source':source if sample is not None else None,'mode':planetary_hud.owner(motion) if motion else None,
                                'planet':None if frame is None else {'index':frame['index'],'altitude':round(frame['altitude'],1),
                                                                      'height_base':round(frame['height_base'],1),'atmosphere':frame['atmosphere']}}
-                if (readout or marker or gauge or gmeter or tsample or planet or mode or purge or landing) and sample is not None and now-sample[0]<=flight_hud.SAMPLE_MAX_AGE_MS:
+                if (readout or marker or gauge or gmeter or tsample or planet or mode or purge or landing or brake or coupled) and sample is not None and now-sample[0]<=flight_hud.SAMPLE_MAX_AGE_MS:
                     camera=self.hud_reader.camera() if marker or tsample else None
                     plan=flight_hud.layout(sample[1],camera if marker else None,size[0],size[1],readout,marker)
                     target=flight_hud.target_readout(tsample,camera,size[0],size[1])
@@ -2718,7 +2894,7 @@ class AbsoluteHOTAS(Mod):
                 api['nvgReset'](ctx);api['nvgFontFaceId'](ctx,font)
                 fonts=self._hud_fonts(ctx);choice=v['hud-font']
                 self.hud_painter.draw(ctx,plan,size[0],size[1],v['hud-scale'],fonts.get(choice,font),
-                                      fonts if choice=='compare' else None,gauge,gmeter,target,planet,mode,purge,landing)
+                                      fonts if choice=='compare' else None,gauge,gmeter,target,planet,mode,purge,landing,brake,coupled)
                 if layers or red>0.:self.hud_painter.tunnel(ctx,layers,size[0],size[1],red=red)
                 if conflict:self.hud_painter.conflict(ctx,keyboard_layout.conflict_lines(conflict),size[0],size[1],v['hud-scale'])
                 elif minor:self.hud_painter.conflict(ctx,keyboard_layout.minor_lines(minor),size[0],size[1],v['hud-scale'],minor=True)
@@ -2786,6 +2962,9 @@ class AbsoluteHOTAS(Mod):
                     if meter.get('kind')=='keyboard-panel':  # T112: beside the list, not in its row
                         if geo and self.painter.keyboard_panel(ctx,geo,getattr(self.ui,'size',None),meter):drawn+=1
                         continue
+                    if meter.get('kind')=='side-panel':  # T122: a page's pane (binding prompts and conflicts), over the description panel
+                        if geo and self.painter.side_panel(ctx,geo,getattr(self.ui,'size',None),meter):drawn+=1;self.menu.pane_drawn()
+                        continue
                     g=panel_geometry(*geo) if geo else None
                     if g:self.painter.meter(ctx,g,meter);drawn+=1
                 self.counters['draws']+=drawn
@@ -2818,8 +2997,9 @@ class AbsoluteHOTAS(Mod):
             key_down=lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000)
             if kind=='key':self.capture=KeyCapture(key_down)
             elif kind=='keyboard':self.capture=KeyboardCapture(key_down)
-            elif kind=='button':self.capture=ClearableCapture(ButtonCapture(self.table,modifier=self.store.button_modifier),key_down)
-            elif kind=='modifier':self.capture=ClearableCapture(ButtonCapture(self.table),key_down)
+            elif kind=='button':
+                self.capture=ClearableCapture(ButtonCapture(self.table,modifier=self.store.button_modifier,timeout=getattr(done,'timeout',None)),key_down)
+            elif kind=='modifier':self.capture=ClearableCapture(ButtonCapture(self.table,timeout=getattr(done,'timeout',None)),key_down)
             else:self.capture=ClearableCapture(AxisCapture(self.table),key_down)
             self.capture_done=done
         self.trace(f'capture start: {kind}')
@@ -2933,15 +3113,18 @@ class AbsoluteHOTAS(Mod):
     def _menu_action(self,action):
         if action=='keyboard-move-game-keys':self._move_game_keys()
         if action=='head-recentre' and getattr(self,'head',None) is not None:self.head.recentre()
-        if action=='support-bundle':threading.Thread(target=self._save_support_bundle,name='AbsoluteHOTAS support bundle',daemon=True).start()
+        if action in ('support-bundle','vr-test-report'):
+            threading.Thread(target=self._save_support_bundle,args=(action=='vr-test-report',),name='AbsoluteHOTAS support bundle',daemon=True).start()
 
-    def _save_support_bundle(self):
-        """Menu button (T100): zip settings and recent logs off the game thread."""
+    def _save_support_bundle(self,vr=False):
+        """Menu button (T100): zip settings and recent logs off the game thread. vr: the VR test report (T125)."""
         try:
-            info={'game_build_hash':BUILD_HASH,'python':sys.version,'data':str(DATA),'state':self.status.get('state'),
+            info={'game_build_hash':BUILD_HASH,'game_build':GAME_BUILD,'python':sys.version,'data':str(DATA),'state':self.status.get('state'),
                   'flight_model':self.store.values.get('flight-model')}
-            path=support_bundle.save(DATA,info,ROOT/'config')
-            self.log('support bundle saved: '+str(path))
+            try:info['version']=(ROOT/'VERSION').read_text(encoding='utf-8').strip()
+            except OSError:pass
+            path=support_bundle.save(DATA,info,ROOT/'config',vr=vr)
+            self.log(('VR test report' if vr else 'support bundle')+' saved: '+str(path))
         except Exception as error:self.log('support bundle failed: '+repr(error))
 
     def cancel_capture(self):

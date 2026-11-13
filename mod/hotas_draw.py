@@ -18,6 +18,7 @@ NVG={'nvgSave':(None,[P]),'nvgRestore':(None,[P]),'nvgReset':(None,[P]),'nvgBegi
 # Muted NMS palette: panel, track, zones (dim/mid/bright), accent, text.
 COLORS={'panel':(.04,.05,.07,.92),'dim':(.23,.24,.26,1),'mid':(.55,.54,.52,1),'bright':(.78,.76,.71,1),
         'accent':(.95,.69,.20,1),'text':(.91,.90,.88,1),'shadow':(0,0,0,1),
+        'pane':(.04,.05,.07,1),  # solid: a pane hides the game's description panel under it (T122)
         # Keyboard layout (T112, mod/keyboard_layout.py categories); tools/render_keyboard_layout.py uses the same as hex.
         'key-ours':(.95,.69,.20,1),'key-press':(.25,.72,.66,1),'key-moved':(.36,.55,.94,1),'key-game':(.54,.53,.52,1),
         'key-clash':(.89,.33,.30,1),'key-overlap':(.80,.47,.78,1),'key-none':(.16,.17,.19,1),'key-ink':(.08,.09,.10,1),'key-faint':(.60,.60,.56,1)}
@@ -44,6 +45,47 @@ def keyboard_area(clip,size,margin=.04):
     width=side[1]-side[0]
     if width<.18*w or width<keyboard_layout.WIDTH*12:return None
     return side[0],y,width,max(b,h*.8)-y
+
+
+# The pane (T122) goes over the game's own description panel, which starts at the right edge of the options list, and
+# uses that panel's text size. Measured on the user's screenshots (2026-11-13, 3440x1440, 0.2.7-dev.3, build 185034):
+# description text about 30 px with lines 37.5 px apart, the panel's left border 29 px left of the list's clip edge.
+PANE_FONT=1/48.   # body text, as a share of the frame height
+PANE_INSET=.02    # the pane starts this share of the frame height left of the list's clip edge
+PANE_CHARS=46     # the pane's text width, in characters of its body size
+PANE_CHAR=.47     # a character's width as a share of the font size (the menu font: 26 characters ran 10.7 sizes wide)
+PANE_CAPS=.56     # the same for capitals
+PANE_TONE={'conflict':'key-clash','capture':'accent'}  # by the pane's 'state'; anything else is plain
+
+
+def pane_area(clip,size):
+    """(left, top, width, height, body size) for a pane over the game's description panel, right of the options list
+    from the list's top; None when the frame has no room there for a readable column. clip: the list's clip, projected;
+    size: the menu's NanoVG frame."""
+    if not size or size[0]<=0 or size[1]<=0:return None
+    w,h=size;x,y,r,b=clip;fs=h*PANE_FONT;pad=.8*fs
+    left=r-PANE_INSET*h;width=min(PANE_CHARS*PANE_CHAR*fs+2*pad,.99*w-left)
+    if width<24*PANE_CHAR*fs+2*pad or b<=y:return None
+    return left,y,width,max(b,h*.8)-y,fs
+
+
+def pane_layout(meter,width,fs):
+    """A pane's text (T122) for a column this wide at body size fs: [(indent, text, size, colour, advance)], top to
+    bottom. Pure, for tests. The pane is content only, so any page can have one: {'title', 'lines': [text],
+    'options': [(what to do, what it does)], 'footer', 'state'}. Title, the lines, each option with its first part in the
+    accent colour, then the footer."""
+    wrap=keyboard_layout.wrap;out=[]
+    def add(text,size,colour,indent=0.,char=PANE_CHAR,gap=0.):
+        lines=wrap(text or '',width-indent,size,char)
+        for line in lines:out.append([indent,line,size,colour,1.3*size])
+        if lines:out[-1][4]+=gap
+    add(meter.get('title'),1.2*fs,PANE_TONE.get(meter.get('state'),'text'),char=PANE_CAPS,gap=.6*fs)
+    for text in meter.get('lines') or ():add(text,fs,'text',gap=.25*fs)
+    if out:out[-1][4]+=.4*fs
+    for key,text in meter.get('options') or ():
+        add(key,fs,'accent',char=PANE_CAPS);add(text,fs,'text',indent=1.2*fs,gap=.5*fs)
+    add(meter.get('footer'),.85*fs,'key-faint')
+    return [tuple(line) for line in out]
 
 
 def meter_marks(meter,left,right):
@@ -105,6 +147,27 @@ class MeterPainter:
         y+=1.4*unit
         for line in keyboard_layout.wrap(' '.join(keyboard_layout.EXPERIMENTAL),keyboard_layout.WIDTH*unit,.26*unit):
             self.label(ctx,x0,y,line,.26*unit,'key-faint');y+=.36*unit
+        return True
+
+    def side_panel(self,ctx,geo,size,meter):
+        """A page's pane (T122, user 2026-11-13): text over the game's own description panel, so what it says never
+        moves the list's rows. The Buttons page uses it for binding prompts and button conflicts
+        (hotas_menu.button_pane). State 'idle' draws nothing, so the game's description shows as usual (user
+        2026-11-13, after an always-on pane: "they overlap existing descriptions"). Otherwise the pane is solid, at the
+        description's text size, and covers that panel for as long as the prompt lasts. geo: the anchor row and the
+        list's clip, projected; size: the menu's NanoVG frame. Text only: nothing in it is clickable. Returns whether
+        there is room for the pane (False: the menu falls back to rows in the list)."""
+        _,clip=geo
+        area=pane_area(clip,size)
+        if area is None:return False
+        if meter.get('state','idle')=='idle':return True
+        left,top,width,height,fs=area;pad=.8*fs
+        self.rect(ctx,left,top,width,height,'pane')
+        self.rect(ctx,left,top,.15*fs,height,PANE_TONE.get(meter.get('state'),'mid'))
+        y=top+pad
+        for indent,text,text_size,colour,advance in pane_layout(meter,width-2*pad,fs):
+            if y+text_size>top+height:break
+            self.label(ctx,left+pad+indent,y+.9*text_size,text,text_size,colour);y+=advance
         return True
 
     def meter(self,ctx,g,meter):
