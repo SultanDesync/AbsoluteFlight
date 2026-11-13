@@ -17,6 +17,7 @@ import math
 from hotas_buttons import BY_ID, NATIVE_FOR, ButtonRouter, ButtonState
 from hotas_settings import FLIGHT_MODELS
 from stick_cursor import StickCursor, cursor_mode, cursor_reason
+import ship_power
 
 # Mod actions the release runtime acts on today (same list as hotas_menu.LIVE_MOD_ACTIONS).
 LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost',
@@ -25,7 +26,8 @@ LIVE_MOD_ACTIONS = ('mod.parking-brake', 'mod.gear', 'mod.boost',
                     'mod.flight-model-next', 'mod.flight-model-toggle', 'mod.lever-mode-toggle',
                     'mod.pip-toggle',
                     'mod.head-tracking-toggle', 'mod.head-recentre', 'mod.head-tracking-on', 'mod.head-tracking-off',
-                    'mod.eject')
+                    'mod.power-next', 'mod.power-previous', 'mod.power-balanced', 'mod.power-weapons', 'mod.power-engines',
+                    'mod.power-shields', 'mod.eject')
 KEY_LANES = ('key', 'mouse')
 # Runtime disarm reasons under which mod actions still act. A receipt stall disarms the axes, but the
 # buttons stay live (alpha.18, 2026-10-23: braked to a stop, the game's flight updates stalled for up to
@@ -100,6 +102,7 @@ class ButtonActions:
         self.sultan_owns = False  # set by the runtime each tick: Sultan is flying the ship this frame (T112)
         self.throttle_brake = False  # set by the runtime each tick: the HOSAS throttle is pulled back (FlightControl.brake)
         self.on_head_recentre = None  # HeadTracker.recentre; takes only the tracker's own lock
+        self.on_power = None  # T121: runtime callback, takes a ship_power.ACTIONS request ('next', 'previous' or 0..3)
         self.synthetic_keys = frozenset()  # key actions the mod holds itself (T101 touchdown: the game's Land key)
         self.reload()
 
@@ -244,6 +247,8 @@ class ButtonActions:
                 self.changes.append(('head-tracking-enabled', action == 'mod.head-tracking-on'))
             elif action == 'mod.head-recentre' and self.on_head_recentre is not None:
                 self.on_head_recentre()
+            elif action in ship_power.ACTIONS and self.on_power is not None:
+                self.on_power(ship_power.ACTIONS[action])
         return self.state
 
     def step_cursor(self, pitch_unit, yaw_unit, dt, focused, hotas_menu_open, frontend):

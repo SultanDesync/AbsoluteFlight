@@ -102,6 +102,25 @@ class BoostBudget:
                 'boost_active': False, 'boost_multiplier': 1., 'bleeding_overspeed': False}
 
 
+POWER_FACTOR_RANGE = (.25, 4.)
+
+
+def power_thrust_factor(power, damper, multiplier):
+    """T120: the game's engine factor for this power selection (native 0x1794069, build 185034).
+
+    power is ship+0x675C: 0 balanced, 2 the engines mode (PowerSettingEngineMul), 1 and 3 the other two
+    (PowerSettingEngineDamper). The two factors are the game's live globals, so tuned game files carry over.
+    Native multiplies its top speeds by it; Sultan has no such speed to scale (user 2026-11-13: "we can't
+    scale speed in our paradigm. we scale acceleration"), so it multiplies Sultan's acceleration.
+    Anything unknown, non-finite or outside POWER_FACTOR_RANGE leaves thrust alone.
+    """
+    factor = {1: damper, 2: multiplier, 3: damper}.get(power, 1.)
+    if (isinstance(factor, bool) or not isinstance(factor, (int, float)) or not math.isfinite(factor)
+            or not POWER_FACTOR_RANGE[0] <= factor <= POWER_FACTOR_RANGE[1]):
+        return 1.
+    return float(factor)
+
+
 class FlightConsumer:
     def __init__(self, boost=None, condition=None):
         self.recent = deque()  # (tick, velocity) over the last RECENT_MS, for a wreck's pre-hit momentum
@@ -159,6 +178,9 @@ class FlightConsumer:
         usable = (sample.usable and sample.generation == command.generation
                   and now_tick < command.deadline)
         profile = FlightProfile.from_mapping(profiles[class_id])
+        # T120: the game's power selection scales Sultan's acceleration on every axis; the speed cap stays.
+        # In air the factor goes to planetary_flight.compute, which keeps it out of the drag calibration.
+        power_factor = native.get('power_factor', 1.)
         basis = Basis(*native['basis'])
         multiplier, boosting = self.boost.step(
             profile, bool(usable and command.throttle.boost_requested and not command.throttle.parking
@@ -185,7 +207,7 @@ class FlightConsumer:
                 previous_acceleration_world=self.previous, boost_multiplier=multiplier, command_fresh=usable,
                 trim=getattr(command, 'trim', 0.),
                 water=water if owned else None, submerged=submerged, engines_out=condition.engines_out,
-                gear=native.get('gear'), clearance=native.get('clearance'))
+                gear=native.get('gear'), clearance=native.get('clearance'), power_factor=power_factor)
             result = air.flight
             if usable and condition.blasting(now_tick):
                 # T93: the purge's boost stage relit the thrusters; the blast throws the ship up out of the water.
@@ -238,7 +260,8 @@ class FlightConsumer:
         else:
             self.density.reset()
             result = compute_acceleration(
-                profile, command.lateral, max(-1., min(1., command.vertical+getattr(command, 'trim', 0.))), command.throttle,
+                profile if power_factor == 1. else replace(profile, acceleration_scale=profile.acceleration_scale*power_factor),
+                command.lateral, max(-1., min(1., command.vertical+getattr(command, 'trim', 0.))), command.throttle,
                 native['velocity'], basis, native['thrust_force'], native['dt'],
                 previous_acceleration_world=self.previous, command_fresh=usable,
                 boost_multiplier=multiplier)
@@ -258,5 +281,6 @@ class FlightConsumer:
             'target_speed': result.target_speed, 'zone': command.throttle.zone,
             **self.boost.status(), 'boost_active': boosting, 'boost_multiplier': multiplier,
             'bleeding_overspeed': result.bleeding_overspeed, 'planetary': planetary,
+            'power_factor': power_factor,
         }
         return (1 if usable else 0), result

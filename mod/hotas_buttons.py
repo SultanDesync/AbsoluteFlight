@@ -78,6 +78,13 @@ ACTIONS=(
     Action('mod.head-recentre','Recentre head tracking','flight','mod',('tap','long'),help='Take the current head pose as centre.'),
     Action('mod.head-tracking-on','Head tracking on','flight','mod',('tap','long'),help='Turn head tracking on.'),
     Action('mod.head-tracking-off','Head tracking off','flight','mod',('tap','long'),help='Turn head tracking off.'),
+    # T121 (user 2026-11-13): the ship's power mode from a switch or one button per mode (mod/ship_power.py).
+    Action('mod.power-next','Power: next mode','flight','mod',('tap','long'),help="Step the ship's power forward, in the game's order: balanced, weapons, engines, shields."),
+    Action('mod.power-previous','Power: previous mode','flight','mod',('tap','long'),help="Step the ship's power back. With Power: next mode it puts power on a two-way switch."),
+    Action('mod.power-balanced','Power: balanced','flight','mod',('tap','long'),help="Set the ship's power to balanced, whatever it was."),
+    Action('mod.power-weapons','Power: weapons','flight','mod',('tap','long'),help="Set the ship's power to weapons, whatever it was."),
+    Action('mod.power-engines','Power: engines','flight','mod',('tap','long'),help="Set the ship's power to engines, whatever it was."),
+    Action('mod.power-shields','Power: shields','flight','mod',('tap','long'),help="Set the ship's power to shields, whatever it was."),
     Action('mod.eject','Eject (hold)','flight','mod',('press',),help='Hold to leave the ship in flight, even where the game refuses (Sultan flight only). Hold time is set below. Bind it somewhere you will not press by accident.'),
     # T59 static (180836): Land 0x21 only requests landing; native launch reads Ship_Thrust 0x1B (or scalar 0x8A).
     _ship('boost','Boost',0x1D),_ship('land','Land',0x21),

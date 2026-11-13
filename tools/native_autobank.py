@@ -25,10 +25,11 @@ AUTOBANK_SITE={
 }
 
 
-def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_planetary_flight=False):
+def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_planetary_flight=False,
+                allow_power_flight=False):
     # Late import avoids a module cycle when Bridge.prepare imports this generator.
     from native_newtonian import (Code,WORK,VECTORS,REQUIRED,LOW_HEIGHT,_save,_restore,_owner_guard,_check,
-                                  low_height_gate,planetary_skip)
+                                  low_height_gate,planetary_skip,POWER,power_gate)
     c=Code(cave);_save(c)
     def stage(value):c.relative(b'\xc7\x05',data+AUTOBANK_STAGE,struct.pack('<I',value))
     stage(0);_owner_guard(c,data)
@@ -67,6 +68,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
                  '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
                  '80 be ed 76 00 00 00','80 be e4 6c 00 00 00','80 be 40 77 00 00 00'):
         if allow_planetary_flight and code==LOW_HEIGHT:low_height_gate(c,data,'out','low_height_ok')
+        elif allow_power_flight and code==POWER:power_gate(c,'out')
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','out')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','out')

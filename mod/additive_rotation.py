@@ -102,7 +102,7 @@ def source_snapshot(runtime):
 def capture_identity(runtime):
     """Read current-process pins after offline preflight; never attach or write settings."""
     from native_roll_patch import K
-    from native_rotation_trial import EXPECTED_SHA, read_combat, read_engine_pins, read_mode_pins
+    from native_rotation_trial import EXPECTED_SHA, read_combat, read_engine_pins, read_mode_pins, read_power
     bridge = runtime.newtonian
     base = int(runtime.pm.process_base.lpBaseOfDll)
     return {'exe_sha256': EXPECTED_SHA, 'file_version': '185034',
@@ -111,6 +111,7 @@ def capture_identity(runtime):
             'engine_pins': read_engine_pins(runtime.pm, bridge.fixture['ship']),
             'mode_pins': read_mode_pins(runtime.pm, base),
             'combat': read_combat(runtime.pm, base),
+            'power': read_power(runtime.pm, bridge.fixture['ship']),
             'native_addresses': {'newtonian_data': bridge.data, 'frame': runtime.frame,
                                  'mailbox': runtime.box.address,
                                  'pilot_deadline': C.addressof(runtime.block) + 24,
@@ -235,16 +236,17 @@ def get_runtime_profile(identity, request=None):
             'combat': request.get('combat', False) is True, 'max_input_amplitude': 1.}
 
 
-def pins_changed(current, pinned, planetary=False, combat=False):
+def pins_changed(current, pinned, planetary=False, combat=False, power=False):
     """Whether the native route or engine identity moved under an installed seam.
 
     In planetary flight (T92) native blends the effective engine block every frame, so only the
     selected controls and MaxTorque are identity; the cave skips the snapshot under the same switch.
     In combat with Rotation in combat on (T118) native selects the combat engine; same rule.
+    With a non-balanced power selection (T119) native scales the engine block; same rule.
     """
     if current['mode_pins'] != pinned['mode_pins']:
         return True
-    keys = ('selected_control', 'max_torque_bits') if planetary or combat else tuple(pinned['engine_pins'])
+    keys = ('selected_control', 'max_torque_bits') if planetary or combat or power else tuple(pinned['engine_pins'])
     return any(current['engine_pins'].get(key) != pinned['engine_pins'].get(key) for key in keys)
 
 
@@ -262,7 +264,9 @@ def _bridge(runtime, identity, profile):
         allow_planetary_flight=bool(getattr(runtime.newtonian, 'allow_planetary_flight', False)),
         air_authority=profile.get('air', False) is True,
         # T118: the class style keeps running through known manual combat.
-        allow_combat_flight=profile.get('combat', False) is True)
+        allow_combat_flight=profile.get('combat', False) is True,
+        # T119: weapons, shields and engines power keep the class style.
+        allow_power_flight=True)
 
 
 class AdditiveRotation:
@@ -446,7 +450,9 @@ class AdditiveRotation:
                                      and getattr(runtime, 'planetary_on', False) is True)
                         combat = (getattr(self.bridge, 'allow_combat_flight', False) is True
                                   and current.get('combat') == 1)
-                        changed = pins_changed(current, self.identity, planetary, combat)
+                        power = (getattr(self.bridge, 'allow_power_flight', False) is True
+                                 and current.get('power') in (1, 2, 3))
+                        changed = pins_changed(current, self.identity, planetary, combat, power)
                         self.last_pin_check = now
                     if changed:
                         self._replace_fixture(runtime)

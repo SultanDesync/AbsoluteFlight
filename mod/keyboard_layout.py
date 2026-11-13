@@ -38,6 +38,8 @@ FUNCTIONS={'mod.thrust-forward':'Thrust','mod.thrust-back':'Reverse','mod.strafe
            'mod.flight-model-next':'Next model','mod.flight-model-toggle':'Model swap','mod.lever-mode-toggle':'Lever mode',
            'mod.pip-toggle':'Lead/lag','mod.head-tracking-toggle':'Head on/off','mod.head-recentre':'Head centre',
            'mod.head-tracking-on':'Head on','mod.head-tracking-off':'Head off','mod.eject':'Eject',
+           'mod.power-next':'Power +','mod.power-previous':'Power -','mod.power-balanced':'Pwr bal','mod.power-weapons':'Pwr guns',
+           'mod.power-engines':'Pwr eng','mod.power-shields':'Pwr shld',
            'key.0x20':'Pulse','key.0x43':'Scan','key.0x45':'Interact','key.0x45:exit':'Exit','key.0x25':'QM left','key.0x27':'QM right',
            'Ship_Thrust':'Thrust','Ship_Brake':'Brake','Ship_RollLeft':'Roll L','Ship_RollRight':'Roll R','Ship_Boost':'Boost',
            'Ship_PulseJump':'Pulse','Ship_Land':'Land','Ship_Exit':'Exit','Ship_AutoFollow_Toggle':'Follow','Ship_AutoFollow_Hold':'Follow (hold)',

@@ -28,6 +28,14 @@ COMMAND=0x800; MAX_LEASE_MS=250
 # is added to the command as a safety net. 0 (the initial value) keeps the space-only admission.
 PLANETARY=0x3F0
 LOW_HEIGHT='80 be 30 67 00 00 00'
+# T119: ship+0x675C is the native power selection (Ship_CyclePower, 0 balanced, 1..3 the other three modes).
+# Native only scales the engine block there (MaxSpeed/BoostMaxSpeed and angular factors), so release caves
+# admit all four known selections; unknown values stay native. Research caves keep balanced-only.
+POWER='83 be 5c 67 00 00 00'
+
+def power_gate(c,reject,prefix=b''):
+    """cmp dword [rsi(+prefix reg)+0x675C],3; ja reject: the four known power selections only."""
+    c.emit(prefix+bytes.fromhex('83 be 5c 67 00 00 03'));c.relative(b'\x0f\x87',reject)
 # T88 integrator clamp. The radial velocity clamp is 2*[ship+0x6650] (BoostMaxSpeed; 0x6640 on 180836), loaded at
 # 0x179383F and doubled at 0x179384F (183791; 0x176043D/0x176044C on 180836) (research/re-log/2026-10-16_codex_newtonian-gates.md, CONFIRMED
 # static). In air native blends that field toward the Planet engine block, which capped a Sultan
@@ -206,7 +214,8 @@ def latch_code(cave,site,data,base):
     c.label('out');_restore(c);c.relative(b'\xe9',site['address']+len(bytes.fromhex(site['original'])))
     return c.finish()
 
-def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,allow_planetary_flight=False):
+def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,allow_planetary_flight=False,
+               allow_power_flight=False):
     from native_autobank import AUTOBANK_COUNT,AUTOBANK_INVOCATION
     c=Code(cave);_save(c);_owner_guard(c,data)
     c.emit(b'\x48\xb8'+struct.pack('<Q',base+0x178A941))
@@ -286,6 +295,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
                  '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
                  '80 be ed 76 00 00 00','80 be e4 6c 00 00 00','80 be 40 77 00 00 00'):
         if allow_planetary_flight and code==LOW_HEIGHT:low_height_gate(c,data,'publish','low_height_ok')
+        elif allow_power_flight and code==POWER:power_gate(c,'publish')
         else:ins_ne(code)
     c.emit(bytes.fromhex('f6 42 01 18'));c.relative(b'\x0f\x85','publish')
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
@@ -414,6 +424,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
                      '83 be 18 73 00 00 00','83 be 30 64 00 00 00','80 be e0 73 00 00 00',
                      '80 be ed 76 00 00 00','80 be e4 6c 00 00 00','80 be 40 77 00 00 00'):
             if allow_planetary_flight and code==LOW_HEIGHT:low_height_gate(c,data,'publish','low_height_recheck_ok')
+            elif allow_power_flight and code==POWER:power_gate(c,'publish')
             else:ins_ne(code)
         c.emit(bytes.fromhex('49 8b 95 90 02 00 00 f6 42 01 18'));c.relative(b'\x0f\x85','publish')
         c.emit(bytes.fromhex('4d 8b 85 28 03 00 00 49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
@@ -942,12 +953,13 @@ class Bridge:
     deliberately never freed underneath possibly executing native code.
     """
     def __init__(self,pm,pid,module_base,fixture,get_tick,helper_address,*,allow_combat_flight=False,
-                 allow_planetary_flight=False):
+                 allow_planetary_flight=False,allow_power_flight=False):
         if not get_tick or not helper_address:raise ValueError('Native clock/helper required')
         self.pm,self.pid,self.base=pm,pid,module_base
         self.fixture,self.get_tick,self.helper=fixture,get_tick,helper_address
         self.allow_combat_flight=bool(allow_combat_flight)
         self.allow_planetary_flight=bool(allow_planetary_flight)
+        self.allow_power_flight=bool(allow_power_flight)
         self.items={};self.data=0;self.installed=False;self._last_sequence=0
 
     @staticmethod
@@ -979,7 +991,8 @@ class Bridge:
             code=(latch_code(cave,site,self.data,self.base) if kind=='latch' else
                   final_code(cave,site,self.data,self.base,self.get_tick,self.helper,
                              allow_combat_flight=self.allow_combat_flight,
-                             allow_planetary_flight=self.allow_planetary_flight) if kind=='final' else
+                             allow_planetary_flight=self.allow_planetary_flight,
+                             allow_power_flight=self.allow_power_flight) if kind=='final' else
                   after_integrator_code(cave,site,self.data,self.base) if kind=='after_integrator' else
                   clamp_code(cave,site,self.data) if kind=='clamp' else
                   clearance_code(cave,site,self.data) if kind=='clearance' else
@@ -987,7 +1000,8 @@ class Bridge:
                   water_code(cave,site,self.data) if kind=='water' else
                   assist_code(cave,site,self.data,self.base,self.get_tick,
                               allow_combat_flight=self.allow_combat_flight,
-                              allow_planetary_flight=self.allow_planetary_flight) if kind=='autobank' else
+                              allow_planetary_flight=self.allow_planetary_flight,
+                              allow_power_flight=self.allow_power_flight) if kind=='autobank' else
                   capture_code(kind,cave,site,self.data))
             if len(code)>0x2000:raise ValueError('Cave exceeds reserved pages')
             codes[kind]=code

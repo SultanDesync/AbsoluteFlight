@@ -55,7 +55,8 @@ LIVE_MOD_ACTIONS=('mod.parking-brake','mod.gear','mod.boost',
                   'mod.thrust-forward','mod.thrust-back','mod.vanilla-mode','mod.trim-up','mod.trim-down','mod.trim-hover','mod.trim-reset',
                   'mod.flight-model-next','mod.flight-model-toggle','mod.lever-mode-toggle',
                   'mod.pip-toggle',
-                  'mod.head-tracking-toggle','mod.head-recentre','mod.head-tracking-on','mod.head-tracking-off','mod.eject')
+                  'mod.head-tracking-toggle','mod.head-recentre','mod.head-tracking-on','mod.head-tracking-off',
+                  'mod.power-next','mod.power-previous','mod.power-balanced','mod.power-weapons','mod.power-engines','mod.power-shields','mod.eject')
 # Bound on the Head Tracking page (user, 2026-10-16), not in the Buttons page's FLIGHT list.
 HEAD_ACTIONS=('mod.head-recentre','mod.head-tracking-toggle','mod.head-tracking-on','mod.head-tracking-off')
 # Feature-specific bindings live beside their tuning, as on Head Tracking.
@@ -271,7 +272,10 @@ KEYBOARD_MORE=(('keyboard-trim-header','TRIM',(('mod.trim-up','Trim up'),('mod.t
                ('keyboard-head-header','HEAD TRACKING',(('mod.head-tracking-toggle','Head tracking on/off'),('mod.head-recentre','Recentre head tracking'),
                                                         ('mod.head-tracking-on','Head tracking on'),('mod.head-tracking-off','Head tracking off'))),
                ('keyboard-combat-header','COMBAT',(('mod.pip-toggle','Switch lead / lag pip'),)),
-               ('keyboard-ship-header','SHIP',(('mod.eject','Eject (hold)'),)))
+               ('keyboard-ship-header','SHIP',(('mod.power-next','Power: next mode'),('mod.power-previous','Power: previous mode'),
+                                               ('mod.power-balanced','Power: balanced'),('mod.power-weapons','Power: weapons'),
+                                               ('mod.power-engines','Power: engines'),('mod.power-shields','Power: shields'),
+                                               ('mod.eject','Eject (hold)'))))
 KEYBOARD_SECTIONS=(('keyboard-flight-header','FLIGHT',KEYBOARD_FLIGHT),('keyboard-game-header','GAME ACTIONS',KEYBOARD_GAME))+KEYBOARD_MORE
 KEYBOARD_ALL=tuple(row for _,_,actions in KEYBOARD_SECTIONS for row in actions)
 
@@ -431,7 +435,7 @@ def throttle_controls():
 
 
 def route_controls(route):
-    if route=='flight-model':return ['flight-controls-enabled','flight-model']
+    if route=='flight-model':return ['flight-controls-enabled','flight-model','sultan-power-modes']
     if route=='flight-axes':
         return (['turn-rate-scale','strafe-authority']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
                 +throttle_controls())

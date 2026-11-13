@@ -10,7 +10,7 @@ COMBAT = '80 b8 6d aa 57 00 00'  # cmp byte [app+0x57AA6D], 0: the manual-combat
 
 
 def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allow_planetary_flight=False,
-         allow_combat_flight=False):
+         allow_combat_flight=False, allow_power_flight=False):
     """Require pinned current Newtonian invocation and complete strict fixture.
 
     Caller saves volatile state/MXCSR and supplies an aligned Win64 stack.
@@ -22,8 +22,10 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     allow_combat_flight (T118): admit the known manual-combat byte 0..1, as the
     release Newtonian cave does (T71); unknown values, combat-follow (ship+0x7740),
     power and every other protected mode stay native.
+    allow_power_flight (T119): admit the four known native power selections
+    (ship+0x675C 0..3), as the release Newtonian cave does; unknown values stay native.
     """
-    from native_newtonian import WORK, VECTORS, REQUIRED, LOW_HEIGHT, low_height_gate, planetary_skip
+    from native_newtonian import WORK, VECTORS, REQUIRED, LOW_HEIGHT, POWER, low_height_gate, planetary_skip, power_gate
 
     def ne(prefix, address, suffix=b''):
         c.relative(prefix, address, suffix); c.relative(b'\x0f\x85', reject)
@@ -60,6 +62,7 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
                 '80 be ed 76 00 00 00', '80 be e4 6c 00 00 00', '80 be 40 77 00 00 00',
                 '83 be 18 67 00 00 00'):
         if allow_planetary_flight and raw == LOW_HEIGHT: low_height_gate(c, data, reject, prefix + 'low_height_ok')
+        elif allow_power_flight and raw == POWER: power_gate(c, reject)
         else: ins(raw)
     c.emit(bytes.fromhex('f6 42 01 18')); c.relative(b'\x0f\x85', reject)
     ins('49 83 b8 38 0a 00 00 01')

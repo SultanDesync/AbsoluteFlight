@@ -27,12 +27,14 @@ APP_GATES=(('gate_pulse',0x72B6DC,'<I'),('gate_warp',0x72B6CC,'<I'))  # app (man
 
 def gates_failed(row):
     """The protected-mode gates that would hold Sultan native this row, joined with '+' ('' when all pass or unread).
-    Low height counts only while planetary flight is off, which the row doesn't know, so it is listed as low_height."""
+    Low height counts only while planetary flight is off, which the row doesn't know, so it is listed as low_height.
+    Power counts only outside the four known selections 0..3, which the release caves admit (T119)."""
     failed=[]
     if row.get('gate_active') not in ('',None) and row['gate_active']!=1:failed.append('inactive')
     for name,_,_ in GATE_FIELDS[1:]+APP_GATES:
         if row.get(name) not in ('',None,0):failed.append(name[5:])
-    for name,label in (('gate_674c','power'),('gate_6720','low_height'),('frontend_state','frontend'),('combat_active','combat')):
+    if row.get('gate_674c') not in ('',None,0,1,2,3):failed.append('power')
+    for name,label in (('gate_6720','low_height'),('frontend_state','frontend'),('combat_active','combat')):
         if row.get(name) not in ('',None,0):failed.append(label)
     return '+'.join(failed)
 
@@ -41,7 +43,7 @@ CHANNELS=('yaw','pitch','roll','throttle','strafe-lateral','strafe-vertical')
 NEWTONIAN_COLUMNS=(['flight_model','newtonian_admitted','newtonian_reason','command_state','command_generation','command_age_ms',
                     'newtonian_native_reason','newtonian_invocation','newtonian_speed','newtonian_forward_speed',
                     'newtonian_target_speed','parking_brake','speed_cap_active','newtonian_avoidance_flag',
-                    'bleeding_overspeed','boost_heat','boost_active','boost_overheated','boost_multiplier']
+                    'bleeding_overspeed','boost_heat','boost_active','boost_overheated','boost_multiplier','power_factor']
                    +['acceleration_body_'+axis for axis in 'xyz']
                    +['newtonian_'+name+'_'+axis for name in ('final_before','final_after','outer_velocity','outer_velocity_after_integrator') for axis in 'xyz'])
 COLUMNS=(['t','piloting','reason','style','hosas_mode','lever_unit','throttle_armed','throttle_reason','rate_target']

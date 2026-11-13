@@ -16,7 +16,7 @@ and ship-component fields moved).
 
 Gates in the cave (any failure passes the native arguments through unchanged): enabled; app
 pointer, publisher identity (RDI), attachment handle and ship unchanged; frontend == 0; not the
-alternate destination; ship active; planetary, power, follow and landing state zero; now before the
+alternate destination; ship active; planetary, follow and landing state zero; power selection 0..3 (T119); now before the
 release pilot deadline; a coherent seqlocked command younger than its 100 ms deadline. One change
 from the probe: the combat gate is optional (allow_combat), because G-strain matters most in combat;
 combat coverage is the first thing to check live.
@@ -38,6 +38,7 @@ COMBAT_OFFSET = 0x57AA6D  # application: combat flag (byte)
 ALTERNATE_OFFSET = 0xFEC9C  # publisher: alternate upload destination (byte)
 SHIP_ACTIVE_OFFSET = 0x60C8  # ship component: active (byte, 1)
 SHIP_ZERO_OFFSETS = (0x6730, 0x675C, 0x6430, 0x7318)  # ship component: planetary (byte), power, follow, landing
+SHIP_POWER_OFFSET = 0x675C  # ship component: power selection (dword); production admits 0..3 (T119)
 VR_MODE_GLOBAL = 0x6EF0160  # nonzero: VR display; the seam is qualified for flat play only
 SITES = {'vignette': 0x9A47AD, 'greyout': 0x9A3ED8}
 BLOCK = 0x400
@@ -52,8 +53,8 @@ def original_call(rva):
     return b'\xe8' + struct.pack('<i', SETTER - rva - 5)
 
 
-def code_bytes(cave, base, data, tick, lane, allow_combat=True):
-    """The T77 probe cave, byte for byte, except the optional combat gate."""
+def code_bytes(cave, base, data, tick, lane, allow_combat=True, allow_power=True):
+    """The T77 probe cave, byte for byte, except the optional combat and power gates."""
     c = Code(cave)
     # Entry is an ordinary x64 callee, RSP%16=8. Eight pushes keep that
     # remainder; 0x88 then aligns RSP before calling GetTickCount64.
@@ -83,7 +84,12 @@ def code_bytes(cave, base, data, tick, lane, allow_combat=True):
     c.emit(bytes.fromhex('41 80 ba') + struct.pack('<I', SHIP_ACTIVE_OFFSET) + b'\x01')  # ship active
     c.relative(bytes.fromhex('0f 85'), 'out')
     for offset in SHIP_ZERO_OFFSETS:
-        # planetary, power, follow and landing all require native zero.
+        if offset == SHIP_POWER_OFFSET and allow_power:
+            # T119: any of the four known power selections; unknown values stay native.
+            c.emit(b'\x41\x83\xba' + struct.pack('<I', offset) + b'\x03')
+            c.relative(bytes.fromhex('0f 87'), 'out')
+            continue
+        # planetary, follow and landing (and power in the probe) require native zero.
         if offset == SHIP_ZERO_OFFSETS[0]: c.emit(b'\x41\x80\xba' + struct.pack('<I', offset) + b'\x00')
         else: c.emit(b'\x41\x83\xba' + struct.pack('<I', offset) + b'\x00')
         c.relative(bytes.fromhex('0f 85'), 'out')

@@ -122,11 +122,14 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
     # Current native protected modes take precedence over a previous Python tick.
     c.relative(b'\x4c\x8b\x15', frame+8)  # R10 = ship, not producer
     for raw in ('41 80 ba c8 60 00 00 01', '41 80 ba 30 67 00 00 00',
-                '41 83 ba 5c 67 00 00 00', '41 83 ba 18 73 00 00 00',
+                '41 83 ba 18 73 00 00 00',
                 '41 83 ba 30 64 00 00 00', '41 80 ba e0 73 00 00 00',
                 '41 80 ba ed 76 00 00 00', '41 80 ba e4 6c 00 00 00',
                 '41 80 ba 40 77 00 00 00'):
         reject(raw)
+    # T119: the four known power selections (ship+0x675C 0..3) only scale native engine
+    # factors; unknown values stay native.
+    reject('41 83 ba 5c 67 00 00 03', b'\x0f\x87')
     pointer(0, base+APP_GLOBAL if global_slot is None else global_slot)
     reject('48 8b 00 48 85 c0', b'\x0f\x84')
     for raw in ('83 b8 a8 be 89 00 00', '83 b8 dc b6 72 00 00',

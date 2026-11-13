@@ -64,7 +64,7 @@ from ai_accuracy import EvasiveAccuracy,enabled as aim_tuning_enabled
 from ai_combat import NPCCombatTuning
 from black_space import BlackSpace
 from terrain_lookahead import TerrainLookahead
-from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES
+from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES, power_thrust_factor
 CRASH_BLACKOUT_HOLD=2.  # T93: seconds a ditched pilot stays out beyond the normal G recovery
 WRECK_CAUSES=('ditch','collision')  # ejecting from these has the game put the wreck down landed (user 2026-10-21)
 EJECT_REQUEST_MS=500    # T93: a held-eject request the flight thread has not taken by then is dropped
@@ -86,6 +86,7 @@ import runtime_config
 import code_patch
 import support_bundle
 import flight_tunings
+import ship_power
 import rotation_validation
 import additive_rotation
 
@@ -134,6 +135,10 @@ PAUSE_ROOT_NATIVE={
                   C.c_bool,[C.c_void_p,C.c_void_p,C.c_uint8,C.c_uint8,C.c_void_p,C.c_uint8,C.c_uint8]),
 }
 APP_GLOBAL=0x6F6C288
+# T120: the game's engine factors for its power selections (module floats, loaded from the game's globals;
+# 185034: read at 0x1794082 and 0x17941CD). 0.85 and 1.33 live on DADS 2026-11-13.
+POWER_ENGINE_DAMPER=0x5302D68  # PowerSettingEngineDamper: power 1 and 3
+POWER_ENGINE_MUL=0x5302D6C  # PowerSettingEngineMul: power 2 (engines)
 
 
 class Block(C.Structure):
@@ -206,6 +211,7 @@ class AbsoluteHOTAS(Mod):
         if retained is None:retained=sys._absolute_hotas_translation_callbacks=[]
         retained.append((self,self.translation_callback))
         self.store.listeners.append(self._settings_changed)
+        self.buttons.on_power=self._select_power
         self.head=None
         try:
             self.head=HeadTracker(int(_internal.BASE_ADDRESS),self.store.values,log=self.log)
@@ -705,11 +711,14 @@ class AbsoluteHOTAS(Mod):
 
         Release force/assist caves independently enforce the same known-combat
         opt-in plus their complete ownership, physics and protected-mode gates.
+        Any of the four known power selections is admitted (T119): native only
+        scales engine factors there, and Sultan dropped to native whenever a
+        player cycled power away from balanced.
         """
         if getattr(self,'pilot_recovery',None) is not None:return False
         ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f6c288)
         return bool(self.block.pilot_until>now and manager and ship
-            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value==0
+            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value<=3
             and (allow_low_height or C.c_ubyte.from_address(ship+0x6730).value==0) and C.c_uint32.from_address(manager+0x89bea8).value==0
             and C.c_ubyte.from_address(manager+0x57aa6d).value<=(1 if allow_combat_flight else 0))
 
@@ -852,6 +861,12 @@ class AbsoluteHOTAS(Mod):
                     'thrust_force':current['thrust_force'],
                     'boost_thrust_force':current.get('boost_thrust_force'),'dt':current['dt_eff']}
             if autopilot:native.update(admitted=False,reason='Corvette autopilot')
+            store=getattr(self,'store',None)
+            if store is not None and store.values.get('sultan-power-modes') is True and current.get('normal_674c'):
+                # T120: this invocation's power selection (the cave's own snapshot) and the game's live factors.
+                native['power_factor']=power_thrust_factor(
+                    current['normal_674c'],C.c_float.from_address(_internal.BASE_ADDRESS+POWER_ENGINE_DAMPER).value,
+                    C.c_float.from_address(_internal.BASE_ADDRESS+POWER_ENGINE_MUL).value)
             env=getattr(self,'air_env',None)
             if env is not None and native['class_id'] in planetary_flight.AIR_CLASSES:
                 planet=planetary_flight.planet_state(current['position'],env[1],env[0]) if env[1] else None
@@ -1553,7 +1568,7 @@ class AbsoluteHOTAS(Mod):
             bridge=Bridge(self.pm,os.getpid(),self.pm.process_base.lpBaseOfDll,fixture,
                           C.cast(K.GetTickCount64,C.c_void_p).value,
                           C.cast(self.translation_callback,C.c_void_p).value,allow_combat_flight=True,
-                          allow_planetary_flight=True)
+                          allow_planetary_flight=True,allow_power_flight=True)
             metadata=bridge.prepare()
             (LOGS/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')+'-newtonian-sites.json')).write_text(
                 json.dumps(metadata,indent=1),encoding='utf-8')
@@ -1792,7 +1807,8 @@ class AbsoluteHOTAS(Mod):
                          speed_cap_active=int(ns.get('cap_active',False)),
                          bleeding_overspeed=int(ns.get('bleeding_overspeed',False)),
                          boost_heat=ns.get('boost_heat',0.),boost_active=int(ns.get('boost_active',False)),
-                         boost_overheated=int(ns.get('boost_overheated',False)),boost_multiplier=ns.get('boost_multiplier',1.))
+                         boost_overheated=int(ns.get('boost_overheated',False)),boost_multiplier=ns.get('boost_multiplier',1.),
+                         power_factor=ns.get('power_factor',1.))
             for axis,value in zip('xyz',ns.get('acceleration_body',(0.,0.,0.))):state['acceleration_body_'+axis]=value
             if self.newtonian is not None:
                 native=self.newtonian.sample()
@@ -2903,6 +2919,16 @@ class AbsoluteHOTAS(Mod):
             self.log('keyboard flight paused: keys still the game\'s: '+', '.join(conflict) if conflict else 'keyboard flight resumed: no key overlap')
         self.keyboard_conflict=conflict
         return conflict
+
+    def _select_power(self,request):
+        """T121: a Power button. Only on the ship being piloted, out of menus; the game's consumers read the field."""
+        try:
+            ship=self.block.ship
+            if (not self.active or not ship or self.block.pilot_until<=K.GetTickCount64() or self._frontend()!=0
+                    or C.c_ubyte.from_address(ship+0x60c8).value!=1):return
+            selected=ship_power.select(ship,int(_internal.BASE_ADDRESS),request)
+            if selected is not None:self.log('ship power: '+ship_power.MODES[selected])
+        except BaseException as error:self.log('ship power failed: '+repr(error))
 
     def _menu_action(self,action):
         if action=='keyboard-move-game-keys':self._move_game_keys()

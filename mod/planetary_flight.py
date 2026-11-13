@@ -474,7 +474,7 @@ class PlanetaryResult:
 
 def compute(profile, style, air, planet, rho, lateral, vertical, throttle, velocity, basis,
             thrust_force, dt, *, previous_acceleration_world, boost_multiplier, command_fresh,
-            water=None, submerged=0., engines_out=False, trim=0., gear=None, clearance=None):
+            water=None, submerged=0., engines_out=False, trim=0., gear=None, clearance=None, power_factor=1.):
     """T55 pilot law in air: thrust scaled by engine efficiency, then gravity compensation (and the speed
     follower's drag feed-forward) paid from the same per-axis authority, then drag, lift and gravity.
     In the sea (T93, water given) buoyancy and water drag join and engines lose thrust with submersion;
@@ -485,7 +485,12 @@ def compute(profile, style, air, planet, rho, lateral, vertical, throttle, veloc
     The FlightResult's pilot_acceleration_world stays the bare pilot command, so jerk smoothing never
     absorbs gravity or air. A stale command still returns zero (the native cave coasts). trim is the pilot's
     lift trim, a share of vertical authority added to the vertical command (not counted as strafe input for
-    While thrusting compensation)."""
+    While thrusting compensation).
+
+    power_factor (T120) is the game's engine factor for the ship's power selection. It multiplies the thrust the
+    pilot gets on every axis, but not the thrust the air is calibrated against (drag, lift limits, the bricks'
+    MAV lift), so engines power raises the top speed in air and weapons or shields power lower it
+    (user 2026-11-13: "power to engines should actually increase top speed in atmosphere and vice versa")."""
     if water is None:submerged = 0.  # off the water a ditched ship still has its engines out
     if engines_out and command_fresh:
         return _engines_out(profile, style, planet, rho, velocity, basis, thrust_force, water, submerged, trim)
@@ -500,6 +505,9 @@ def compute(profile, style, air, planet, rho, lateral, vertical, throttle, veloc
     if mav != 1.:
         flown = replace(flown, lateral_ratio=flown.lateral_ratio*mav, up_ratio=flown.up_ratio*mav,
                         down_ratio=flown.down_ratio*mav)
+    unboosted = flown.authority(thrust_force, 1.)[2][1]  # what the air is calibrated against: no boost, no power mode
+    if power_factor != 1.:
+        flown = replace(flown, acceleration_scale=flown.acceleration_scale*power_factor)
     if gear is not None:
         (_, _), (down_authority, up_authority), _ = flown.authority(thrust_force, 1.)
         trimmed = gear.vertical_command(vertical, velocity, planet['up'], basis, clearance, down_authority, up_authority)
@@ -513,7 +521,6 @@ def compute(profile, style, air, planet, rho, lateral, vertical, throttle, veloc
     gravity = planet['gravity']
     parking = result.parking
     limits = flown.authority(thrust_force, 1. if parking else boost_multiplier)
-    unboosted = flown.authority(thrust_force, 1.)[2][1]
     drag, lift = air_terms(velocity, basis, rho, unboosted, flown, style)
     extra = (0., 0., 0.)
     compensating = gear is not None or air.compensating(throttle, lateral, vertical)
