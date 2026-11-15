@@ -45,7 +45,7 @@ from command_mailbox import CommandMailbox,PAYLOAD,STRICT_ROTATION
 from hotas_control import FlightControl,MAILBOX_ORDER,NATIVE_LIMITS,STALE_SECONDS,StallMonitor
 from hotas_input import AxisCapture,BusReader,ButtonCapture,ClearableCapture,DeviceTable,KeyboardCapture,KeyCapture
 from key_lane import win32_lane
-from button_actions import ButtonActions,flight_buttons_live
+from button_actions import ButtonActions,desk_natives,flight_buttons_live,vr_native_id
 from g_effects import GEffects
 from flight_telemetry import APP_GATES,GATE_FIELDS,SHIP_FIELDS,SPACE_POI,TelemetryWriter,build_row,decode_receipt
 from flight_watchdog import FlightWatchdog,deliberate as watchdog_regimes
@@ -115,6 +115,7 @@ K=C.WinDLL('kernel32',use_last_error=True)
 K.GetTickCount64.restype=C.c_uint64
 K.GetCurrentThreadId.restype=C.c_uint32
 K.GetCurrentProcess.restype=C.c_void_p
+K.OpenProcess.restype=C.c_void_p;K.OpenProcess.argtypes=[C.c_uint32,C.c_int,C.c_uint32]
 K.ReadProcessMemory.argtypes=[C.c_void_p,C.c_void_p,C.c_void_p,C.c_size_t,C.POINTER(C.c_size_t)]
 U=C.WinDLL('user32')
 U.GetForegroundWindow.restype=C.c_void_p
@@ -1181,6 +1182,8 @@ class AbsoluteHOTAS(Mod):
         exo=bool(values.get('exo-enabled'))
         game=((values.get('button-output','direct')=='direct' or getattr(self,'vr_state',(False,False))[0])  # VR: keys do nothing (T125)
               and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict)))
+        # T125: in VR with Experimental VR on the real Esc and mouse buttons press game actions too, with nothing bound.
+        game=game or getattr(self,'vr_state',(False,False))[1]
         if not (exo or game):return  # nothing bound, nothing patched (Exocraft buttons have only the game's action)
         lane=None
         try:
@@ -1227,8 +1230,9 @@ class AbsoluteHOTAS(Mod):
         session when Exocraft controls are switched on. live: driving, focused, no HOTAS menu or capture open.
         Any failure leaves the game's own exocraft input as it is."""
         lane=getattr(self,'exo_lane',None);values=self.store.values
+        pointer=getattr(self,'vr_pointer',None)  # T125: the VR menu pointer answers through the same lane
         if lane is None:
-            if not values.get('exo-enabled') or getattr(self,'exo_lane_failed',False) or not self.active or self.stopping.is_set():return
+            if not (values.get('exo-enabled') or pointer) or getattr(self,'exo_lane_failed',False) or not self.active or self.stopping.is_set():return
             if K.GetTickCount64()<getattr(self,'exo_lane_retry_at',0):return
             try:
                 from native_analog_actions import NativeAnalogActions,ALLOCATION
@@ -1257,6 +1261,8 @@ class AbsoluteHOTAS(Mod):
                     try:lane.restore(self._external_write_code,self.pm,os.getpid())
                     except BaseException as restore_error:self.log('exocraft controls restore failed: '+repr(restore_error))
                 return
+        if pointer and not live:  # a game menu in VR: the pointer axes, under the menu's own action set
+            lane.publish(*pointer);self.buttons.axis_natives=frozenset();return
         from exocraft_controls import answers,held_natives
         profile=getattr(self,'camera_profile',None)
         third=live and profile is not None and profile!=FIRST_PERSON_PROFILE  # unknown: first person, as dev.11 drove
@@ -2026,6 +2032,28 @@ class AbsoluteHOTAS(Mod):
     def _window_focused(self):
         pid=C.c_ulong();U.GetWindowThreadProcessId(U.GetForegroundWindow(),C.byref(pid));return pid.value==os.getpid()
 
+    # T125, dev.16 2026-11-15: Esc did nothing (user: "esc no longer opens pause menu"); the log showed no Esc with the
+    # game window in front. In a headset the desktop window the player clicks may be SteamVR's mirror ("VR View"),
+    # not the game's. These SteamVR windows count as the game for Esc, the mouse buttons and the menu mouse in VR.
+    STEAMVR_WINDOWS=frozenset(('vrmonitor.exe','vrserver.exe','vrcompositor.exe','vrdashboard.exe','vrwebhelper.exe'))
+
+    def _foreground_exe(self):
+        """The foreground window's program name, lower case, or ''."""
+        try:
+            pid=C.c_ulong();U.GetWindowThreadProcessId(U.GetForegroundWindow(),C.byref(pid))
+            handle=K.OpenProcess(0x1000,False,pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+            if not handle:return ''
+            try:
+                buffer=C.create_unicode_buffer(520);size=C.c_ulong(520)
+                if not K.QueryFullProcessImageNameW(C.c_void_p(handle),0,buffer,C.byref(size)):return ''
+                return os.path.basename(buffer.value).lower()
+            finally:K.CloseHandle(C.c_void_p(handle))
+        except BaseException:return ''
+
+    def _desk_focused(self):
+        """VR desk input (Esc, mouse buttons, the menu mouse): the game window, or SteamVR's own window, is in front."""
+        return self._window_focused() or self._foreground_exe() in self.STEAMVR_WINDOWS
+
     def _focused(self):
         """The player is at the game. T125: with Experimental VR on in a headset the display is the headset, and the
         desktop window is often not in front (first VR boot 2026-11-13: 'game not focused' for a whole flight). Real
@@ -2051,12 +2079,14 @@ class AbsoluteHOTAS(Mod):
         """Worker, under self.lock like _install: put the game on its flat-screen stick and throttle branches while
         Experimental VR flies the ship, and back when it doesn't. One failure switches it off for the session."""
         flat=getattr(self,'vr_input',None)
-        if want and flat is None and not getattr(self,'vr_input_failed',False):
+        if want and (flat is None or not flat.installed) and not getattr(self,'vr_input_failed',False):
             try:
-                flat=vr_mode.FlatInput(int(_internal.BASE_ADDRESS))
+                if flat is None:flat=vr_mode.FlatInput(int(_internal.BASE_ADDRESS))
                 flat.install(self._write_code,self.pm,os.getpid(),self._external_write_code);self.vr_input=flat
                 self.log('VR input: the game takes its flat-screen stick and throttle branches; the HOTAS replaces the in-world controls'
-                         +('; fire no longer waits for the VR hands' if flat.switched('fire') else '; fire left native: '+str(flat.skipped.get('fire'))))
+                         +('; fire no longer waits for the VR hands' if flat.switched('fire') and flat.switched('mayfire')
+                           else '; fire left native: '+str({k:v for k,v in flat.skipped.items() if k in ('fire','mayfire')}))
+                         +('; launch from the button' if flat.switched('launch') else '; launch left native: '+str(flat.skipped.get('launch'))))
             except BaseException as error:
                 self.vr_input_failed=True;self.errors+=1;self.log('VR input switch failed, flight stays native in VR: '+repr(error))
         elif not want and flat is not None:
@@ -2066,37 +2096,341 @@ class AbsoluteHOTAS(Mod):
                 else:self.vr_input_failed=True;self.log('VR input restore incomplete: '+json.dumps(result,default=str))
             except BaseException as error:self.vr_input_failed=True;self.log('VR input restore failed: '+repr(error))
 
+    def _vr_seated_step(self,want):
+        """Worker, in VR while the flight patches are not in (a landed save, boarding on foot): put in the VR switches
+        that need no flight thread (fire, launch; vr_mode.FlatInput.install_other) as soon as the pilot is seated, and
+        take them out when the pilot leaves. The stick and throttle switches still wait for the flight (_vr_input_step).
+        User 2026-11-15 (VR only): "you don't have hotas launch authority until you've flown then landed"."""
+        flat=getattr(self,'vr_input',None)
+        if want and flat is None and not getattr(self,'vr_input_failed',False):
+            try:
+                flat=vr_mode.FlatInput(int(_internal.BASE_ADDRESS))
+                ok=flat.install_other(self._external_write_code,self.pm,os.getpid());self.vr_input=flat
+                self.log('VR input seated before flight: fire and launch from the buttons'+('' if ok else '; left native: '+str(flat.skipped)))
+            except BaseException as error:
+                self.vr_input_failed=True;self.errors+=1;self.log('VR seated switches failed, fire and launch stay native in VR: '+repr(error))
+        elif not want and flat is not None and self.patches is None:
+            try:
+                result=flat.restore(self._write_code,self.pm,os.getpid(),self._external_write_code)
+                if all(v is True for v in result.values()):self.vr_input=None;self.log("VR input: out of the seat, the game's in-world controls restored")
+                else:self.vr_input_failed=True;self.log('VR input restore incomplete: '+json.dumps(result,default=str))
+            except BaseException as error:self.vr_input_failed=True;self.log('VR input restore failed: '+repr(error))
+
+    def _vr_hud_frame(self,this,caller):
+        """UI thread, in a headset: is this GUI frame the ship HUD on its render-to-texture path (T129)? Only with
+        Experimental VR and HUD in VR on, and only while this build's HUD code is where vr_mode expects it."""
+        if not self.vr_state[1] or not self.store.values.get('vr-hud',True):return False
+        ok=getattr(self,'vr_hud_ok',None)
+        if ok is None:
+            try:ok=vr_mode.verify_hud(C.string_at,int(_internal.BASE_ADDRESS))
+            except BaseException:ok=False
+            self.vr_hud_ok=ok
+            self.log("VR HUD: ready to draw on the game's ship-forward HUD layer" if ok else 'VR HUD off: the HUD code differs from this build')
+        if not ok or not vr_mode.hud_frame(int(_internal.BASE_ADDRESS),this,caller):return False
+        self.vr_hud_frames=getattr(self,'vr_hud_frames',0)+1
+        return True
+
     def _vr_flat_step(self,flying):
         """Worker: hold the game's 'VR hands are the active input' test at false only while the player is piloting,
         out of every menu, with the setting on (T125; vr_mode 'hands'). Any other moment gets the game's own bytes
         back, so VR menus and everything outside the seat are untouched."""
         flat=getattr(self,'vr_input',None)
         if flat is None:return
+        # Frontend 2 is admitted with 0: the game's own action getter treats them alike, and the quick menu must not
+        # switch its own navigation back off by opening.
         want=bool(flying and self.store.values.get('vr-flat-input',True) and not self.menu_open and self.capture is None
-                  and self._frontend()==0)
-        if want==flat.switched('hands') or (want and 'hands' in flat.skipped):return
-        ok=flat.hold('hands',want,self._external_write_code,self.pm,os.getpid())
+                  and self._frontend() in (0,2))
+        self._vr_quick_hand(want)
+        changed=False;ok=True
+        for name in vr_mode.GLOBAL:
+            if want==flat.switched(name) or (want and name in flat.skipped):continue
+            changed=True;ok=flat.hold(name,want,self._external_write_code,self.pm,os.getpid()) and ok
+        if not changed:return
         if want!=getattr(self,'vr_flat_logged',None) or not ok:
             self.vr_flat_logged=want
-            self.log(('VR flat-screen input in flight: on (the game no longer waits for the VR hands)' if want else 'VR flat-screen input in flight: off (menu or out of the seat)')
-                     if ok else 'VR flat-screen input left native: '+str(flat.skipped.get('hands')))
+            left={k:v for k,v in flat.skipped.items() if k in vr_mode.GLOBAL}
+            self.log(('VR flat-screen input in flight: on (the game no longer waits for the VR hands; quick menu on buttons)' if want
+                      else 'VR flat-screen input in flight: off (menu or out of the seat)')+(('; left native: '+str(left)) if left else ''))
 
     def _vr_hands_step(self):
         """Worker, while piloting in VR: log the game's VR hand-control fields when they change (read-only; what the
         fire test looks at). Capped, so a flickering field can't flood the log."""
         try:now=vr_mode.hands(int(_internal.BASE_ADDRESS))
         except BaseException:now=None
+        try:pad=vr_mode.pad(int(_internal.BASE_ADDRESS))
+        except BaseException:pad=None
+        if pad is not None and pad!=getattr(self,'vr_pad',None):
+            self.vr_pad=pad;self.vr_hands_lines=getattr(self,'vr_hands_lines',0)+1
+            if self.vr_hands_lines<=60:self.log(f"VR input pad: type {pad['type']}; hand rule {pad['hands_rule']}; HUD to texture {pad['hud_to_texture']}")
         if now is None or now==getattr(self,'vr_hands',None):return
         self.vr_hands=now;self.vr_hands_lines=getattr(self,'vr_hands_lines',0)+1
         if self.vr_hands_lines<=60:self.log(f'VR hands: states {now[0]}, {now[1]}; mode {now[2]}')
 
+    def _vr_quick_step(self):
+        """Worker, while piloting in VR: log the game's quick-menu state when it changes (read-only; vr_mode.quick_menu):
+        whether the flat menu's logic opens, what would stop it, whether its radial is drawn. Capped."""
+        ok=getattr(self,'vr_quick_ok',None)
+        if ok is None:
+            try:ok=vr_mode.verify_quick(C.string_at,int(_internal.BASE_ADDRESS))
+            except BaseException:ok=False
+            self.vr_quick_ok=ok
+            if not ok:self.log('VR quick menu log off: the quick menu code differs from this build')
+        if not ok:return
+        try:now=vr_mode.quick_menu(int(_internal.BASE_ADDRESS))
+        except BaseException:now=None
+        self._vr_census_step(now)
+        if now is None or now==getattr(self,'vr_quick',None):return
+        self.vr_quick=now;self.vr_quick_lines=getattr(self,'vr_quick_lines',0)+1
+        if self.vr_quick_lines<=80:
+            self.log(f"VR quick menu: mode {now['mode']}; request {now['request']}; changing {now['changing']}; opener swap {now['swap']}; "
+                     f"radial state {now['gui_state']}, {'drawn' if now['drawn'] else 'not drawn'}; blocked by: {', '.join(now['blocked']) or 'nothing seen'}")
+
+    def _vr_quick_front(self,open_):
+        """Worker, in VR: hold vr_mode 'quick-front' (the game's non-hands placement for its quick menu: a cockpit
+        locator, in front of the pilot) while the quick menu is open, the HOTAS binding opened it (pressed within 2 s
+        before it opened; latched until it closes; user 2026-11-15) and "Quick menu in front of you in VR" is on.
+        Needs the VR input switches in (they are once seated). One failure leaves the game's hand placement."""
+        flat=getattr(self,'vr_input',None)
+        if not open_:self.vr_quick_ours=None
+        elif getattr(self,'vr_quick_ours',None) is None:
+            self.vr_quick_ours=K.GetTickCount64()/1000.-getattr(self,'vr_quick_pressed_at',-99.)<=2.
+        want=bool(open_ and self.vr_quick_ours and self.store.values.get('vr-quick-menu-hud',True))
+        if flat is None:return
+        for name in vr_mode.QUICK_FRONT:
+            if want==flat.switched(name) or (want and name in flat.skipped):continue
+            ok=flat.hold(name,want,self._external_write_code,self.pm,os.getpid())
+            if getattr(self,'vr_front_lines',0)<40:
+                self.vr_front_lines=getattr(self,'vr_front_lines',0)+1
+                self.log(('VR quick menu: opened from the HOTAS, placed in front (the game\'s non-hands placement)' if want
+                          else 'VR quick menu: the game\'s hand placement back')+('' if ok else '; refused: '+str(flat.skipped.get(name))))
+
+    def _vr_menu_owner_note(self,now):
+        """Worker: note when this mod pressed the game's pause (Fe_Options 0x4D) or quick menu (0x17) action. User
+        2026-11-15: "opening the pause menu by esc key or a hotas binding should determine pointer control" and the quick
+        menu logic should follow "when the quick menu is called by the hotas binding"."""
+        held=getattr(getattr(self,'buttons',None),'native_held',None)
+        if not isinstance(held,(set,frozenset)):return  # no button actions yet (or a test's stand-in)
+        now=K.GetTickCount64()/1000.  # one clock with _vr_menu_owned
+        if 0x4D in held:self.vr_pause_pressed_at=now
+        if 0x17 in held:self.vr_quick_pressed_at=now
+
+    def _vr_menu_owned(self,opened,now):
+        """A VR game menu that just opened is the mod's to drive when this mod pressed the pause action within 2 s
+        before it opened; latched until the menu closes. A menu opened with the VR controllers keeps the game's hand
+        pointer."""
+        if not opened:
+            self.vr_menu_owner=None;return False
+        if getattr(self,'vr_menu_owner',None) is None:
+            self.vr_menu_owner=now-getattr(self,'vr_pause_pressed_at',-99.)<=2.
+            if getattr(self,'vr_owner_lines',0)<40:
+                self.vr_owner_lines=getattr(self,'vr_owner_lines',0)+1
+                self.log('VR menu: opened from the desk or HOTAS, the mouse and stick take the pointer' if self.vr_menu_owner
+                         else 'VR menu: opened with the VR controllers, the game keeps its hand pointer')
+        return self.vr_menu_owner
+
+    def _vr_pointer_step(self,vr_on):
+        """Worker: while a game menu is up in VR, pitch and yaw answer the game's own controller-pointer axes
+        (UI_CursorX/Y; vr_mode POINTER_PINS). Sets self.vr_pointer for _step_exocraft, which owns the analog lane.
+        T125, user 2026-11-14: "maybe we could do joystick menu navigation?". Candidate: not seen in a headset, so
+        it logs what the game's two headset tests in front of those axes hold, and how many answers the game took."""
+        v=self.store.values;frontend=self._frontend();lane=getattr(self,'exo_lane',None)
+        # dev.17 (user): "I lost mouse/stick authority in our absolute flight menu": the mod's own menu pages are game
+        # menu pages too, so they are not excluded; only a binding capture is.
+        opened=bool(vr_on and frontend not in (None,0,2))
+        want=bool(opened and v.get('vr-menu-pointer',True) and self.capture is None and self._vr_menu_owned(opened,K.GetTickCount64()/1000.))
+        pointer=None
+        if want:
+            if getattr(self,'vr_pointer_ok',None) is None:
+                try:self.vr_pointer_ok=vr_mode.verify_pointer(C.string_at,int(_internal.BASE_ADDRESS))
+                except BaseException:self.vr_pointer_ok=False
+                if not self.vr_pointer_ok:self.log('VR menu pointer off: the menu pointer code differs from this build')
+            if self.vr_pointer_ok:
+                from native_analog_actions import current_set
+                from stick_cursor import pointer_axes
+                current=current_set(self._process_read,int(_internal.BASE_ADDRESS))
+                x,y=pointer_axes(v,self.table.unit(v['bind-pitch-axis']),self.table.unit(v['bind-yaw-axis']))
+                if current:pointer=({vr_mode.UI_CURSOR_X:x,vr_mode.UI_CURSOR_Y:y},current)
+                try:gates=vr_mode.menu_pointer(int(_internal.BASE_ADDRESS))
+                except BaseException:gates=None
+                state=(current,frontend,tuple(sorted(gates.items())) if gates else None)
+                if state!=getattr(self,'vr_pointer_logged',None):
+                    self.vr_pointer_logged=state;self.vr_pointer_lines=getattr(self,'vr_pointer_lines',0)+1
+                    if self.vr_pointer_lines<=40:
+                        self.log(f'VR menu pointer: stick feeds the pointer axes; frontend {frontend}; action set {current}'
+                                 +(f"; headset gate {gates['vr_gate']}; skip byte {gates['skip']}; same input manager {gates['same_manager']}" if gates else '; gates unread'))
+                if getattr(self,'vr_pointer',None) is None and lane is not None:self.vr_pointer_hits=lane.status()['hits']
+        elif getattr(self,'vr_pointer',None) is not None and lane is not None and getattr(self,'vr_pointer_lines',0)<=40:
+            try:self.log(f"VR menu pointer: menu closed; the game took {lane.status()['hits']-getattr(self,'vr_pointer_hits',0)} pointer answers")
+            except BaseException:pass
+        if vr_on:  # every tick in VR, menus included (the quick menu step runs only in flight)
+            try:state=vr_mode.quick_menu_state(int(_internal.BASE_ADDRESS))
+            except BaseException:state=None
+            self._vr_layer_probe({'mode':state[0]} if state else None,frontend)
+            self._vr_quick_front(bool(state and state[0]==1))
+        held=want and bool(getattr(self,'vr_pointer_ok',False))
+        self.vr_menu_held=held
+        self._vr_menu_ray(held);self._vr_menu_mouse(held)
+        if held:self._vr_pointer_probe()
+        self.vr_pointer=pointer
+
+    def _vr_quick_redraw(self):
+        """UI thread, right after the HUD's own frame in VR: draw the game's VR quick menu GUI there too, a duplicate on
+        the card in front of the cockpit (T125, user 2026-11-15: "run a duped copy of the quick menu on the target gui
+        panel"). Only while the quick menu is open, with Experimental VR and the setting on. The first failure switches
+        it off for the session and the hand copy comes back."""
+        if getattr(self,'vr_quick_drawing',False) or getattr(self,'vr_quick_failed',False):return
+        if not self.vr_state[1] or not self.store.values.get('vr-quick-menu-hud',True):return
+        try:
+            base=int(_internal.BASE_ADDRESS)
+            state=vr_mode.quick_menu_state(base)
+            if state!=getattr(self,'vr_quick_seen',None) and getattr(self,'vr_quick_seen_lines',0)<60:
+                self.vr_quick_seen=state;self.vr_quick_seen_lines=getattr(self,'vr_quick_seen_lines',0)+1
+                if state:self.log(f'VR quick menu copy, at the HUD frame end: mode {state[0]}; VR draw flag {state[1]}; GUI pointer {"set" if state[2] else "empty"}'
+                                  +f'; copies drawn since the last line {getattr(self,"vr_quick_since",0)}; HUD frame ends {getattr(self,"vr_quick_ends",0)}')
+                self.vr_quick_since=0;self.vr_quick_ends=0
+            self.vr_quick_ends=getattr(self,'vr_quick_ends',0)+1
+            gui=vr_mode.quick_menu_gui(base)
+            if not gui:return
+            frame=getattr(self,'vr_frame_fn',None)
+            if frame is None:
+                if not vr_mode.verify_input(C.string_at,base,vr_mode.QUICK_DRAW):
+                    self.vr_quick_failed=True;self.log('VR quick menu on the HUD off: the quick menu code differs from this build');return
+                frame=self.vr_frame_fn=C.CFUNCTYPE(None,C.c_void_p)(base+vr_mode.GUI_FRAME)
+            self.vr_quick_drawing=True
+            try:frame(gui)
+            finally:self.vr_quick_drawing=False
+            self.vr_quick_draws=getattr(self,'vr_quick_draws',0)+1;self.vr_quick_since=getattr(self,'vr_quick_since',0)+1
+            if self.vr_quick_draws==1:self.log('VR quick menu: drawn on the HUD layer in front of the cockpit')
+        except BaseException as error:
+            self.vr_quick_failed=True;self.hud_errors+=1;self.log('VR quick menu on the HUD failed, back on the hand: '+repr(error))
+
+    def _vr_quick_hand(self,want):
+        """Worker: hold vr_mode 'quick-hand' (the hand copy skipped) only while the HUD copy has been drawn and is still
+        allowed; anything else gives the game its own hand-mounted quick menu back."""
+        flat=getattr(self,'vr_input',None)
+        if flat is None:return
+        want=bool(want and self.store.values.get('vr-quick-menu-hud',True) and getattr(self,'vr_quick_draws',0)>0
+                  and not getattr(self,'vr_quick_failed',False))
+        for name in vr_mode.QUICK_DRAW:
+            if want==flat.switched(name) or (want and name in flat.skipped):continue
+            ok=flat.hold(name,want,self._external_write_code,self.pm,os.getpid())
+            if getattr(self,'vr_hand_lines',0)<20:
+                self.vr_hand_lines=getattr(self,'vr_hand_lines',0)+1
+                self.log(('VR quick menu: the hand copy is off' if want else 'VR quick menu: the hand copy is back')
+                         +('' if ok else '; refused: '+str(flat.skipped.get(name))))
+
+    def _vr_menu_mouse(self,on):
+        """Worker, while the stick feeds a VR game menu's pointer: the real mouse moves the front end's pointer too
+        (user 2026-11-15: 'give control to the mouse'). The movement comes from mouse_motion.MouseMotion (a low-level
+        mouse hook, running only while a menu is open); it is added to the pointer's position, kept on the 1920x1080
+        card, and the cursor goes back to the middle of the game window so it never rests on a screen edge. Only with
+        the game window in front and the setting on."""
+        motion=getattr(self,'vr_mouse_motion',None)
+        if not (on and self.store.values.get('vr-menu-mouse',True) and self._desk_focused()):
+            if motion is not None and motion.running:motion.stop()
+            return
+        try:
+            if motion is None:
+                from mouse_motion import MouseMotion
+                motion=self.vr_mouse_motion=MouseMotion()
+            if not motion.running:
+                if getattr(self,'vr_mouse_failed',False):return
+                if not motion.start():
+                    self.vr_mouse_failed=True;self.log('VR menu mouse off: '+str(motion.error));return
+                self.log('VR menu mouse: reading mouse movement for the menu pointer')
+            dx,dy=motion.take()
+            if dx or dy:
+                address=vr_mode.frontend_pointer(int(_internal.BASE_ADDRESS))
+                if address:
+                    x=C.c_float.from_address(address+0xC);y=C.c_float.from_address(address+0x10)
+                    x.value=min(vr_mode.MENU_CARD[0],max(0.,x.value+dx));y.value=min(vr_mode.MENU_CARD[1],max(0.,y.value+dy))
+                    self.vr_mouse_moves=getattr(self,'vr_mouse_moves',0)+1
+            window=U.GetForegroundWindow();rect=(C.c_long*4)()
+            if U.GetWindowRect(C.c_void_p(window),C.byref(rect)):U.SetCursorPos((rect[0]+rect[2])//2,(rect[1]+rect[3])//2)
+        except BaseException as error:
+            if not getattr(self,'vr_mouse_failed',False):self.vr_mouse_failed=True;self.log('VR menu mouse error: '+repr(error))
+
+    def _vr_pointer_probe(self):
+        """Worker, while a VR game menu is up: log the pointer candidates (vr_mode.pointer_probe) twice a second when they
+        change, capped. Read-only."""
+        now=K.GetTickCount64()
+        if now<getattr(self,'vr_probe_at',0) or getattr(self,'vr_probe_lines',0)>=120:return
+        self.vr_probe_at=now+500
+        try:probe=vr_mode.pointer_probe(int(_internal.BASE_ADDRESS))
+        except BaseException:probe=None
+        if probe is None or probe==getattr(self,'vr_probe_last',None):return
+        self.vr_probe_last=probe;self.vr_probe_lines=getattr(self,'vr_probe_lines',0)+1
+        motion=getattr(self,'vr_mouse_motion',None)
+        hook={'running':motion.running,'events':motion.events,'error':motion.error} if motion is not None else None
+        self.log('VR pointer probe: '+json.dumps({**probe,'mouse_moves':getattr(self,'vr_mouse_moves',0),'hook':hook},default=str))
+
+    def _vr_menu_ray(self,want):
+        """Hold vr_mode 'menu-ray' while the stick moves a VR game menu's pointer, so the game's hand ray stops placing
+        it each frame (dev.13: the pointer sat where the controllers on the desk pointed). Needs the VR input switches
+        in (they are while seated). One failure leaves the ray as the game has it."""
+        flat=getattr(self,'vr_input',None)
+        if flat is None:return
+        for name in vr_mode.MENU:
+            if want==flat.switched(name) or (want and name in flat.skipped):continue
+            ok=flat.hold(name,want,self._external_write_code,self.pm,os.getpid())
+            if getattr(self,'vr_ray_lines',0)<40:
+                self.vr_ray_lines=getattr(self,'vr_ray_lines',0)+1
+                self.log(('VR menu pointer: the hand ray no longer places the pointer' if want else "VR menu pointer: the game's hand ray restored")
+                         +('' if ok else '; refused: '+str(flat.skipped.get(name))))
+
+    def _vr_layer_probe(self,quick,frontend):
+        """Worker, in VR: two snapshots, 0.3 s apart and after 0.5 s steady, of the twelve VR UI layer records with
+        nothing open, with the quick menu open (the game puts it on the left hand) and with a game menu open (in
+        front). Logged once all three are in: the fields that hold still within each state and differ between them
+        (vr_mode.layer_differences), so one boot names what attaches the menu layer to the hand. Read-only."""
+        if getattr(self,'vr_layer_done',False):return
+        state='quick' if quick and quick.get('mode')==1 else 'menu' if frontend not in (None,0,2) else 'idle' if frontend==0 else None
+        now=K.GetTickCount64()
+        if state!=getattr(self,'vr_layer_state',None):self.vr_layer_state=state;self.vr_layer_since=now;return
+        if state is None or now-self.vr_layer_since<500:return
+        snaps=getattr(self,'vr_layer_snaps',None)
+        if snaps is None:snaps=self.vr_layer_snaps={}
+        samples=snaps.setdefault(state,[])
+        if len(samples)<2 and now-getattr(self,'vr_layer_last',0)>=300:
+            try:records=vr_mode.layer_records(int(_internal.BASE_ADDRESS))
+            except BaseException:records=None
+            if records:samples.append(records);self.vr_layer_last=now
+        if all(len(snaps.get(s,()))>=2 for s in ('idle','quick','menu')):
+            self.vr_layer_done=True
+            diff=vr_mode.layer_differences(snaps)
+            self.log(f'VR layer probe: {len(diff)} fields steady within and different between idle, quick menu and game menu')
+            for (layer,offset),values in list(diff.items())[:150]:
+                f=lambda v:f'{v:#x}/{struct.unpack("<f",struct.pack("<I",v))[0]:.4g}'
+                self.log(f'VR layer probe: layer {layer} +{offset:#x}: idle {f(values["idle"])}; quick {f(values["quick"])}; menu {f(values["menu"])}')
+
+    def _vr_census_step(self,quick):
+        """Worker: while the VR quick menu is open (mode 1), the frame hooks count every GUI frame (by return address and
+        GUI), every NanoVG frame (by caller and size) and every front-end render (self.vr_census). When it closes, the
+        census is logged, most frequent first, and the next opening starts a new one (at most eight are logged).
+        dev.17 2026-11-15: the hand-mounted quick menu was not drawn by any frame the survey could see; this names it."""
+        open_=bool(quick and quick.get('mode')==1)
+        census=getattr(self,'vr_census',None)
+        if open_ and census is None and getattr(self,'vr_census_count',0)<8:
+            self.vr_census={};self.vr_census_started=K.GetTickCount64()
+        elif not open_ and census is not None:
+            self.vr_census=None;self.vr_census_count=getattr(self,'vr_census_count',0)+1
+            seconds=(K.GetTickCount64()-getattr(self,'vr_census_started',0))/1000.
+            top=sorted(census.items(),key=lambda item:-item[1])[:40]
+            self.log(f'VR quick menu census ({seconds:.1f} s open): '+'; '.join(
+                f'{kind} {caller:#x} {what} x{count}' if caller else f'{kind} x{count}' for (kind,caller,what),count in top))
+
     def _vr_status(self):
         vr,on=getattr(self,'vr_state',(False,False));flat=getattr(self,'vr_input',None)
         detail=self.vr.status() if getattr(self,'vr',None) is not None else {'display':'flat','pinned':False}
-        fire=('switched' if flat.switched('fire') else flat.skipped.get('fire','native')) if flat is not None else 'native'
+        fire=('switched' if flat.switched('fire') and flat.switched('mayfire') else str({k:v for k,v in flat.skipped.items() if k in ('fire','mayfire')} or 'partly')) if flat is not None else 'native'
         return {**detail,'experimental':on,'input':'failed' if getattr(self,'vr_input_failed',False) else 'flat branches' if flat is not None else 'native',
                 'fire':fire,'flat_input':('on' if flat.switched('hands') else flat.skipped.get('hands','off')) if flat is not None else 'off',
-                'hands':list(getattr(self,'vr_hands',None) or ()) or None}
+                'quick_menu':('on' if all(flat.switched(n) for n in vr_mode.GLOBAL if n.startswith('quick-')) else str({k:v for k,v in flat.skipped.items() if k.startswith('quick-')} or 'off')) if flat is not None else 'off',
+                'hands':list(getattr(self,'vr_hands',None) or ()) or None,'pad':getattr(self,'vr_pad',None),
+                'desk_presses':getattr(self,'vr_desk_presses',0),
+                'hud':{'pinned':getattr(self,'vr_hud_ok',None),'frames':getattr(self,'vr_hud_frames',0),
+                       'size':list(getattr(getattr(self,'ui',None),'hud_size',None) or ()) or None,
+                       'survey':{(f'{c:#x} heap' if o<0 else f'{c:#x} +{o:#x}'):v for (c,o),v in (getattr(self,'vr_hud_survey',None) or {}).items()} or None}}
 
     def _run(self):
         last=time.monotonic();bus_retry=0.;fault_until=0.;last_status=0.;last_seq=None;seq_time=last;hooks_due=last+5
@@ -2165,7 +2499,9 @@ class AbsoluteHOTAS(Mod):
                     if self.patches is not None and not recovering and piloting:
                         # T125: only with the axis patches in and the flight thread there to take the writes.
                         self._vr_input_step(vr_on and bool(self.store.values.get('flight-controls-enabled')))
-                        if vr:self._vr_hands_step()
+                        if vr:self._vr_hands_step();self._vr_quick_step()
+                    elif self.patches is None:
+                        self._vr_seated_step(vr_on and bool(self.store.values.get('flight-controls-enabled')) and self._in_ship(piloting))
                     self._vr_flat_step(vr_on and piloting and not recovering)
                     if getattr(self,'pilot_recovery',None) is not None:
                         recovering=True;reason='reacquiring player ship'
@@ -2200,7 +2536,23 @@ class AbsoluteHOTAS(Mod):
                     self._step_crash_damage(tick,piloting,recovering)
                     self._ensure_native_actions()
                     lane=getattr(self,'native_actions',None)
-                    if getattr(self,'buttons',None) is not None:self.buttons.vr=vr
+                    if getattr(self,'buttons',None) is not None:
+                        self.buttons.vr=vr
+                        # The real desk in VR: Esc opens the pause menu, the mouse buttons select and go back in a game menu.
+                        # Only with the NMS window (or SteamVR's own window, _desk_focused) in front, so typing elsewhere never
+                        # reaches the game.
+                        desk=frozenset()
+                        if vr_on and self.store.values.get('vr-desk-input',True) and self.capture is None and self._desk_focused():
+                            desk=desk_natives(lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000),self._frontend())
+                        elif vr_on and self.store.values.get('vr-desk-input',True) and U.GetAsyncKeyState(0x1B)&0x8000:
+                            if not getattr(self,'vr_esc_ignored',False) and getattr(self,'vr_esc_lines',0)<20:
+                                self.vr_esc_lines=getattr(self,'vr_esc_lines',0)+1
+                                self.log('VR desk input: Esc ignored, '+('a binding capture is open' if self.capture is not None
+                                         else 'another window is in front ('+(self._foreground_exe() or 'unknown')+')'))
+                            self.vr_esc_ignored=True
+                        if not (U.GetAsyncKeyState(0x1B)&0x8000):self.vr_esc_ignored=False
+                        if desk and not self.buttons.desk_natives:self.vr_desk_presses=getattr(self,'vr_desk_presses',0)+1
+                        self.buttons.desk_natives=desk
                     if lane is not None and getattr(self,'vr_ports',None)!=vr_on:  # T125: VR may ask on another port
                         lane.set_any_port(vr_on);self.vr_ports=vr_on
                     self._step_wreck_fall(tick,piloting)
@@ -2258,10 +2610,14 @@ class AbsoluteHOTAS(Mod):
                         if not getattr(self,'touchdown_failed',False):self.touchdown_failed=True;self.log('touchdown error: '+repr(error))
                     self._log_axis_states()
                     keys_live=self.capture is None and not self.menu_open and self._focused()
+                    menu_rows=bool(vr_on and self.capture is None and self.menu_open and self._focused())  # T125: select/back in our menu
+                    if getattr(self,'buttons',None) is not None:self.buttons.menu_only=menu_rows
                     driving=self._driving()
                     # Keyboard flight reads the real keyboard, so it needs the real window even in VR (T125).
                     read=self._keyboard_step(keys_live and (not vr_on or self._window_focused()) and not driving and self._in_ship(piloting))
-                    self.buttons.step(read,now,flight_buttons_live(reason),keys_live,driving)
+                    self.buttons.step(read,now,flight_buttons_live(reason),keys_live or menu_rows,driving)
+                    self._vr_menu_owner_note(now)
+                    self._vr_pointer_step(vr_on)
                     self._step_exocraft(driving and keys_live)
                     self._eject_hold(now,tick,reason is None)
                     # Dialogs and menus: the free stick drives the cursor (the frontend flag also releases flight axes).
@@ -2766,12 +3122,15 @@ class AbsoluteHOTAS(Mod):
 
     @manual_hook('AbsoluteHOTASRender',offset=0x917200,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='before')
     def render_enter(self,manager,a,b):
+        census=getattr(self,'vr_census',None)
+        if census is not None and len(census)<400:census[('frontend',0,'')]=census.get(('frontend',0,''),0)+1
         self.ui.manager=manager if (self.menu is not None and self.menu.depth_routes) else 0;self.ui.ctx=0
+        self.ui.vr_cursor=bool(getattr(self,'vr_menu_held',False));self.ui.vr_cursor_ctx=0  # T125: our pointer on the menu card
         return None
 
     @manual_hook('AbsoluteHOTASRender',offset=0x917200,func_def=FUNCDEF(None,[C.c_void_p,C.c_void_p,C.c_void_p]),detour_time='after')
     def render_leave(self,manager,a,b):
-        self.ui.manager=0;self.ui.ctx=0
+        self.ui.manager=0;self.ui.ctx=0;self.ui.vr_cursor=False
         return None
 
     # ---------- T73 flight HUD: only inside RenderHeadsUp's own NGui frame (T64 seam) ----------
@@ -2782,11 +3141,27 @@ class AbsoluteHOTAS(Mod):
         try:
             stack=getattr(self.ui,'hud_stack',None)
             if stack is None or len(stack)>8:stack=self.ui.hud_stack=[]
-            ours=(self.hud_state=='ready' and self.hud_frame_enter.caller_address()==flight_hud.HUD_FRAME_RETURN
-                  and not getattr(self,'vr_state',(False,False))[0])  # flat 2D drawing for one camera (T125)
+            caller=self.hud_frame_enter.caller_address()
+            survey=None
+            if getattr(self,'vr_state',(False,False))[0]:
+                ours=self.hud_state=='ready' and self._vr_hud_frame(this,caller)  # T129
+                if self.hud_state=='ready' and self.vr_state[1] and self.store.values.get('vr-hud-test') and getattr(self,'vr_hud_ok',False):
+                    # Test card on: label every GUI the game draws to a texture, so a screenshot names the cockpit HUD's.
+                    offset=vr_mode.gui_offset(int(_internal.BASE_ADDRESS),this)
+                    if offset is None and int(caller) in vr_mode.HEAP_GUI_FRAMES and this:offset=-1  # dev.16: GUIs outside the application
+                    if offset is not None:survey=(int(caller),offset);ours=True
+                if survey is None and self._vr_crosshair_frame(this,caller):survey=(vr_mode.CROSSHAIR_RETURN,-2);ours=True
+            else:ours=self.hud_state=='ready' and caller==flight_hud.HUD_FRAME_RETURN
             stack.append(ours)
+            census=getattr(self,'vr_census',None)
+            if census is not None and len(census)<400:  # T125 dev.17: what draws while the VR quick menu is open
+                offset=vr_mode.gui_offset(int(_internal.BASE_ADDRESS),this)
+                key=('frame',int(caller),'heap' if offset is None else f'+{offset:#x}');census[key]=census.get(key,0)+1
+            layers=getattr(self.ui,'layer_stack',None)
+            if layers is None or len(layers)>8:layers=self.ui.layer_stack=[]
+            layers.append(bool(getattr(self,'vr_state',(False,False))[1] and vr_mode.hud_frame(int(_internal.BASE_ADDRESS),this,caller)))
             if ours:
-                self.ui.hud_ctx=0;self.ui.hud_size=None
+                self.ui.hud_ctx=0;self.ui.hud_size=None;self.ui.hud_survey=survey
                 geffects=getattr(self,'geffects',None)
                 if geffects is not None:geffects.hud_thread=K.GetCurrentThreadId()  # G effects install only on the flight thread
         except BaseException:self.hud_errors+=1
@@ -2796,6 +3171,8 @@ class AbsoluteHOTAS(Mod):
     def hud_frame_leave(self,this):
         stack=getattr(self.ui,'hud_stack',None)
         if stack:stack.pop()
+        layers=getattr(self.ui,'layer_stack',None)
+        if layers and layers.pop():self._vr_quick_redraw()  # T125: the HUD's layer frame just ended
         return None
 
     def _in_hud_frame(self):
@@ -2850,6 +3227,7 @@ class AbsoluteHOTAS(Mod):
             size=getattr(self.ui,'hud_size',None)
             if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
             layers=flight_hud.tunnel_layers(tunnel,size[0],size[1],fade)
+            if getattr(self,'vr_state',(False,False))[0]:layers=[];red=0.;blackout=False  # T129: the panel is not the pilot's view
             plan=gauge=gmeter=target=planet=mode=purge=landing=brake=None;coupled=False
             if not blackout:
                 readout,marker=v['hud-speed-readout'],v['hud-velocity-marker']
@@ -2884,7 +3262,8 @@ class AbsoluteHOTAS(Mod):
                     camera=self.hud_reader.camera() if marker or tsample else None
                     plan=flight_hud.layout(sample[1],camera if marker else None,size[0],size[1],readout,marker)
                     target=flight_hud.target_readout(tsample,camera,size[0],size[1])
-            if plan is None and not layers and not red>0. and not conflict and not minor:return
+            card=bool(getattr(self,'vr_state',(False,False))[0] and v.get('vr-hud-test'))  # T129: where does this frame show?
+            if plan is None and not layers and not red>0. and not conflict and not minor and not card:return
             n=C.c_int32.from_address(ctx+0x42a8).value
             if not 1<=n<64:return
             state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108);font=C.c_int32.from_address(state+0x104).value
@@ -2896,6 +3275,7 @@ class AbsoluteHOTAS(Mod):
                 self.hud_painter.draw(ctx,plan,size[0],size[1],v['hud-scale'],fonts.get(choice,font),
                                       fonts if choice=='compare' else None,gauge,gmeter,target,planet,mode,purge,landing,brake,coupled)
                 if layers or red>0.:self.hud_painter.tunnel(ctx,layers,size[0],size[1],red=red)
+                if card:self.hud_painter.test_card(ctx,size[0],size[1],fonts.get(choice,font),self.counters['hud_draws'],f'{vr_mode.HUD_LAYER_RETURN:#X} GUI +{vr_mode.HUD_LAYER_GUI:#X} MOD HUD')
                 if conflict:self.hud_painter.conflict(ctx,keyboard_layout.conflict_lines(conflict),size[0],size[1],v['hud-scale'])
                 elif minor:self.hud_painter.conflict(ctx,keyboard_layout.minor_lines(minor),size[0],size[1],v['hud-scale'],minor=True)
             finally:
@@ -2906,6 +3286,99 @@ class AbsoluteHOTAS(Mod):
                 self.log(f'flight HUD first draw: frame {size[0]}x{size[1]}, state font {font}, fonts {self._hud_fonts(ctx)}, markers {[m[0] for m in plan["markers"]] if plan else []}')
         except BaseException as error:
             self.hud_errors+=1;self.log('flight HUD error: '+''.join(traceback.format_exception(error)))
+            if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
+
+    def _vr_crosshair_frame(self,this,caller):
+        """UI thread, in a headset: is this the crosshair layer's frame, with Experimental VR, HUD in VR and VR crosshair
+        on, and this build's code where vr_mode expects it?"""
+        v=self.store.values
+        if not self.vr_state[1] or not v.get('vr-crosshair',False) or not v.get('vr-hud',True) or not getattr(self,'vr_hud_ok',False):return False
+        return vr_mode.crosshair_frame(int(_internal.BASE_ADDRESS),this,caller)
+
+    def _draw_vr_crosshair(self,ctx):
+        """T125, user 2026-11-15: "an optional floating vr crosshair at the third hud layer 840x". Drawn at the centre of the
+        HUD's crosshair-layer frame, with the HUD's NanoVG discipline (saved, reset, restored and checked)."""
+        try:
+            if self.hud_errors>=3 or self.hud_painter is None or not self.active:return
+            size=getattr(self.ui,'hud_size',None)
+            if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
+            n=C.c_int32.from_address(ctx+0x42a8).value
+            if not 1<=n<64:return
+            state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108)
+            api=self.ui_api;api['nvgSave'](ctx)
+            try:
+                api['nvgReset'](ctx);self.hud_painter.scale=float(self.store.values.get('hud-scale',1.));self.hud_painter.alpha=1.
+                self.hud_painter.crosshair(ctx,size[0],size[1])
+            finally:
+                api['nvgRestore'](ctx)
+                if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
+            self.vr_crosshair_draws=getattr(self,'vr_crosshair_draws',0)+1
+            if self.vr_crosshair_draws==1:self.log(f'VR crosshair: drawn on the crosshair layer ({int(size[0])}x{int(size[1])})')
+        except BaseException as error:
+            self.hud_errors+=1
+            if not getattr(self,'vr_crosshair_logged',False):self.vr_crosshair_logged=True;self.log('VR crosshair draw error: '+repr(error))
+
+    def _draw_vr_cursor(self,ctx):
+        """T125, user 2026-11-15: "the game seems to hide the mouse cursor from the VR projection ... render our own
+        cursor confined to the menu card". In each front-end frame of a VR game menu, while the mouse and stick own the
+        pointer, draw an arrow where the front end's pointer is (its 1920x1080 space scaled to this frame). Same NanoVG
+        discipline as the HUD: saved, reset, restored, and checked byte for byte. Three errors switch it off."""
+        try:
+            if getattr(self,'vr_cursor_errors',0)>=3 or self.painter is None:return
+            size=getattr(self.ui,'vr_cursor_size',None)
+            if size is None or size[0]<640 or size[1]<360:return
+            address=vr_mode.frontend_pointer(int(_internal.BASE_ADDRESS))
+            if not address:return
+            x=C.c_float.from_address(address+0xC).value;y=C.c_float.from_address(address+0x10).value
+            n=C.c_int32.from_address(ctx+0x42a8).value
+            if not 1<=n<64:return
+            state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108)
+            api=self.ui_api;api['nvgSave'](ctx)
+            try:
+                api['nvgReset'](ctx)
+                sx=size[0]/vr_mode.MENU_CARD[0];sy=size[1]/vr_mode.MENU_CARD[1]
+                self.painter.pointer(ctx,x*sx,y*sy,1.6*min(sx,sy))
+            finally:
+                api['nvgRestore'](ctx)
+                if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
+            self.vr_cursor_draws=getattr(self,'vr_cursor_draws',0)+1
+            if self.vr_cursor_draws==1:self.log(f'VR menu pointer: our cursor drawn on the menu card ({size[0]}x{size[1]})')
+        except BaseException as error:
+            self.vr_cursor_errors=getattr(self,'vr_cursor_errors',0)+1
+            if self.vr_cursor_errors==1:self.log('VR menu cursor draw error: '+repr(error))
+
+    def _draw_vr_survey(self,ctx,survey):
+        """T129 test card survey: only the card, into a GUI frame that is not the ship HUD's texture, labelled with
+        the frame call's return address (omitted for the render-to-texture wrapper) and the GUI's offset. Same
+        NanoVG discipline as _draw_hud. Counts frames and sizes per GUI for the status file."""
+        caller,offset=survey
+        label=(f'{caller:#X} GUI HEAP' if offset<0 else f'GUI +{offset:#X}' if caller==vr_mode.HUD_FRAME_RETURN_VR else f'{caller:#X} GUI +{offset:#X}')
+        try:
+            if self.hud_errors>=3 or self.hud_painter is None or not self.active:return
+            size=getattr(self.ui,'hud_size',None)
+            if size is None or not (64<=size[0]<=16384 and 64<=size[1]<=16384):return
+            n=C.c_int32.from_address(ctx+0x42a8).value
+            if not 1<=n<64:return
+            state=ctx+0xa8+(n-1)*0x108;before=C.string_at(state,0x108);font=C.c_int32.from_address(state+0x104).value
+            if not 0<=font<64:return
+            seen=getattr(self,'vr_hud_survey',None)
+            if seen is None:seen=self.vr_hud_survey={}
+            if survey not in seen:
+                if len(seen)>=160:return
+                try:own=vr_mode.gui_input(int(_internal.BASE_ADDRESS),offset)
+                except BaseException:own=None
+                self.log(f'VR HUD survey: {label}, frame {int(size[0])}x{int(size[1])}'+(' (to a texture)' if caller==vr_mode.HUD_FRAME_RETURN_VR else '')
+                         +(f"; own input {own['own']}, flags {own['f54']}/{own['f56']}/{own['f58']}, pointer {own['x']}, {own['y']}" if own else ''))
+            entry=seen.setdefault(survey,[int(size[0]),int(size[1]),0]);entry[2]+=1
+            api=self.ui_api;api['nvgSave'](ctx)
+            try:
+                api['nvgReset'](ctx);api['nvgFontFaceId'](ctx,font)
+                self.hud_painter.test_card(ctx,size[0],size[1],font,entry[2],label)
+            finally:
+                api['nvgRestore'](ctx)
+                if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
+        except BaseException as error:
+            self.hud_errors+=1;self.log('VR HUD survey error: '+''.join(traceback.format_exception(error)))
             if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
 
     def _draw_hud_conflict(self,ctx,conflict,minor=None):
@@ -2926,9 +3399,15 @@ class AbsoluteHOTAS(Mod):
             api['nvgRestore'](ctx)
             if C.c_int32.from_address(ctx+0x42a8).value!=n or C.string_at(state,0x108)!=before:raise RuntimeError('NanoVG state differs after restore')
 
+    @get_caller
     @manual_hook('AbsoluteHOTASNvgBegin',offset=0x199FE70,func_def=FUNCDEF(None,[C.c_void_p,C.c_int32,C.c_int32,C.c_float]),detour_time='after')
     def nvg_begin(self,ctx,w,h,ratio):
+        census=getattr(self,'vr_census',None)
+        if census is not None and len(census)<400:
+            try:key=('nvg',int(self.nvg_begin.caller_address()),f'{w}x{h}');census[key]=census.get(key,0)+1
+            except BaseException:pass
         if getattr(self.ui,'manager',0):self.ui.ctx=ctx;self.ui.size=(w,h)  # the Keyboard page's side panel sizes from it
+        if getattr(self.ui,'vr_cursor',False):self.ui.vr_cursor_ctx=ctx;self.ui.vr_cursor_size=(w,h)
         try:
             if self._in_hud_frame() and not getattr(self.ui,'hud_ctx',0):self.ui.hud_ctx=ctx;self.ui.hud_size=(w,h)
         except BaseException:self.hud_errors+=1
@@ -2937,8 +3416,13 @@ class AbsoluteHOTAS(Mod):
     @manual_hook('AbsoluteHOTASNvgEnd',offset=0x199FF30,func_def=FUNCDEF(None,[C.c_void_p]),detour_time='before')
     def nvg_end(self,ctx):
         """Draw meters over their spacer rows; state must be byte-identical after nvgRestore (U3)."""
+        if getattr(self.ui,'vr_cursor',False) and ctx==getattr(self.ui,'vr_cursor_ctx',0):self._draw_vr_cursor(ctx)
         try:
-            if self._in_hud_frame() and ctx==getattr(self.ui,'hud_ctx',0):self._draw_hud(ctx)
+            if self._in_hud_frame() and ctx==getattr(self.ui,'hud_ctx',0):
+                survey=getattr(self.ui,'hud_survey',None)
+                if survey is None or survey==(vr_mode.HUD_LAYER_RETURN,vr_mode.HUD_LAYER_GUI):self._draw_hud(ctx)
+                elif survey==(vr_mode.CROSSHAIR_RETURN,-2):self._draw_vr_crosshair(ctx)
+                else:self._draw_vr_survey(ctx,survey)
         except BaseException:self.hud_errors+=1
         try:
             manager=getattr(self.ui,'manager',0)
@@ -3144,6 +3628,10 @@ class AbsoluteHOTAS(Mod):
         aim=getattr(self,'ai_aim',None)
         if aim is not None:aim.close()
         if getattr(self,'aim_slowdown',None) is not None:self.aim_slowdown.stop()
+        motion=getattr(self,'vr_mouse_motion',None)  # T125: the VR menu mouse hook comes out with the mod
+        if motion is not None:
+            try:motion.stop()
+            except BaseException as error:self.log('VR menu mouse stop failed: '+repr(error))
         if getattr(self,'crash_damage',None) is not None:self.crash_damage.disable()
         if getattr(self,'alarms',None) is not None:self._alarms_shutdown()
         if getattr(self,'aiming',None) is not None:self.aiming.reset('shutdown')

@@ -45,6 +45,20 @@ GAME_THRUST = {'mod.thrust-forward': 0x1B, 'mod.thrust-back': 0x1C}
 # research/re-log/2026-11-13_claude_vr-first-look.md section 8). The application update reads both as Held through the
 # input manager's slot +0x20, the call the game-action lane answers, and recentres once both have been down for its
 # own hold time. It only does so in VR, so the binding is inert in flat play.
+# T125, user 2026-11-14: "I also want to be able to open the pause menu and navigate with mouse" in VR, where the game
+# takes no keyboard or mouse. In a headset these key rows press the game's own action instead of sending their key:
+# the pause menu opens on Fe_Options 0x4D (read as Pressed through the input manager's slot +0x20 at 0x1458328, in
+# flight; build 185034), and the menu's select and back are Fe_Select 0x3B and Fe_Back 0x3E. Flat play is unchanged.
+VR_NATIVE_FOR = {'key.0x1B': 0x4D, 'mouse.left:select': 0x3B, 'mouse.right': 0x3E}
+# The same three from the real desk in VR: Esc, left click, right click (the runtime reads them and sets desk_natives).
+VR_DESK_KEYS = {0x1B: 0x4D, 0x01: 0x3B, 0x02: 0x3E}
+MENU_ONLY = frozenset((0x3B, 0x3E))  # select and back mean something else in flight: only while a game menu is up
+# In a VR game menu the Fire row is select as well, as left click is in flat play (Stick moves cursor: "bind left
+# click (Fire) to select"). Frontend 0 is flight and 2 the quick menu, which has its own select.
+VR_MENU_SELECT = ('mouse.left', 0x3B)
+# dev.18 (user): in the mod's own menu in VR "could not click with trigger": the button rows were off there (a HOTAS menu
+# open). These rows stay live in it in VR; nothing else does.
+VR_MENU_ROWS = frozenset(('mouse.left', 'mouse.left:select', 'mouse.right', 'key.0x1B'))
 VR_RECENTRE = 'mod.vr-recentre'
 VR_RECENTRE_NATIVES = frozenset((0xF5, 0xF6))
 STRAFE_RAMP = .2  # seconds from 0 to full strafe (and back) on a strafe button, so a hat eases in rather than snapping
@@ -81,6 +95,19 @@ def native_id(action_id):
     return NATIVE_FOR.get(action_id)
 
 
+def vr_native_id(action_id):
+    """The game action a key row presses in a headset instead of its key, or None."""
+    return VR_NATIVE_FOR.get(action_id)
+
+
+def desk_natives(key_down, frontend):
+    """VR: the game actions the real Esc key and mouse buttons hold this tick. key_down(vk) -> bool; frontend: the
+    game's frontend flag (0 in flight). Esc always (it opens the pause menu and backs out of it); the mouse buttons
+    only while a game menu is up."""
+    held = {action for vk, action in VR_DESK_KEYS.items() if key_down(vk)}
+    return frozenset(held if frontend else held-MENU_ONLY)
+
+
 def is_focus_action(action_id):
     """Actions live whenever NMS has focus: keys and mouse, game-control rows included, and the VR recentre
     (wanted on foot and in menus too, and while the flight controls are disarmed)."""
@@ -95,6 +122,8 @@ class ButtonActions:
         self.exo = ButtonRouter()  # Exocraft page bindings: live only while the game's exocraft controls are current
         self.exo_state = EMPTY
         self.axis_natives = frozenset()  # game actions the Exocraft axes hold as buttons (Vehicle_Reverse), set by the runtime
+        self.native_held = set()  # T125: the game actions held this tick (the runtime reads who opened a VR menu)
+        self.menu_only = False  # T125: a HOTAS menu is open in VR: only the menu rows (VR_MENU_ROWS) act
         self.key_lane = key_lane  # mod/key_lane.KeyLane, or None (tests, no Win32)
         self.native_lane = None  # tools/native_actions.NativeActions once the runtime installed it
         self.path = 'keys'       # the game-control rows' path this tick: direct | keys | fallback
@@ -112,6 +141,7 @@ class ButtonActions:
         self.on_power = None  # T121: runtime callback, takes a ship_power.ACTIONS request ('next', 'previous' or 0..3)
         self.synthetic_keys = frozenset()  # key actions the mod holds itself (T101 touchdown: the game's Land key)
         self.vr = False  # set by the runtime each tick: the display is a headset, where the game ignores keys and mouse (T125)
+        self.desk_natives = frozenset()  # set by the runtime each tick in VR: game actions the real Esc and mouse buttons hold
         self.reload()
 
     def reload(self):
@@ -220,25 +250,34 @@ class ButtonActions:
         self.state = self.flight.step(read, now, flight_eligible)
         self.strafe_buttons.step(self.state.held, now)
         self.key_state = self.keys.step(read, now, keys_eligible)
+        if self.menu_only:  # only select, back and Esc while the mod's own menu is open in VR
+            keep = lambda actions: frozenset(a for a in actions if a in VR_MENU_ROWS)
+            self.key_state = ButtonState(keep(self.key_state.held), keep(self.key_state.pressed), keep(self.key_state.released))
         # In VR the game takes no keyboard or mouse, so game-control rows always press the game's own action there.
         direct = self.store.values.get('button-output', 'direct') == 'direct' or self.vr
         native = self.native_lane if direct else None
         self.path = 'direct' if native is not None else 'fallback' if direct else 'keys'
         free_keys = bool(self.store.values.get('key-output-enabled'))
         # Game-control rows go one way only: their game action, or their key. Other keys need Keyboard & mouse output.
-        keyed = {a for a in self.key_state.held if a != VR_RECENTRE and (native is None if a in NATIVE_FOR else free_keys)}
+        vr_rows = self.vr and self.native_lane is not None  # in a headset these rows press actions, not keys
+        keyed = {a for a in self.key_state.held if a != VR_RECENTRE and not (vr_rows and a in VR_NATIVE_FOR)
+                 and (native is None if a in NATIVE_FOR else free_keys)}
         if self.key_lane is not None:
             self.key_lane.qualified = free_keys or native is None and any(a in NATIVE_FOR for a in self.keys.bindings_actions())
             held = keyed | (self.synthetic_keys if free_keys else frozenset()) if keys_eligible else keyed
             self.key_lane.step(ButtonState(frozenset(held), self.key_state.pressed, self.key_state.released))
         if self.native_lane is not None:
             # Exocraft buttons have only the game's action, whichever Button output is chosen.
-            self.native_lane.step(({NATIVE_FOR[a] for a in self.key_state.held if a in NATIVE_FOR} if native is not None and keys_eligible
+            self.native_held = (({NATIVE_FOR[a] for a in self.key_state.held if a in NATIVE_FOR} if native is not None and keys_eligible
                                    else set()) | set(self.exo_natives) | (set(self.axis_natives) if driving else set())
                                   | (set(self.flight_natives) if native is not None else set())
                                   # The VR recentre has only the game's actions, whichever Button output is chosen.
-                                  | (set(VR_RECENTRE_NATIVES) if VR_RECENTRE in self.key_state.held and keys_eligible else set()),
-                                  int(now*1000))
+                                  | (set(VR_RECENTRE_NATIVES) if VR_RECENTRE in self.key_state.held and keys_eligible else set())
+                                  | ({VR_NATIVE_FOR[a] for a in self.key_state.held if a in VR_NATIVE_FOR} if vr_rows and keys_eligible else set())
+                                  | ({VR_MENU_SELECT[1]} if vr_rows and keys_eligible and VR_MENU_SELECT[0] in self.key_state.held
+                                     and self.frontend not in (None, 0, 2) else set())
+                                  | (set(self.desk_natives) if self.vr else set()))
+            self.native_lane.step(self.native_held, int(now*1000))
         values = self.store.values
         for action in self.state.pressed:
             if action == 'mod.flight-model-next':

@@ -1,10 +1,10 @@
-# Absolute Flight for No Man's Sky (alpha 0.2.7-dev.5)
+# Absolute Flight for No Man's Sky (0.3.0-dev.1)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
 ditching and crash damage.
 
-**Public alpha:** open to anyone who wants to fly it. Expect rough edges, and please send a support bundle
+**Public beta:** open to anyone who wants to fly it. The features are set; expect some rough edges, and please send a support bundle
 with every report. Your feedback is what shapes the next builds.
 
 **Made with AI:** the code was written by AI coding agents under my direction. I designed it, directed
@@ -107,6 +107,13 @@ Class names for files: Hauler, Fighter, Explorer, Shuttle, Exotic, Living, Solar
   do nothing on foot, landed, or in menus. Keyboard and mouse bindings work everywhere.
 - **Bindings pause in the Absolute Flight menu** and while a binding is being recorded.
 - **Corvette flight modeling is a work in progress**, and four ship classes are untested (see "What's been flown").
+
+## Feature requests
+
+Absolute Flight's features are locked for now while I make this version solid, so I'm not adding new features
+to it. Requests like gamepad input for the flight model won't go on the to-do list for now.
+If you want to build a feature like that in a mod of your own alongside Absolute Flight, ask me on the Discord
+and I'll help where I can. I can't promise the two mods will keep working together after every update.
 
 ## Reporting a problem and giving feedback
 

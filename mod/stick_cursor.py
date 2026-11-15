@@ -44,6 +44,14 @@ def rate(deflection,max_speed,curve=CURVE):
     return math.copysign(d**curve*max_speed,deflection)
 
 
+def pointer_axes(values,pitch_unit,yaw_unit):
+    """(x, y) in -1..1 for the game's own controller pointer (T125, VR menus): the same shaped deflection and curve as
+    the mouse cursor, without the pixel speed. Positive x is right, positive y is up (cursor-invert-y flips it)."""
+    yaw=shape_axis(values,'yaw',yaw_unit) or 0.;pitch=shape_axis(values,'pitch',pitch_unit) or 0.
+    if values.get('cursor-invert-y'):pitch=-pitch
+    return rate(yaw,1.),rate(pitch,1.)
+
+
 class StickCursor:
     """Accumulates rate-mode cursor motion into whole-pixel relative moves."""
     def __init__(self):

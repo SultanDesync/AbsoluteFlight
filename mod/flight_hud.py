@@ -362,6 +362,16 @@ class HudPainter:
             self._poly(ctx,[(x-r,y),(x-2.2*r,y)]);self._poly(ctx,[(x+r,y),(x+2.2*r,y)]);self._poly(ctx,[(x,y-r),(x,y-1.9*r)])
         self._shape(ctx,'prograde',self._line(h),draw)
 
+    def crosshair(self,ctx,width,height):
+        """T125, user 2026-11-15: the optional floating VR crosshair, centred on its frame: a ring, four ticks with a gap
+        and a centre dot, in the HUD's marker colour with the usual dark edge."""
+        x=width/2.;y=height/2.;r=.07*height*self.scale
+        def draw():
+            self._circle(ctx,x,y,r,32)
+            for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):self._poly(ctx,[(x+dx*1.35*r,y+dy*1.35*r),(x+dx*2.1*r,y+dy*2.1*r)])
+        self._shape(ctx,'prograde',max(1.5,.006*height*self.scale),draw)
+        self._disc(ctx,x,y,max(1.5,.012*height*self.scale),'prograde')
+
     def retrograde(self,ctx,x,y,h):
         r=.0085*h*self.scale;c=r*.7071
         def draw():
@@ -400,6 +410,18 @@ class HudPainter:
         if font is not None:a['nvgFontFaceId'](ctx,font)
         for c,o in (('shadow',max(1.,size*.05)),(color,0.)):
             a['nvgFillColor'](ctx,self._paint(c));a['nvgText'](ctx,x+o,y+o,C.addressof(self.text),None)
+
+    def test_card(self,ctx,width,height,font=None,count=0,label=None):
+        """T129: where does this frame show in a headset? A red border, amber centre lines and nine labelled points
+        (TL TC TR / ML MC MR / BL BC BR), so one screenshot tells which part of the frame the pilot sees."""
+        t=max(2.,.01*height);size=.07*height
+        for x,y,w,h in ((0,0,width,t),(0,height-t,width,t),(0,0,t,height),(width-t,0,t,height)):self._rect(ctx,x,y,w,h,'overheat')
+        self._rect(ctx,width/2-t/2,0,t,height,'heat');self._rect(ctx,0,height/2-t/2,width,t,'heat')
+        self.api['nvgTextAlign'](ctx,2|16)  # NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE
+        for fy,row in ((.25,'T'),(.5,'M'),(.75,'B')):
+            for fx,column in ((.25,'L'),(.5,'C'),(.75,'R')):self.label(ctx,fx*width,fy*height,row+column,size,'text',font)
+        self.label(ctx,.5*width,.08*height,f'ABSOLUTE FLIGHT VR HUD TEST {int(width)}x{int(height)} #{count%1000}',.5*size,'text',font)
+        if label:self.label(ctx,.5*width,.92*height,label,.8*size,'heat',font)  # which of the game's GUI textures this is
 
     def conflict(self,ctx,lines,width,height,scale=1.,font=None,minor=False):
         """T112: keyboard key overlap, a ship-computer notice above the reticle: red while flight keys are paused,

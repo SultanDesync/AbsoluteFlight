@@ -6,7 +6,7 @@ and the whole widget is skipped when its clip parent would cut it (U3 rules). Dr
 at nvgEndFrame inside nvgSave/nvgRestore, and the native state block must be byte-identical
 afterwards. Read-only meters: no pointer capture, so U3's input ownership is not needed.
 """
-import ctypes as C,struct
+import ctypes as C,math,struct
 import keyboard_layout
 from ui_range_policy import project
 
@@ -110,6 +110,25 @@ class MeterPainter:
     def triangle(self,ctx,x,tip,base,half,color):
         a=self.api;a['nvgBeginPath'](ctx);self.fill(ctx,color)
         a['nvgMoveTo'](ctx,x,tip);a['nvgLineTo'](ctx,x-half,base);a['nvgLineTo'](ctx,x+half,base);a['nvgFill'](ctx)
+
+    # T125: the menu pointer drawn by the mod in VR, where the game draws its pointer only on the desktop mirror.
+    # dev.17 (user): "the cursor looks odd compared to the vanilla one" (it was an amber arrow): now a light ring with a
+    # centre dot, centred on the pointer, each with a dark edge so it reads over any background.
+    def _disc(self,ctx,x,y,r,color,n=28):
+        a=self.api;a['nvgBeginPath'](ctx);self.fill(ctx,color)
+        for i in range(n):
+            t=6.283185307*i/n;(a['nvgMoveTo'] if i==0 else a['nvgLineTo'])(ctx,x+r*math.cos(t),y+r*math.sin(t))
+        a['nvgFill'](ctx)
+
+    def pointer(self,ctx,x,y,scale=1.):
+        """A ring and a centre dot at (x, y)."""
+        a=self.api;r=9.*scale;n=28
+        for color,width in (('shadow',4.4*scale),('text',2.2*scale)):
+            a['nvgBeginPath'](ctx)
+            for i in range(n+1):
+                t=6.283185307*i/n;(a['nvgMoveTo'] if i==0 else a['nvgLineTo'])(ctx,x+r*math.cos(t),y+r*math.sin(t))
+            a['nvgStrokeColor'](ctx,C.addressof(self.colors[color]));a['nvgStrokeWidth'](ctx,width);a['nvgStroke'](ctx)
+        self._disc(ctx,x,y,2.6*scale,'shadow');self._disc(ctx,x,y,1.8*scale,'text')
 
     def label(self,ctx,x,y,text,size,color='text'):
         self.text.value=text.encode('ascii','replace')[:95];self.fill(ctx,color)

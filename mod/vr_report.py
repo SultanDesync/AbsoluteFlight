@@ -106,8 +106,9 @@ def summarise(log_text='', telemetry=(), status=None, info=None):
     silent = [name for name, n in named.items() if not n]
     if 'asked' not in native:buttons = _check(NOT_TESTED, 'this build does not record what the game asked for')
     elif not asked:buttons = _check(NOT_TESTED, 'no game-action button was held')
-    elif native.get('misses') or silent:
-        buttons = _check(FAIL, 'held but never asked for by the game: '+', '.join(silent) if silent else 'the game asked on another input port')
+    elif native.get('misses'):buttons = _check(FAIL, 'the game asked for a held action on another input port')
+    elif silent:  # not a failure by itself: the game asks for some actions only in some states (launch: only when landed)
+        buttons = _check(INFO, 'held but not asked for by the game in this session: '+', '.join(silent))
     else:buttons = _check(PASS, 'the game asked for every held action (whether it then acted is for the tester to say)')
     buttons.update(asked=named, answered=native.get('hits'), other_port=native.get('misses'), miss_port=native.get('miss_port'),
                    miss_active=native.get('miss_active'), any_port=native.get('any_port'),
@@ -120,8 +121,22 @@ def summarise(log_text='', telemetry=(), status=None, info=None):
         if match and match.groups() not in hands:hands.append(match.groups())
     checks['hands'] = _check(INFO if hands else NOT_TESTED, f'{len(hands)} distinct hand states seen',
                              states=[{'left': int(a), 'right': int(b), 'mode': int(c)} for a, b, c in hands[:20]],
-                             last=vr_block.get('hands'))
-    # 8. Anything that went wrong
+                             last=vr_block.get('hands'), pad=vr_block.get('pad'),
+                             pad_log=[line[33:] for line in said('VR input pad:')][:4])
+    # 8. The mod's HUD on the game's VR HUD panel (T129)
+    hud = vr_block.get('hud'); drawn = status.get('flight_hud') or {}; first = said('flight HUD first draw')
+    sultan = (info or {}).get('flight_model') in (None, 'sultan')
+    if rows['2'] < MIN_ROWS:panel = _check(NOT_TESTED, 'not enough flight with Experimental VR on')
+    elif hud is None:panel = _check(NOT_TESTED, 'this build does not draw a HUD in VR')
+    elif hud.get('pinned') is False:panel = _check(FAIL, 'the HUD code differs from this build: nothing drawn')
+    elif hud.get('frames') and drawn.get('draws'):panel = _check(PASS, "the mod's HUD was drawn on the game's ship-forward HUD layer (how it looks is for the tester to say)")
+    elif not sultan:panel = _check(NOT_TESTED, 'the HUD belongs to Sultan flight')
+    elif hud.get('frames'):panel = _check(FAIL, 'the VR HUD frame was found but nothing was drawn')
+    else:panel = _check(FAIL, "the game's VR HUD frame was never seen (HUD in VR off, or the game draws its HUD another way)")
+    panel.update(frames=(hud or {}).get('frames'), draws=drawn.get('draws'), draw_errors=drawn.get('errors'), state=drawn.get('state'),
+                 size=(hud or {}).get('size'), survey=(hud or {}).get('survey'), log=[line[33:] for line in (first+said('VR HUD'))[:3]])
+    checks['hud'] = panel
+    # 9. Anything that went wrong
     trouble = [line[33:] if len(line) > 33 else line for line in lines if _TROUBLE.search(line) and not any(r in line for r in _ROUTINE)]
     conflicts = len(said('native input conflict')); unfocused = len(said('game not focused'))
     errors = int(status.get('errors') or 0)+int(status.get('hook_errors') or 0)

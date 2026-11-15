@@ -44,6 +44,7 @@ PIN_SHA256 = 'a5e1353ec9302e1a0aaef06419e9a03b1eef5389b9f677818608c478907a6340' 
 VEHICLE_MODE = 16                  # cGcActionSetType.VehicleMode
 STEER, THRUST, BRAKE = 0x8D, 0x8E, 0x8F
 LOOK_X, LOOK_Y, MOVE_X, MOVE_Y = 0x85, 0x86, 0x88, 0x89  # CameraLookX/Y, PlayerMoveX/Y
+UI_CURSOR_X, UI_CURSOR_Y = 0xD1, 0xD2                    # the menus' controller pointer (0x204594, 0x2045C3; 185034)
 REVERSE = 0x2E                     # Vehicle_Reverse
 COUNT = 0x110                      # action ids 0..0x10F
 ENTRY = 8                          # u32 action set (0 = no answer), f32 value
@@ -129,7 +130,7 @@ class NativeAnalogActions:
         self.code = cave_code(self.allocation, self.base, self.data)
         if len(self.code) > DATA_OFFSET:raise ValueError('exocraft controls cave overflow')
         self.site = self.base+WRAPPER; self.patch = site_patch(self.site, self.allocation)
-        self.installed = False; self.answers = {}
+        self.installed = False; self.answers = {}; self.sets = {}
         self._write(0, bytes(DATA_SIZE))
         self.memmove(self.allocation, self.code, len(self.code))
         if self.read(self.allocation, len(self.code)) != self.code:raise RuntimeError('exocraft controls cave readback failed')
@@ -160,11 +161,13 @@ class NativeAnalogActions:
         """answers: {action id: value} answered while action_set is current. Actions left out answer native.
         The value is written before its set, so a reader never sees a set with a stale value."""
         answers = {a: float(v) for a, v in answers.items() if 0 <= a < COUNT}
-        for action in set(self.answers)-set(answers):self._write(TABLE+action*ENTRY, bytes(4))
+        for action in set(self.answers)-set(answers):
+            self._write(TABLE+action*ENTRY, bytes(4)); self.sets.pop(action, None)
         for action, value in answers.items():
             entry = TABLE+action*ENTRY
             self._write(entry+4, struct.pack('<f', value))
-            if action not in self.answers:self._write(entry, struct.pack('<I', action_set))
+            if self.sets.get(action) != action_set:  # new, or the same action under another set (T125 menu pointer)
+                self._write(entry, struct.pack('<I', action_set)); self.sets[action] = action_set
         self.answers = answers
 
     def status(self):
