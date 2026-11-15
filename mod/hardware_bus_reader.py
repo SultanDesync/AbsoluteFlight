@@ -33,7 +33,9 @@ class DirectInputBus:
         state=C.create_string_buffer(112);C.c_uint32.from_buffer(state).value=112
         return self.profile_fn(state)
 
-    def start(self):
+    def start(self,allow_empty=False):
+        """allow_empty: the release starts with no joystick attached (keyboard-only players); the bus hot-plugs
+        devices later and BusReader rescans. Research tools keep the default and need a device at start."""
         if self.started:raise RuntimeError('Consumer already started')
         if self.profile_state()!=1:raise RuntimeError('Another consumer owns the provider')
         if self.dll.AbsoluteInputBus_Start(250):raise RuntimeError('Bus failed to start')
@@ -41,6 +43,8 @@ class DirectInputBus:
         try:
             time.sleep(.35)
             count=self.api.getDeviceCount()
+            if allow_empty and count==0:
+                self.inventory={};return self
             if not 1<=count<=64:raise RuntimeError('Invalid device count')
             self.inventory={}
             for index in range(count):

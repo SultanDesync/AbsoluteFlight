@@ -1931,7 +1931,8 @@ class AbsoluteHOTAS(Mod):
     def _start_bus(self):
         from hardware_bus_reader import DirectInputBus
         config=runtime_config.load(ROOT)['bus']
-        bus=DirectInputBus(config);bus.start()
+        # A keyboard-only player has no joystick: the flight patches wait for the bus, so it must start empty.
+        bus=DirectInputBus(config);bus.start(allow_empty=True)
         self.bus=bus;self.reader=BusReader(bus)
         self._start_agent_test()
 
