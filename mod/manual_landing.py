@@ -125,6 +125,50 @@ class TakeoffWatch:
         return False
 
 
+LAUNCH_PUSH = .2     # of the throttle's forward travel: pushed this far past its lowest point since landing = launch
+LAUNCH_RELEASE = .1  # back within this of the lowest point: the launch is let go
+
+
+def throttle_forward(unit, values):
+    """How far forward the bound throttle is, 0..1, or None when unbound or stale. A lever (Throttle style HOTAS)
+    uses its whole travel; a centred HOSAS stick only its front half, so pulling back is never forward."""
+    if unit is None or not math.isfinite(unit):return None
+    unit = min(1., max(0., unit))
+    if values.get('throttle-inverted'):unit = 1.-unit
+    return unit if values.get('throttle-style') == 'hotas' else max(0., 2.*unit-1.)
+
+
+def strafe_up(unit, button, values):
+    """How far up the vertical strafe is, 0..1: the shaped axis (deadzone, invert; + is up) or the Strafe up button,
+    whichever is more. A centred axis rests at 0."""
+    from flight_shaping import shape_axis
+    axis = shape_axis(values, 'strafe-vertical', unit) if unit is not None and math.isfinite(unit) else None
+    return max(0., axis or 0., button if button and math.isfinite(button) else 0.)
+
+
+LAUNCH_SOURCES = {'either': ('throttle', 'strafe-up'), 'throttle': ('throttle',), 'strafe-up': ('strafe-up',), 'off': ()}
+
+
+class ThrottleLaunch:
+    """One launch input (the throttle, or vertical strafe up). Forward thrust launches a landed ship, as W does in the game (user 2026-11-16: "forward thrust launches ship.
+    this is difficult with lever throttle as it can rest in forward position, but we can only signal on a delta").
+    Landed, it keeps the lowest throttle position seen since landing and asks for the launch (the game's Ship_Thrust)
+    once the throttle is pushed LAUNCH_PUSH past it. A lever left forward when the ship lands, or when you sit down,
+    so never launches by itself: pull it back, then push it forward. Leaving the landed state forgets everything."""
+    def __init__(self):
+        self.low = None
+        self.holding = False
+
+    def step(self, landed, forward):
+        """True while the launch should be held."""
+        if not landed or forward is None:
+            self.low = None;self.holding = False;return False
+        self.low = forward if self.low is None else min(self.low, forward)
+        if forward >= self.low+LAUNCH_PUSH:self.holding = True
+        elif forward <= self.low+LAUNCH_RELEASE:self.holding = False
+        return self.holding
+
+
 def panel(planetary, settings, status, values):
     """Landing HUD plan with the gear down and close to the ground, else None. Positions are fractions of the
     ring radius: level at the tilt limit sits on the ring, drift at DRIFT_SCALE does too."""

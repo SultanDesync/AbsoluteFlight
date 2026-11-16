@@ -519,7 +519,7 @@ def throttle_controls():
 def route_controls(route):
     if route=='flight-model':return ['flight-controls-enabled','vr-experimental','vr-flat-input','vr-desk-input','vr-menu-pointer','vr-menu-mouse','vr-quick-menu-hud','flight-model','sultan-coupled','sultan-power-modes']
     if route=='flight-axes':
-        return (['turn-rate-scale','strafe-authority']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
+        return (['turn-rate-scale','strafe-authority','launch-control']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
                 +throttle_controls())
     if route=='hud':return list(HUD_CONTROLS)
     if route=='g-force':return list(G_CONTROLS)
@@ -610,7 +610,7 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
                     rows.append(Row('header','ai-aim-disruption','LAST GUN AIM DISRUPTION: '+str(5*round(20*aim['disruption']))+'%'))
         if combat:rows.append(Row('header','npc-combat-live','BEAMS/SHIELDS: '+str(combat.get('state','unknown')).upper()))
     elif route=='flight-axes':
-        rows+=_visible_rows(['turn-rate-scale','strafe-authority'],values)
+        rows+=_visible_rows(['turn-rate-scale','strafe-authority','launch-control'],values)
         ids=route_controls(route)
         # Stick axes, then the throttle, then the optional strafe axes.
         for channel,title in AXIS_CHANNELS:

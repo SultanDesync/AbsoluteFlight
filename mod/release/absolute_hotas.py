@@ -709,6 +709,28 @@ class AbsoluteHOTAS(Mod):
         out['keys_held']=sorted(self.buttons.key_state.held) if getattr(self,'buttons',None) else []
         return out
 
+    def _throttle_launch_step(self,piloting):
+        """Worker, each tick: forward thrust or strafe up launches a landed ship (Launch with, manual_landing.ThrottleLaunch),
+        through the game's own Ship_Thrust. Landed = in the ship's action set while the flight update has gone stale
+        (the game owns a landed ship), with no menu up and the mod's flight controls on."""
+        watches=getattr(self,'launch_watches',None)
+        if watches is None:watches=self.launch_watches={k:manual_landing.ThrottleLaunch() for k in ('throttle','strafe-up')}
+        v=self.store.values;sources=manual_landing.LAUNCH_SOURCES.get(v.get('launch-control','either'),())
+        landed=bool(sources and v.get('flight-controls-enabled') and not piloting and not self.menu_open
+                    and self.capture is None and self._frontend()==0 and self._in_ship(False))
+        lane=getattr(self,'native_actions',None) is not None;held=False
+        for name,watch in watches.items():
+            on=landed and name in sources;value=None
+            if on and name=='throttle':value=manual_landing.throttle_forward(self.table.unit(v.get('bind-throttle-axis')),v)
+            elif on:value=manual_landing.strafe_up(self.table.unit(v.get('bind-strafe-vertical-axis')),
+                                                   self.buttons.strafe_buttons.value[1],v)
+            was=watch.holding;held=watch.step(on,value) or held
+            if watch.holding and not was:
+                lines=self.launch_lines=getattr(self,'launch_lines',0)+1
+                if lines<=20:self.log(f'launch: {name} pushed landed (from {watch.low:.2f} to {value:.2f}), '
+                                      +("the game's launch (Ship_Thrust) held" if lane else 'no game-action lane: launch with W or a Launch button'))
+        self.buttons.launch_natives=frozenset((0x1B,)) if held and lane else frozenset()
+
     def _frontend(self):
         """The frontend flag _eligible_input reads (nonzero while a menu/dialog page is up), or None without a manager."""
         manager=q(_internal.BASE_ADDRESS+APP_GLOBAL)
@@ -1183,6 +1205,8 @@ class AbsoluteHOTAS(Mod):
               and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict)))
         # T125: in VR with Experimental VR on the real Esc and mouse buttons press game actions too, with nothing bound.
         game=game or getattr(self,'vr_state',(False,False))[1]
+        # Forward thrust or strafe up launches a landed ship through the game's Ship_Thrust (_throttle_launch_step).
+        game=game or bool(values.get('launch-control','either')!='off' and values.get('flight-controls-enabled'))
         if not (exo or game):return  # nothing bound, nothing patched (Exocraft buttons have only the game's action)
         lane=None
         try:
@@ -2559,6 +2583,7 @@ class AbsoluteHOTAS(Mod):
                         if not (U.GetAsyncKeyState(0x1B)&0x8000):self.vr_esc_ignored=False
                         if desk and not self.buttons.desk_natives:self.vr_desk_presses=getattr(self,'vr_desk_presses',0)+1
                         self.buttons.desk_natives=desk
+                        self._throttle_launch_step(piloting)
                     if lane is not None and getattr(self,'vr_ports',None)!=vr_on:  # T125: VR may ask on another port
                         lane.set_any_port(vr_on);self.vr_ports=vr_on
                     self._step_wreck_fall(tick,piloting)

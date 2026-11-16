@@ -147,6 +147,7 @@ class ButtonActions:
         self.synthetic_keys = frozenset()  # key actions the mod holds itself (T101 touchdown: the game's Land key)
         self.vr = False  # set by the runtime each tick: the display is a headset, where the game ignores keys and mouse (T125)
         self.desk_natives = frozenset()  # set by the runtime each tick in VR: game actions the real Esc and mouse buttons hold
+        self.launch_natives = frozenset()  # set by the runtime each tick: Ship_Thrust while the throttle launches a landed ship
         self.reload()
 
     def reload(self):
@@ -281,7 +282,9 @@ class ButtonActions:
                                   | ({VR_NATIVE_FOR[a] for a in self.key_state.held if a in VR_NATIVE_FOR} if vr_rows and keys_eligible else set())
                                   | ({VR_MENU_SELECT[1]} if vr_rows and keys_eligible and VR_MENU_SELECT[0] in self.key_state.held
                                      and self.frontend not in (None, 0, 2) else set())
-                                  | (set(self.desk_natives) if self.vr else set()))
+                                  | (set(self.desk_natives) if self.vr else set())
+                                  # The throttle's launch has only the game's action, whichever Button output is chosen.
+                                  | set(self.launch_natives))
             self.native_lane.step(self.native_held, int(now*1000))
         values = self.store.values
         for action in self.state.pressed:
