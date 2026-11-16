@@ -1,4 +1,4 @@
-# Absolute Flight for No Man's Sky (0.3.2-dev.1)
+# Absolute Flight for No Man's Sky (0.3.2-dev.2)
 
 Your HOTAS, read 1:1 and fed straight into the ship's flight model. No vJoy, no Steam Input mapping,
 no controller emulation. Optional Sultan flight model with atmosphere flight, manual landing,
@@ -31,8 +31,8 @@ Other builds, stores (GOG, Microsoft Store) and Linux/Steam Deck: see [PLATFORMS
 2. Open the zip and drag both of its folders, **Binaries** and **GAMEDATA**, into the game folder. If
    Windows asks, choose to merge the folders.
 
-That adds one file, `Binaries\winmm.dll`, and one folder, `GAMEDATA\MODS\AbsoluteFlight`. No game file is
-changed. The folder's `UI\SWITCHERPAGENEW.MBIN` adds the Absolute Flight button to the pause menu's Options
+That adds two files, `Binaries\winmm.dll` and `Binaries\AbsoluteFlight-Proton.asi` (the Linux patch; it does
+nothing on Windows), and one folder, `GAMEDATA\MODS\AbsoluteFlight`. No game file is changed. The folder's `UI\SWITCHERPAGENEW.MBIN` adds the Absolute Flight button to the pause menu's Options
 list; if another mod changes that same file, only one of them wins.
 
 - Multiplayer can stay on. Online play is less tested than single player: if something misbehaves online,
@@ -135,7 +135,8 @@ support bundle only leaves your PC when you post it.
 
 ## Uninstall
 
-1. In the game folder, delete `Binaries\winmm.dll` and `GAMEDATA\MODS\AbsoluteFlight`.
+1. In the game folder, delete `Binaries\winmm.dll`, `Binaries\AbsoluteFlight-Proton.asi` and
+   `GAMEDATA\MODS\AbsoluteFlight`.
 2. To remove your settings, bindings, tunings and logs too, delete `%LOCALAPPDATA%\AbsoluteHOTAS`.
 
 Deleting `winmm.dll` alone already turns the mod off. Absolute Flight never changes the game's own files.

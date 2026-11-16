@@ -1201,8 +1201,15 @@ class AbsoluteHOTAS(Mod):
         if not isinstance(bindings,list) or not isinstance(values,dict):return
         # Exocraft controls hold Vehicle_Reverse as a game button too, so they need the lane with no button bound.
         exo=bool(values.get('exo-enabled'))
+        # Keyboard-page keys count too (support bundle 2026-11-16, 0.3.1-dev.1, keyboard only: with no HOTAS button
+        # bound the cave never went in, so Roll, Land and every game-control row sent the game keys the player had
+        # moved, and did nothing). The ship's own roll (ship.roll-left/right) has only the game's action.
+        keyboard=getattr(store,'keyboard',None) if values.get('keyboard-flight-enabled') else None
+        bound=[b for b in bindings+(keyboard if isinstance(keyboard,list) else []) if isinstance(b,dict)]
+        from hotas_buttons import BY_ID as catalog
         game=((values.get('button-output','direct')=='direct' or getattr(self,'vr_state',(False,False))[0])  # VR: keys do nothing (T125)
-              and any(native_id(b.get('action')) is not None for b in bindings if isinstance(b,dict)))
+              and any(native_id(b.get('action')) is not None or getattr(catalog.get(b.get('action')),'group',None)=='ship'
+                      for b in bound))
         # T125: in VR with Experimental VR on the real Esc and mouse buttons press game actions too, with nothing bound.
         game=game or getattr(self,'vr_state',(False,False))[1]
         # Forward thrust or strafe up launches a landed ship through the game's Ship_Thrust (_throttle_launch_step).
