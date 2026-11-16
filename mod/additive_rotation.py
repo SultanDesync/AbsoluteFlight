@@ -17,6 +17,7 @@ import threading
 from flight_shaping import shape_axis
 import runtime_config
 from planetary_flight import AIR_CLASSES
+from newtonian_runtime import profile_class
 from hotas_settings import PROFILE_KEYS, parse_token
 
 MAX_LEASE_MS = 50
@@ -209,7 +210,9 @@ def get_runtime_profile(identity, request=None):
     if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '185034'
             or identity.get('steam_buildid') != '26540391'):
         raise ValueError('unsupported additive rotation game build')
-    ship_class = identity.get('fixture', {}).get('ship_class')
+    # An unknown class flies the Solar profile (profile_class); native-only classes keep their own id and stay native.
+    raw_class = identity.get('fixture', {}).get('ship_class')
+    ship_class = profile_class(raw_class) or raw_class
     if request['additive'] and ship_class != 2:
         raise ValueError('additive pitch/yaw endpoints available for Fighter only')
     if ship_class not in ROTATION_CLASSES:
@@ -386,7 +389,8 @@ class AdditiveRotation:
             revision = self.revision
             try:
                 fixture = getattr(runtime, 'newtonian', None)
-                ship_class = fixture.fixture['ship_class'] if fixture is not None else runtime.store.current_class
+                raw_class = fixture.fixture['ship_class'] if fixture is not None else runtime.store.current_class
+                ship_class = profile_class(raw_class) or raw_class  # unknown class: the Solar profile
                 class_profile = runtime.store.profile(ship_class)
                 air_flight = (runtime.store.values.get('atmosphere-model') == 'sultan'
                               and ship_class in AIR_CLASSES)
@@ -449,9 +453,9 @@ class AdditiveRotation:
                         planetary = (getattr(self.bridge, 'allow_planetary_flight', False) is True
                                      and getattr(runtime, 'planetary_on', False) is True)
                         combat = (getattr(self.bridge, 'allow_combat_flight', False) is True
-                                  and current.get('combat') == 1)
+                                  and current.get('combat') not in (0, None))  # T132: any combat value
                         power = (getattr(self.bridge, 'allow_power_flight', False) is True
-                                 and current.get('power') in (1, 2, 3))
+                                 and current.get('power') not in (0, None))  # T132: any power value
                         changed = pins_changed(current, self.identity, planetary, combat, power)
                         self.last_pin_check = now
                     if changed:

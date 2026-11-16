@@ -17,7 +17,7 @@ import threading
 from types import MappingProxyType
 
 from native_roll_patch import Code, K, replace_code
-from native_newtonian import _allocate_data, EXPECTED_SHA, SUPPORTED_CLASSES, planetary_skip
+from native_newtonian import _allocate_data, EXPECTED_SHA, NATIVE_ONLY_CLASSES, planetary_skip
 from native_additive_rotation import ORIGINAL, GLOBAL_RVA, SITE_RVA
 from native_rotation_gates import emit as full_gates
 
@@ -147,8 +147,9 @@ def _pin_engine(c, pins, newtonian=None, base=None, power=False):
     if base is not None:
         c.relative(b'\x48\x8b\x05', base + APP_GLOBAL)
         c.emit(bytes.fromhex('48 85 c0')); c.relative(b'\x0f\x84', 'out')
-        c.emit(bytes.fromhex('80 b8') + struct.pack('<I', COMBAT_OFFSET) + b'\x01')
-        c.relative(b'\x0f\x84', 'engine_blend_tolerated')
+        # T132: any nonzero combat value, known or not, may select a different engine.
+        c.emit(bytes.fromhex('80 b8') + struct.pack('<I', COMBAT_OFFSET) + b'\x00')
+        c.relative(b'\x0f\x85', 'engine_blend_tolerated')
     if power:
         c.emit(bytes.fromhex('83 be 5c 67 00 00 00')); c.relative(b'\x0f\x85', 'engine_blend_tolerated')
     for offset in range(0, 0x78, 4):
@@ -915,7 +916,8 @@ class RotationBridge:
         for name, (rva, original) in SITES.items():
             if self.pm.read_bytes(self.base + rva, len(original)) != original: raise RuntimeError('T66 original site mismatch: ' + name)
         # Every Newtonian class, Corvette included (T104; it was missing here until T118).
-        if self.fixture.get('ship_class') not in SUPPORTED_CLASSES: raise ValueError('Unsupported class')
+        # An unknown class (a new ship type) flies the Solar profile (user 2026-11-15); only native-only classes refuse.
+        if self.fixture.get('ship_class') in NATIVE_ONLY_CLASSES or self.fixture.get('ship_class') is None: raise ValueError('Unsupported class')
         for offset, key in ((8, 'ship'), (16, 'body'), (24, 'state'), (32, 'context')):
             if struct.unpack('<Q', self.pm.read_bytes(self.newtonian_data + offset, 8))[0] != self.fixture[key]: raise RuntimeError('Newtonian fixture mismatch')
         self.data = _allocate_data(self.pm.process_handle, self.base + SITE_RVA, ALLOCATION)

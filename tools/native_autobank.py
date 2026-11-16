@@ -29,7 +29,7 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
                 allow_power_flight=False):
     # Late import avoids a module cycle when Bridge.prepare imports this generator.
     from native_newtonian import (Code,WORK,VECTORS,REQUIRED,LOW_HEIGHT,_save,_restore,_owner_guard,_check,
-                                  low_height_gate,planetary_skip,POWER,power_gate)
+                                  low_height_gate,planetary_skip,POWER,power_gate,COMBAT,combat_gate)
     c=Code(cave);_save(c)
     def stage(value):c.relative(b'\xc7\x05',data+AUTOBANK_STAGE,struct.pack('<I',value))
     stage(0);_owner_guard(c,data)
@@ -74,9 +74,9 @@ def assist_code(cave,site,data,base,get_tick,*,allow_combat_flight=False,allow_p
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','out')
     c.relative(b'\x48\x8b\x05',base+0x6f6c288)
     for code in ('83 b8 a8 be 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
-        if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
-            # Clear-space manual combat shares this assist; all other guards stay.
-            c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','out')
+        if allow_combat_flight and code==COMBAT:
+            # Manual combat shares this assist, any combat value (T132); all other guards stay.
+            combat_gate(c,'out')
         else:ins_ne(code)
     stage(3)
     # Backend pages, body generation, packed damping/gravity and callback list.

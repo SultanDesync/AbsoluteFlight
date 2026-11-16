@@ -127,15 +127,13 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
                 '41 80 ba ed 76 00 00 00', '41 80 ba e4 6c 00 00 00',
                 '41 80 ba 40 77 00 00 00'):
         reject(raw)
-    # T119: the four known power selections (ship+0x675C 0..3) only scale native engine
-    # factors; unknown values stay native.
-    reject('41 83 ba 5c 67 00 00 03', b'\x0f\x87')
+    # T119/T132: the power selection (ship+0x675C) only scales native engine factors; any value is admitted.
     pointer(0, base+APP_GLOBAL if global_slot is None else global_slot)
     reject('48 8b 00 48 85 c0', b'\x0f\x84')
     for raw in ('83 b8 a8 be 89 00 00', '83 b8 dc b6 72 00 00',
                 '83 b8 cc b6 72 00 00'):
         reject(raw)
-    reject('80 b8 6d aa 57 00 01', b'\x0f\x87')  # known manual combat allowed
+    # T132: any manual-combat value is admitted (it was 0..1).
     pointer(0, tick); c.emit(bytes.fromhex('ff d0'))
     # Check all independently leased D12 clocks before publishing any observation.
     for address in (frame+40, frame+64, pilot_deadline):

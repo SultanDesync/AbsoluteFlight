@@ -15,6 +15,7 @@ import tuning_guide
 import crash_damage
 import manual_landing
 from planetary_flight import AIR_CLASSES
+from newtonian_runtime import profile_class
 
 ROOT='root'
 # Placement rule (user, 2026-10-17; docs/RELEASE-RUNTIME.md "Menu pages"): a setting lives on the one
@@ -624,6 +625,9 @@ def build_page(route,values,live=None,focused=None,modal=None,device_names=None,
         if values['flight-model']!='sultan':raise KeyError('Flight Tuning requires Sultan flight model')
         rows.append(Row('header','editing-class','Editing: '+SHIP_CLASSES[editing_class]))
         if editing_class==10:rows.append(Row('header','corvette-fallback','CORVETTE: WORK IN PROGRESS'))
+        flown=(live or {}).get('ship-class')
+        if type(flown) is int and flown not in SHIP_CLASSES and profile_class(flown)==editing_class:
+            rows.append(Row('header','unknown-class',f'UNKNOWN SHIP CLASS {flown}: FLYING THE {SHIP_CLASSES[editing_class].upper()} PROFILE'))
         if tuning:
             # The tuning file's own actions sit with its picker, where "(edited)" shows.
             rows+=tuning_rows(tuning)
@@ -798,7 +802,8 @@ class MenuController:
     def route(self):return self.stack[-1]
 
     def page(self,live=None,focused=None,device_names=None):
-        if live and live.get('ship-class') in SHIP_CLASSES:self.store.select_class(live['ship-class'])
+        if live and type(live.get('ship-class')) is int and profile_class(live['ship-class']) in SHIP_CLASSES:
+            self.store.select_class(profile_class(live['ship-class']))  # an unknown class edits the Solar profile it flies
         modal=None
         if self.capture:
             c=self.capture

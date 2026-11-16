@@ -65,7 +65,7 @@ from ai_accuracy import EvasiveAccuracy,enabled as aim_tuning_enabled
 from ai_combat import NPCCombatTuning
 from black_space import BlackSpace
 from terrain_lookahead import TerrainLookahead
-from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES, power_thrust_factor
+from newtonian_runtime import FlightConsumer, SUPPORTED_CLASSES, power_thrust_factor, profile_class
 CRASH_BLACKOUT_HOLD=2.  # T93: seconds a ditched pilot stays out beyond the normal G recovery
 WRECK_CAUSES=('ditch','collision')  # ejecting from these has the game put the wreck down landed (user 2026-10-21)
 EJECT_REQUEST_MS=500    # T93: a held-eject request the flight thread has not taken by then is dropped
@@ -689,13 +689,12 @@ class AbsoluteHOTAS(Mod):
         return None
 
     def _eligible_input(self,now):
-        """Physical axes remain available under native planet/combat/power handling."""
+        """Physical axes remain available under native planet/combat/power handling, any value (T132)."""
         if getattr(self,'pilot_recovery',None) is not None:return False
         ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f6c288)
         return bool(self.block.pilot_until>now and manager and ship
-            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value<=3
-            and C.c_uint32.from_address(manager+0x89bea8).value==0
-            and C.c_ubyte.from_address(manager+0x57aa6d).value<=1)
+            and C.c_ubyte.from_address(ship+0x60c8).value==1
+            and C.c_uint32.from_address(manager+0x89bea8).value==0)
 
     def _stall_context(self):
         """What the game is doing when receipts stop in flight (read-only; same fields as telemetry)."""
@@ -718,18 +717,18 @@ class AbsoluteHOTAS(Mod):
     def _eligible_native(self,now,*,allow_combat_flight=False,allow_low_height=False):
         """Clear-space preflight; research callers remain combat-strict by default.
 
-        Release force/assist caves independently enforce the same known-combat
+        Release force/assist caves independently enforce the same combat
         opt-in plus their complete ownership, physics and protected-mode gates.
-        Any of the four known power selections is admitted (T119): native only
-        scales engine factors there, and Sultan dropped to native whenever a
-        player cycled power away from balanced.
+        Any power selection is admitted (T119, any value since T132): native only
+        scales engine factors there. With allow_combat_flight any combat value is
+        admitted (T132); research callers without it still require combat 0.
         """
         if getattr(self,'pilot_recovery',None) is not None:return False
         ship=self.block.ship;manager=q(_internal.BASE_ADDRESS+0x6f6c288)
         return bool(self.block.pilot_until>now and manager and ship
-            and C.c_ubyte.from_address(ship+0x60c8).value==1 and C.c_uint32.from_address(ship+0x675c).value<=3
+            and C.c_ubyte.from_address(ship+0x60c8).value==1
             and (allow_low_height or C.c_ubyte.from_address(ship+0x6730).value==0) and C.c_uint32.from_address(manager+0x89bea8).value==0
-            and C.c_ubyte.from_address(manager+0x57aa6d).value<=(1 if allow_combat_flight else 0))
+            and (allow_combat_flight or C.c_ubyte.from_address(manager+0x57aa6d).value==0))
 
     # ---------- native patches ----------
     def _install(self,ship):
@@ -871,7 +870,7 @@ class AbsoluteHOTAS(Mod):
             if autopilot!=getattr(self,'corvette_autopilot',False):
                 self.corvette_autopilot=autopilot;self.log('Corvette autopilot '+('engaged: native flight' if autopilot else 'off: Sultan resumes'))
             native={'ship':current['ship'],'body':current['body'],
-                    'class_id':bridge.fixture['ship_class'],
+                    'class_id':bridge.fixture['ship_class'],  # the game's class; consume() maps it to a profile
                     'basis':tuple(tuple(current[k][:3]) for k in ('right','up','forward')),
                     'velocity':current['outer_velocity'],
                     'thrust_force':current['thrust_force'],
@@ -884,7 +883,7 @@ class AbsoluteHOTAS(Mod):
                     current['normal_674c'],C.c_float.from_address(_internal.BASE_ADDRESS+POWER_ENGINE_DAMPER).value,
                     C.c_float.from_address(_internal.BASE_ADDRESS+POWER_ENGINE_MUL).value)
             env=getattr(self,'air_env',None)
-            if env is not None and native['class_id'] in planetary_flight.AIR_CLASSES:
+            if env is not None and profile_class(native['class_id']) in planetary_flight.AIR_CLASSES:
                 planet=planetary_flight.planet_state(current['position'],env[1],env[0]) if env[1] else None
                 if planet is not None:
                     native.update(planet=planet,air=env[0],space_thrust_force=self._space_thrust(current),water=env[2],
@@ -926,7 +925,7 @@ class AbsoluteHOTAS(Mod):
             self.planetary_bridge=bridge;self.planetary_on=False;self.planetary_clamp=self.planetary_level=None
             self.planetary_water=self.planetary_gear=None
         on=bool(v['flight-model']=='sultan' and v['atmosphere-model']=='sultan'
-                and bridge.fixture['ship_class'] in planetary_flight.AIR_CLASSES)
+                and profile_class(bridge.fixture['ship_class']) in planetary_flight.AIR_CLASSES)
         if on:
             if now-self.air_planets[0]>=planetary_hud.PLANET_REFRESH_MS/1000.:self.air_planets=(now,self.hud_planet_reader.planets())
             ship=bridge.fixture['ship']
@@ -944,7 +943,7 @@ class AbsoluteHOTAS(Mod):
                           self._gear(v))
             # The game's integrator clamp (2*BoostMaxSpeed) follows the Planet engine block in air; lift it
             # to the class speed cap so drag, boost and Sultan's own cap decide top speed instead.
-            profile=self.translation_profiles[bridge.fixture['ship_class']]
+            profile=self.translation_profiles[profile_class(bridge.fixture['ship_class'])]
             half=float(profile['speed_cap'])*float(profile['speed_cap_multiplier'])
             if half!=getattr(self,'planetary_clamp',None):bridge.set_clamp(half);self.planetary_clamp=half
             level=bool(v['air-auto-level'])
@@ -1598,7 +1597,8 @@ class AbsoluteHOTAS(Mod):
             self.newtonian=bridge;self.newtonian_failure=''
             self.newtonian_last_sequence=0;self.newtonian_transition=None
             self.newtonian_receipt_path=LOGS/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')+'-newtonian-transitions.jsonl')
-            self.log('Newtonian seam installed; class '+str(fixture['ship_class']))
+            self.log('Newtonian seam installed; class '+str(fixture['ship_class'])
+                     +('' if fixture['ship_class'] in SUPPORTED_CLASSES else ' (not a known class: flying the Solar profile)'))
         except BaseException as error:
             if bridge is not None and bridge.data:
                 # Caves must stay allocated until exit. Do not leak another full
@@ -2544,7 +2544,12 @@ class AbsoluteHOTAS(Mod):
                         # reaches the game.
                         desk=frozenset()
                         if vr_on and self.store.values.get('vr-desk-input',True) and self.capture is None and self._desk_focused():
-                            desk=desk_natives(lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000),self._frontend())
+                            # W launches landed (button_actions.VR_LAUNCH_KEY); piloting goes stale once the ship is down.
+                            launch_key=bool(U.GetAsyncKeyState(0x57)&0x8000) and not piloting and self._in_ship(False)
+                            desk=desk_natives(lambda vk:bool(U.GetAsyncKeyState(vk)&0x8000),self._frontend(),launch_key)
+                            if 0x1B in desk and 0x1B not in self.buttons.desk_natives and getattr(self,'vr_launch_key_lines',0)<5:
+                                self.vr_launch_key_lines=getattr(self,'vr_launch_key_lines',0)+1
+                                self.log('VR desk input: W held landed, the game\'s launch (Ship_Thrust) held for you')
                         elif vr_on and self.store.values.get('vr-desk-input',True) and U.GetAsyncKeyState(0x1B)&0x8000:
                             if not getattr(self,'vr_esc_ignored',False) and getattr(self,'vr_esc_lines',0)<20:
                                 self.vr_esc_lines=getattr(self,'vr_esc_lines',0)+1
@@ -2668,7 +2673,7 @@ class AbsoluteHOTAS(Mod):
                                                                          throttle=dataclasses.replace(command.throttle,value=command.throttle.value*g_scale))
                         if self.newtonian:
                             self.newtonian.renew(100)
-                            self.newtonian.set_auto_bank(self.translation_profiles[self.newtonian.fixture['ship_class']]['auto_bank_on_yaw'])
+                            self.newtonian.set_auto_bank(self.translation_profiles[profile_class(self.newtonian.fixture['ship_class'])]['auto_bank_on_yaw'])
                             self.newtonian.set_enabled(self.translation_command.enabled)
                             try:self._update_planetary(now)
                             except BaseException as error:

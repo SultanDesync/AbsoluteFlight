@@ -56,17 +56,17 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         # The menu-clock mapping can be far from the cave.
         c.emit(b'\x49\xbb'+struct.pack('<Q',address)+bytes.fromhex('49 3b 03'))
         c.relative(b'\x0f\x83',reject)
-    modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),
-           ('83 be 5c 67 00 00 '+('03' if allow_power_input else '00'),
-            b'\x0f\x87' if allow_power_input else b'\x0f\x85'))
+    # T132: with the release opt-ins any power selection and any manual-combat value is admitted, known or not.
+    modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),)
+    if not allow_power_input:modes+=(('83 be 5c 67 00 00 00',b'\x0f\x85'),)
     if not allow_planetary_input:modes+=(('80 be 30 67 00 00 00',b'\x0f\x85'),)
     for instruction,condition in modes:
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot)+bytes.fromhex('48 85 c0'))
     c.relative(b'\x0f\x84',reject)
-    for instruction,condition in (('83 b8 a8 be 89 00 00',b'\x0f\x85'),
-            ('80 b8 6d aa 57 00 '+('01' if allow_combat_input else '00'),
-             b'\x0f\x87' if allow_combat_input else b'\x0f\x85')):
+    app_modes=(('83 b8 a8 be 89 00 00',b'\x0f\x85'),)
+    if not allow_combat_input:app_modes+=(('80 b8 6d aa 57 00 00',b'\x0f\x85'),)
+    for instruction,condition in app_modes:
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     if allow_planetary_input or allow_combat_input or allow_power_input:
         # Release physical commands keep their existing permissive envelope.

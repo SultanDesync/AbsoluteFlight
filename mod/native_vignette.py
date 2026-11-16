@@ -85,10 +85,7 @@ def code_bytes(cave, base, data, tick, lane, allow_combat=True, allow_power=True
     c.relative(bytes.fromhex('0f 85'), 'out')
     for offset in SHIP_ZERO_OFFSETS:
         if offset == SHIP_POWER_OFFSET and allow_power:
-            # T119: any of the four known power selections; unknown values stay native.
-            c.emit(b'\x41\x83\xba' + struct.pack('<I', offset) + b'\x03')
-            c.relative(bytes.fromhex('0f 87'), 'out')
-            continue
+            continue  # T119/T132: any power selection, known or not
         # planetary, follow and landing (and power in the probe) require native zero.
         if offset == SHIP_ZERO_OFFSETS[0]: c.emit(b'\x41\x80\xba' + struct.pack('<I', offset) + b'\x00')
         else: c.emit(b'\x41\x83\xba' + struct.pack('<I', offset) + b'\x00')

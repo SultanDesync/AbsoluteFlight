@@ -58,7 +58,8 @@ GUI object is the ship HUD's (app+0x7330E0+0x112D90+0x27C40), so the mod's HUD i
 shows on its in-world HUD panel. No code is changed for this; HUD_PINS only prove the offsets. Where the mod's
 elements land on the panel, and whether its velocity marker lines up, has not been seen.
 
-Only while Experimental VR is on. Each change is at most three bytes inside one instruction, written by the
+Only while Experimental VR is on. Each change is at most three bytes inside one instruction (launch: 14 bytes
+over three whole instructions, keeping their starts), written by the
 runtime's code writers and put back on restore. Any byte that differs from this build refuses that patch and
 the game keeps its own behaviour there.
 """
@@ -111,7 +112,13 @@ SITES = {'steering': (0x1792A53, '0f84', '90e9'), 'throttle': (0x1792E17, '74', 
          # dev.13, 2026-11-14: the user landed, pressed launch, and the game never asked for Ship_Thrust 0x1B. The launch
          # helper 0x17B10E0 has the same VR rule as fire: with the hand controllers as the input and the hand rule byte
          # app+0x30E991 set, it answers from the in-world throttle (ship+0x76A4 > 0) instead of the action. jne -> jmp.
-         'launch': (0x17B1115, '75', 'eb'),
+         # 0.3.1 (Discord, 0.3.0, Index + X56: "not even using the motion controls let's me take off from a landing"):
+         # that jne -> jmp also took the in-world throttle away, so with no Launch button bound nothing launched. Now
+         # either launches: the in-world throttle test stays, and when it is not forward the helper asks for the action.
+         # movss xmm1,[rdx+0x76A4]; xorps; comiss -> cmp dword [rdx+0x76A4],0; nop; jle action; nop; mov al,1; ret.
+         # A positive float is a positive dword, so the test is the game's `> 0`. Every instruction start of the old
+         # bytes (0x17B1121, 0x17B1129, 0x17B112C) is one in the new, so a thread stopped there resumes on whole code.
+         'launch': (0x17B1121, 'f30f108aa47600000f57c00f2fc8', '83baa476000000907e0890b001c3'),
          # dev.13, user: "the pause menu pointer ... fixed in the pause menu card but can't be controlled". The stick
          # moved the front end's pointer (+0x2360, 9,802 answers), then 0x90EC50 overwrote its position each frame from
          # the VR hand ray (0x90ED10..0x90EE37, the controllers lying on the desk). je (no ray) -> nop; jmp, same rel32:

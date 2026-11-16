@@ -53,6 +53,10 @@ VR_NATIVE_FOR = {'key.0x1B': 0x4D, 'mouse.left:select': 0x3B, 'mouse.right': 0x3
 # The same three from the real desk in VR: Esc, left click, right click (the runtime reads them and sets desk_natives).
 VR_DESK_KEYS = {0x1B: 0x4D, 0x01: 0x3B, 0x02: 0x3E}
 MENU_ONLY = frozenset((0x3B, 0x3E))  # select and back mean something else in flight: only while a game menu is up
+# 0.3.1 (Discord, 0.3.0 VR: could not take off landed): the game's launch key W holds Ship_Thrust 0x1B, the action the
+# landed launch asks for, as a fallback with no Launch button bound. Only landed in the seat with no menu up: in flight
+# Sultan owns thrust, and a native Ship_Thrust there would fight it.
+VR_LAUNCH_KEY = (0x57, 0x1B)
 # In a VR game menu the Fire row is select as well, as left click is in flat play (Stick moves cursor: "bind left
 # click (Fire) to select"). Frontend 0 is flight and 2 the quick menu, which has its own select.
 VR_MENU_SELECT = ('mouse.left', 0x3B)
@@ -100,11 +104,12 @@ def vr_native_id(action_id):
     return VR_NATIVE_FOR.get(action_id)
 
 
-def desk_natives(key_down, frontend):
+def desk_natives(key_down, frontend, landed=False):
     """VR: the game actions the real Esc key and mouse buttons hold this tick. key_down(vk) -> bool; frontend: the
     game's frontend flag (0 in flight). Esc always (it opens the pause menu and backs out of it); the mouse buttons
-    only while a game menu is up."""
+    only while a game menu is up; W (launch) only when landed in the seat with no menu up (VR_LAUNCH_KEY)."""
     held = {action for vk, action in VR_DESK_KEYS.items() if key_down(vk)}
+    if landed and not frontend and key_down(VR_LAUNCH_KEY[0]):held.add(VR_LAUNCH_KEY[1])
     return frozenset(held if frontend else held-MENU_ONLY)
 
 

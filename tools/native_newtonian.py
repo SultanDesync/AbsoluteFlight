@@ -29,13 +29,21 @@ COMMAND=0x800; MAX_LEASE_MS=250
 PLANETARY=0x3F0
 LOW_HEIGHT='80 be 30 67 00 00 00'
 # T119: ship+0x675C is the native power selection (Ship_CyclePower, 0 balanced, 1..3 the other three modes).
-# Native only scales the engine block there (MaxSpeed/BoostMaxSpeed and angular factors), so release caves
-# admit all four known selections; unknown values stay native. Research caves keep balanced-only.
+# Native only scales the engine block there (MaxSpeed/BoostMaxSpeed and angular factors). Research caves keep
+# balanced-only.
+# T132 (user 2026-11-15: 'now draft the change for unknown game states'): release caves hand the ship back only in
+# regimes we know need native (pulse, warp, landing, autopilot, menus, low height without Sultan air). The power
+# selection and the manual-combat byte are not regimes of that kind, so with the release opt-in ANY value is
+# admitted, known or not. Before, a value nobody had seen yet (power 4, combat 2) silently handed the ship back.
+# Research caves without the opt-in keep their strict native-zero checks.
 POWER='83 be 5c 67 00 00 00'
+COMBAT='80 b8 6d aa 57 00 00'  # cmp byte [app+0x57AA6D],0: the manual-combat byte
 
 def power_gate(c,reject,prefix=b''):
-    """cmp dword [rsi(+prefix reg)+0x675C],3; ja reject: the four known power selections only."""
-    c.emit(prefix+bytes.fromhex('83 be 5c 67 00 00 03'));c.relative(b'\x0f\x87',reject)
+    """Release power admission: every selection, known or not (T132), so nothing is emitted."""
+
+def combat_gate(c,reject):
+    """Release combat admission: every manual-combat value, known or not (T132), so nothing is emitted."""
 # T88 integrator clamp. The radial velocity clamp is 2*[ship+0x6650] (BoostMaxSpeed; 0x6640 on 180836), loaded at
 # 0x179383F and doubled at 0x179384F (183791; 0x176043D/0x176044C on 180836) (research/re-log/2026-10-16_codex_newtonian-gates.md, CONFIRMED
 # static). In air native blends that field toward the Planet engine block, which capped a Sultan
@@ -61,6 +69,9 @@ CLEARANCE=0x330
 # Corvette (10): 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete. Only the normal piloted caller
 # (return 0x1784121 on 183791, 0x1751001 on 180836) is latched, so its idle route stays native (T65 static map).
 SUPPORTED_CLASSES=frozenset((1,2,3,4,6,7,8,9,10))
+# Freighter 0, PlayerFreighter 5 and SwarmDrone 11 aren't flown directly and stay native. Any other class installs:
+# an unknown one (a new ship type) flies the Solar profile (newtonian_runtime.profile_class; user 2026-11-15).
+NATIVE_ONLY_CLASSES=frozenset((0,5,11))
 CORVETTE=10
 CORVETTE_AUTOPILOT=3  # ship+0x6430 (0x6420 on 180836) alignment selector: the Corvette autopilot flies (hand back to native)
 REASONS={0:'idle',1:'native_disabled',2:'expired_coast',3:'identity_changed',
@@ -301,9 +312,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
     c.emit(bytes.fromhex('49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
     c.relative(b'\x48\x8b\x05',base+0x6f6c288);ne(b'\x48\x3b\x05',data+80)
     for code in ('83 b8 a8 be 89 00 00','80 b8 6d aa 57 00 00','83 b8 dc b6 72 00 00','83 b8 cc b6 72 00 00'):
-        if allow_combat_flight and code=='80 b8 6d aa 57 00 00':
-            # Known manual-combat byte only. Unknown unsigned values stay native.
-            c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','publish')
+        if allow_combat_flight and code==COMBAT:combat_gate(c,'publish')
         else:ins_ne(code)
     c.emit(bytes.fromhex('48 8b 86 c0 60 00 00'));ne(b'\x48\x3b\x05',data+168)
     c.emit(bytes.fromhex('48 8b 00'));ne(b'\x48\x3b\x05',data+176)
@@ -430,7 +439,7 @@ def final_code(cave,site,data,base,get_tick,helper,*,allow_combat_flight=False,a
         c.emit(bytes.fromhex('4d 8b 85 28 03 00 00 49 83 b8 38 0a 00 00 01'));c.relative(b'\x0f\x85','publish')
         c.relative(b'\x48\x8b\x05',base+0x6f6c288);ne(b'\x48\x3b\x05',data+80)
         ins_ne('83 b8 a8 be 89 00 00')
-        c.emit(bytes.fromhex('80 b8 6d aa 57 00 01'));c.relative(b'\x0f\x87','publish')
+        combat_gate(c,'publish')
         ins_ne('83 b8 dc b6 72 00 00');ins_ne('83 b8 cc b6 72 00 00')
     else:
         # Preserve the research/default cave bytes and its original admission.
@@ -679,7 +688,7 @@ def initial_state(fixture,deadline,lease):
     struct.pack_into('<f',b,232,fixture['speed_bound']**2)
     struct.pack_into('<f',b,236,fixture['boost_max_speed'])
     struct.pack_into('<Q',b,64,deadline);struct.pack_into('<Q',b,72,lease)
-    if fixture['ship_class'] not in SUPPORTED_CLASSES:raise ValueError('Class requires native flight')
+    if fixture['ship_class'] in NATIVE_ONLY_CLASSES:raise ValueError('Class requires native flight')
     if not 0<=fixture['callback_count']==len(fixture['callbacks'])<=16:
         raise ValueError('Invalid bounded callback fixture')
     for index,row in enumerate(fixture['callbacks']):
@@ -916,7 +925,7 @@ def fixture_from_ship(pm, base, ship, *, speed_bound=None, allow_nonzero_gravity
     class_owner=q(ship+0x30)
     if not class_owner:raise IdentityError('Ship class owner is null')
     ship_class=u(class_owner+0xd0)
-    if ship_class not in SUPPORTED_CLASSES:raise IdentityError('Ship class requires native flight')
+    if ship_class in NATIVE_ONLY_CLASSES:raise IdentityError('Ship class requires native flight')
     manager=int(p['modifier_manager'],16)
     callbacks=[(q(manager+0xf80+16*i),q(manager+0xf88+16*i)) for i in range(len(p['gravity_callbacks']))]
     result.update(class_owner=class_owner,ship_class=ship_class,modifier_manager=manager,

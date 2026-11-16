@@ -84,16 +84,16 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
     reason(0);admission()
     reason(2);clock()
     reason(3)
-    modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),
-           ('83 be 5c 67 00 00 '+('03' if allow_power_input else '00'),
-            b'\x0f\x87' if allow_power_input else b'\x0f\x85'))
+    # T132: with the release opt-ins any power selection and any manual-combat value is admitted, known or not.
+    modes=(('80 be c8 60 00 00 01',b'\x0f\x85'),)
+    if not allow_power_input:modes+=(('83 be 5c 67 00 00 00',b'\x0f\x85'),)
     if not allow_planetary_input:modes+=(('80 be 30 67 00 00 00',b'\x0f\x85'),)
     for instruction,condition in modes:
         c.emit(bytes.fromhex(instruction));jump(condition)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot));c.emit(bytes.fromhex('48 85 c0'));jump(b'\x0f\x84')
-    for instruction,condition in (('83 b8 a8 be 89 00 00',b'\x0f\x85'),
-            ('80 b8 6d aa 57 00 '+('01' if allow_combat_input else '00'),
-             b'\x0f\x87' if allow_combat_input else b'\x0f\x85')):
+    app_modes=(('83 b8 a8 be 89 00 00',b'\x0f\x85'),)
+    if not allow_combat_input:app_modes+=(('80 b8 6d aa 57 00 00',b'\x0f\x85'),)
+    for instruction,condition in app_modes:
         c.emit(bytes.fromhex(instruction));jump(condition)
     reason(4)
     if integration:

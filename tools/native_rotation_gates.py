@@ -19,11 +19,11 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     allow_planetary_flight (T92): while the Newtonian cave's T88 PLANETARY switch
     is on, tolerate the low-height gate and a nonzero ground-clearance term, as
     the final cave does. Off, the bytes are the strict space-only gates.
-    allow_combat_flight (T118): admit the known manual-combat byte 0..1, as the
-    release Newtonian cave does (T71); unknown values, combat-follow (ship+0x7740),
-    power and every other protected mode stay native.
-    allow_power_flight (T119): admit the four known native power selections
-    (ship+0x675C 0..3), as the release Newtonian cave does; unknown values stay native.
+    allow_combat_flight (T118, widened T132): admit any manual-combat byte value, as the
+    release Newtonian cave does; combat-follow (ship+0x7740) and every other protected
+    mode stay native.
+    allow_power_flight (T119, widened T132): admit any native power selection
+    (ship+0x675C), as the release Newtonian cave does.
     """
     from native_newtonian import WORK, VECTORS, REQUIRED, LOW_HEIGHT, POWER, low_height_gate, planetary_skip, power_gate
 
@@ -68,9 +68,7 @@ def emit(c, data, base, tick, *, reject='out', prefix='', check_clock=True, allo
     ins('49 83 b8 38 0a 00 00 01')
     c.relative(b'\x48\x8b\x05', base + 0x6f6c288)
     for raw in ('83 b8 a8 be 89 00 00', '80 b8 6d aa 57 00 00', '83 b8 dc b6 72 00 00', '83 b8 cc b6 72 00 00'):
-        if allow_combat_flight and raw == COMBAT:
-            # Known manual-combat byte only. Unknown unsigned values stay native.
-            c.emit(bytes.fromhex('80 b8 6d aa 57 00 01')); c.relative(b'\x0f\x87', reject)
+        if allow_combat_flight and raw == COMBAT: pass  # T132: any manual-combat value, known or not
         else: ins(raw)
     # A native camera-look condition changes pitch formation. Do not override it.
     c.emit(bytes.fromhex('48 8b 80 30 cf 72 00 48 85 c0')); c.relative(b'\x0f\x84', reject)

@@ -28,6 +28,18 @@ def wreck_momentum(recent, since_ms, velocity, up, dt):
 
 
 SUPPORTED_CLASSES = (1, 2, 3, 4, 6, 7, 8, 9, 10)  # Corvette: 2026-10-22 (user): Corvette flies Sultan on its baseline, marked incomplete
+# cGcSpaceshipClasses entries the player never flies directly (Freighter 0, PlayerFreighter 5, SwarmDrone 11): native.
+NATIVE_ONLY_CLASSES = frozenset((0, 5, 11))
+# A class the game reports that is in neither list (a new ship type in a game update) flies Sultan on the Solar
+# profile, the most even of the class styles, instead of dropping to native (user 2026-11-15: 'Yes, use Solar').
+UNKNOWN_CLASS_PROFILE = 8
+
+
+def profile_class(class_id):
+    """The class whose Sultan profile flies this ship: itself when known, Solar when unknown, None for native-only."""
+    if class_id in SUPPORTED_CLASSES:return class_id
+    if class_id is None or class_id in NATIVE_ONLY_CLASSES:return None
+    return UNKNOWN_CLASS_PROFILE
 
 
 def boost_strength(heat, profile):
@@ -152,9 +164,9 @@ class FlightConsumer:
         # into a zero-force override; live helper calls arrive only after passing.
         if native.get('admitted') is False:
             return self.fallback(native.get('reason', 'native gate rejected'))
-        class_id = native['class_id']
-        if class_id not in SUPPORTED_CLASSES:
-            return self.fallback('ship class unqualified', ship_class=class_id)
+        class_id = profile_class(native['class_id'])
+        if class_id is None:
+            return self.fallback('ship class flies native', ship_class=native['class_id'])
         if class_id not in profiles:
             return self.fallback('ship class profile missing', ship_class=class_id)
         identity = (native.get('ship'), native.get('body'), class_id)
@@ -276,7 +288,7 @@ class FlightConsumer:
             'admitted': True, 'reason': '' if usable else
                 'generation rejected' if sample.generation != command.generation else sample.state,
             'command_state': sample.state, 'generation': command.generation,
-            'age_ms': None if sample.age is None else sample.age * 1000., 'ship_class': class_id,
+            'age_ms': None if sample.age is None else sample.age * 1000., 'ship_class': class_id, 'game_class': native['class_id'],
             'speed': math.hypot(*native['velocity']),
             'forward_speed': sum(a*b for a,b in zip(native['velocity'], native['basis'][2])),
             'cap_active': result.cap_active, 'acceleration_body': result.acceleration_body,
