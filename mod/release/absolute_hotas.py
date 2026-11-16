@@ -3105,7 +3105,8 @@ class AbsoluteHOTAS(Mod):
     @manual_hook('AbsoluteHOTASBeginList',offset=0x1BB2F0,func_def=FUNCDEF(None,[C.c_void_p,C.c_uint64,C.c_uint64,C.c_int32,C.c_int32,C.c_void_p]),detour_time='before')
     def row_begin_list(self,page,label,desc,value,default,out):
         try:
-            if self._suppress():return None
+            if self._suppress():
+                self.ui.list_value=(page,value);return None  # EndList hands it back unchanged
         except BaseException:pass
         try:return self._original(0x1BB2F0)(page,label,desc,value,default,out)
         except BaseException as e:
@@ -3120,6 +3121,21 @@ class AbsoluteHOTAS(Mod):
         try:return self._original(0x1BB410)(page,label,value)
         except BaseException as e:
             self._ui_fail(e);return None
+
+    @NOOP
+    @manual_hook('AbsoluteHOTASEndList',offset=0x1BB4C0,func_def=FUNCDEF(C.c_int32,[C.c_void_p]),detour_time='before')
+    def row_end_list(self,page):
+        """The caller stores EndList's result straight into the game setting. With BeginList and ListOption swallowed the
+        list is empty and EndList returns 0, so every native list on the Controls page (VR movement mode -> teleport,
+        dominant hand, combat follow mode) was reset while our page was up (testers, 2026-11-16). Hand back the value
+        BeginList was given instead."""
+        try:
+            pending=getattr(self.ui,'list_value',None);self.ui.list_value=None
+            if pending is not None and pending[0]==page and self._suppress():return pending[1]
+        except BaseException:pass
+        try:return self._original(0x1BB4C0)(page)
+        except BaseException as e:
+            self._ui_fail(e);return 0
 
     @manual_hook('AbsoluteHOTASGetRow',offset=0x1B9A60,func_def=FUNCDEF(C.c_void_p,[C.c_void_p,C.c_void_p,C.c_void_p,C.c_int32]),detour_time='after')
     def row_root(self,page,out,label,kind,_result_):
