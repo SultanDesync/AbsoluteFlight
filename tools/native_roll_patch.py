@@ -4,6 +4,7 @@ import ctypes as C
 import json
 from pathlib import Path
 import struct
+import threading
 import time
 
 K=C.WinDLL("kernel32",use_last_error=True)
@@ -75,10 +76,56 @@ class MemoryInfo(C.Structure):
 
 K.VirtualQueryEx.argtypes=[C.c_void_p,C.c_void_p,C.POINTER(MemoryInfo),C.c_size_t]
 K.VirtualQueryEx.restype=C.c_size_t
+K.WriteProcessMemory.argtypes=[C.c_void_p,C.c_void_p,C.c_void_p,C.c_size_t,C.POINTER(C.c_size_t)]
+K.WriteProcessMemory.restype=C.c_int
+K.GetTickCount64.restype=C.c_uint64
+
+# Retired native blocks (support bundle 2026-11-18, Proton): each hook install allocated fresh caves near NMS.exe and
+# kept the old ones until exit. Under Proton the only memory in reach is the add-on's 128-granule pool, so the third
+# Newtonian install in one launch found none ('No near allocation; nothing installed') and the ship flew native until
+# a restart. An owner gives a block back only once every site that jumps into it reads original again; the next
+# allocation of the same size in reach takes it back, zeroed, after a grace for a thread that was already inside.
+RETIRE_GRACE_MS=1000
+_retired=[];_retired_lock=threading.Lock()
+
+
+def retire_block(address,size,now_ms=None):
+    if not isinstance(address,int) or not isinstance(size,int) or address<0x10000 or size<=0:return
+    now=int(K.GetTickCount64()) if now_ms is None else int(now_ms)
+    with _retired_lock:
+        if all(a!=address for a,_,_ in _retired):_retired.append((address,size,now))
+
+
+def retired_blocks():
+    with _retired_lock:return [(a,s) for a,s,_ in _retired]
+
+
+def reuse_block(handle,size,lower,upper,now_ms=None):
+    """A retired block of exactly size inside [lower, upper), zeroed, or 0."""
+    now=int(K.GetTickCount64()) if now_ms is None else int(now_ms)
+    with _retired_lock:
+        for index,(address,length,retired) in enumerate(_retired):
+            if length==size and lower<=address and address+size<=upper and now-retired>=RETIRE_GRACE_MS:
+                del _retired[index];break
+        else:return 0
+    # Still committed RWX cave memory end to end (MEM_COMMIT, PAGE_EXECUTE_READWRITE), or it is dropped. Walked
+    # region by region: under Proton the block spans one pool reservation per 64 KB granule.
+    cursor=address
+    while cursor<address+size:
+        info=MemoryInfo()
+        if not K.VirtualQueryEx(handle,cursor,C.byref(info),C.sizeof(info)) or info.state!=0x1000 or info.protect!=0x40:return 0
+        end=(info.base or 0)+info.region_size
+        if end<=cursor:return 0
+        cursor=end
+    zero=(C.c_char*size)();written=C.c_size_t()
+    if not K.WriteProcessMemory(handle,address,zero,size,C.byref(written)) or written.value!=size:return 0
+    return address
 
 
 def allocate_near(handle,site):
     lower=max(0x10000,(site-0x7FFF0000)&~0xFFFF);upper=site+0x7FFF0000
+    reused=reuse_block(handle,0x1000,lower,upper)
+    if reused:return reused
     cursor=lower
     while cursor<upper:
         info=MemoryInfo()

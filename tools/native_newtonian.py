@@ -15,7 +15,7 @@ import json
 import math
 from pathlib import Path
 import struct
-from native_roll_patch import Code, K, MemoryInfo, replace_code
+from native_roll_patch import Code, K, MemoryInfo, replace_code, reuse_block
 
 MANIFEST=Path(__file__).with_name('native_newtonian_sites.json')
 EXPECTED_SHA='092236962ee050e419424699b5c343a0173f7773d5ad0866b7ec366d334c07d4'
@@ -747,6 +747,8 @@ def fixture_from_scene(scene,read_bytes,module_base,speed_bound):
 
 def _allocate_data(handle,site,size):
     lower=max(0x10000,(site-NEAR_DISTANCE)&~0xffff);upper=site+NEAR_DISTANCE;cursor=lower
+    reused=reuse_block(handle,size,lower,upper)  # a restored owner's block (native_roll_patch.retire_block)
+    if reused:return reused
     while cursor<upper:
         info=MemoryInfo()
         if not K.VirtualQueryEx(handle,cursor,C.byref(info),C.sizeof(info)):raise OSError('VirtualQueryEx')
@@ -969,7 +971,7 @@ class Bridge:
         self.allow_combat_flight=bool(allow_combat_flight)
         self.allow_planetary_flight=bool(allow_planetary_flight)
         self.allow_power_flight=bool(allow_power_flight)
-        self.items={};self.data=0;self.installed=False;self._last_sequence=0
+        self.items={};self.data=0;self.allocation_size=0;self.installed=False;self._last_sequence=0
 
     @staticmethod
     def _now():
@@ -989,6 +991,7 @@ class Bridge:
         # Two pages per cave leave room for complete same-invocation gates.
         allocation_size=ALLOCATION+len(manifest['sites'])*0x2000
         self.data=_allocate_data(self.pm.process_handle,self.base+0x179a04f,allocation_size)
+        self.allocation_size=allocation_size
         for index,(kind,v) in enumerate(manifest['sites'].items()):
             site=self.base+v['rva'];cave=self.data+ALLOCATION+index*0x2000
             patch=b'\xe9'+struct.pack('<i',cave-site-5)+b'\x90'*(v['size']-5)

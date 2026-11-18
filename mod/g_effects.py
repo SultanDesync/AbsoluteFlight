@@ -45,7 +45,7 @@ class GEffects:
         lanes = {}
         try:
             for lane, rva in nv.SITES.items():
-                cave = allocate_near(pm.process_handle, base+rva)  # retained until process exit
+                cave = allocate_near(pm.process_handle, base+rva)  # retired for reuse after a verified uninstall
                 lanes[lane] = nv.Lane(lane, base, cave, tick_function, pilot_address, allow_combat=True)
                 lanes[lane].write_code()
             for lane in lanes.values():
@@ -62,7 +62,7 @@ class GEffects:
         self.log('G effects installed: ' + ', '.join(f'{k} {v.site:#x} -> {v.cave:#x}' for k, v in lanes.items()))
         return True
 
-    def uninstall(self, pm, pid, write_code):
+    def uninstall(self, pm, pid, write_code, retire=None):
         lanes, self.lanes = self.lanes, None
         if not lanes: return {}
         results = {}
@@ -73,6 +73,8 @@ class GEffects:
                 results[name] = True
             except BaseException as error: results[name] = repr(error)
         self.reason = 'restored'
+        if retire is not None and all(value is True for value in results.values()):
+            for lane in lanes.values(): retire(lane.cave, 0x1000)  # the next install reuses these caves
         return results
 
     # ----- per tick (runtime thread) -----

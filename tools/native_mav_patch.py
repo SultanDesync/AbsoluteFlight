@@ -160,6 +160,7 @@ class MavPatch:
             if pm.read_bytes(self.base+rva,len(original))!=original:raise RuntimeError('Original MAV bytes differ')
         self.cave=allocate_near(pm.process_handle,self.base+CAPTURE_SITE)
         force_cave=allocate_near(pm.process_handle,self.base+FORCE_SITE) if integration else self.cave+0x200
+        self.caves=(self.cave,force_cave) if integration else (self.cave,)  # retire_block after a verified restore
         self.block=self.cave+(0x400 if integration else 0xc00);self.force=self.block+FORCE;self.patches={}
         for i,(rva,original) in enumerate(SITES.items()):
             site=self.base+rva;cave=force_cave if i else self.cave

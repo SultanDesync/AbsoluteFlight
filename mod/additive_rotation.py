@@ -253,6 +253,16 @@ def pins_changed(current, pinned, planetary=False, combat=False, power=False):
     return any(current['engine_pins'].get(key) != pinned['engine_pins'].get(key) for key in keys)
 
 
+def _retire(bridge):
+    """A verified-restored seam's block goes back for the next install (native_roll_patch.retire_block)."""
+    data = getattr(bridge, 'data', 0)
+    if not isinstance(data, int) or not data:
+        return
+    from native_roll_patch import retire_block
+    from native_rotation_trial import ALLOCATION
+    retire_block(data, ALLOCATION)
+
+
 def _bridge(runtime, identity, profile):
     from native_rotation_trial import ProductionRotationBridge
     addresses = identity['native_addresses']
@@ -364,6 +374,7 @@ class AdditiveRotation:
         self.restore_result = self.bridge.restore(runtime._write_code)
         if not isinstance(self.restore_result, dict) or any(v is not True for v in self.restore_result.values()):
             raise RuntimeError('production rotation restoration not verified')
+        _retire(self.bridge)
         self.bridge = self.identity = self.profile = self.request = self.fixture_owner = None
         self.last_record, self.last_pin_check = 0, None
 
@@ -563,6 +574,7 @@ class AdditiveRotation:
                     self.restore_result = bridge.restore(writer)
                     if not isinstance(self.restore_result, dict) or any(v is not True for v in self.restore_result.values()):
                         raise RuntimeError('production rotation restoration not verified')
+                    _retire(bridge)
                 except Exception:
                     self.state = 'restore failed'
                     raise

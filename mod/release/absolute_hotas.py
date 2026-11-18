@@ -806,12 +806,18 @@ class AbsoluteHOTAS(Mod):
         except BaseException as error:
             rotation_error=error;results['rotation_validation']=repr(error)
         def restored(result):return isinstance(result,dict) and all(value is True for value in result.values())
+        from native_roll_patch import retire_block
+        # Owned blocks go back for the next install once their sites read original (Proton has 128 granules in
+        # reach of NMS.exe). The rotation seams read the Newtonian block, so it is kept while they failed to restore.
+        rotation_clear=additive_error is None and rotation_error is None
         aim=getattr(self,'aim_slowdown',None)
         if aim is not None:
             aim.stop()
             try:
                 results['aim_slowdown']={'site':aim.restore(self._external_write_code)}
-                if restored(results['aim_slowdown']):self.aim_slowdown=None;self.aim_slowdown_failed=False
+                if restored(results['aim_slowdown']):
+                    retire_block(getattr(aim,'cave',0),0x1000)
+                    self.aim_slowdown=None;self.aim_slowdown_failed=False
             except BaseException as error:results['aim_slowdown']=repr(error)
         crash=getattr(self,'crash_damage',None)
         if crash is not None:
@@ -834,6 +840,7 @@ class AbsoluteHOTAS(Mod):
             try:
                 results['newtonian']=bridge.restore(self._write_code)
                 if not restored(results['newtonian']):raise RuntimeError(str(results['newtonian']))
+                if rotation_clear:retire_block(bridge.data,getattr(bridge,'allocation_size',0))
             except BaseException as error:
                 self.newtonian_failed.append(bridge);results['newtonian']=repr(error)
         failed=[]
@@ -841,12 +848,13 @@ class AbsoluteHOTAS(Mod):
             try:
                 results['newtonian_failed_'+str(index)]=bridge.restore(self._write_code)
                 if not restored(results['newtonian_failed_'+str(index)]):raise RuntimeError(str(results['newtonian_failed_'+str(index)]))
+                if rotation_clear:retire_block(bridge.data,getattr(bridge,'allocation_size',0))
             except BaseException as error:
                 failed.append(bridge);results['newtonian_failed_'+str(index)]=repr(error)
         self.newtonian_failed=failed
         geffects=getattr(self,'geffects',None)
         if geffects is not None and geffects.lanes:
-            results['g_effects']=geffects.uninstall(self.pm,os.getpid(),self._external_write_code)
+            results['g_effects']=geffects.uninstall(self.pm,os.getpid(),self._external_write_code,retire=retire_block)
         flat=getattr(self,'vr_input',None)
         if flat is not None:  # T125: the game's own VR branches go back before the axis patches do
             try:
@@ -857,8 +865,14 @@ class AbsoluteHOTAS(Mod):
             try:results['mav']=self.mav.restore(self._write_code)
             except BaseException as e:results['mav']=repr(e)
         if self.patches:results['axes']=self.patches.restore(self._write_code)
-        if 'mav' in results and restored(results['mav']):self.mav=None
-        if 'axes' in results and restored(results['axes']):self.patches=None
+        if 'mav' in results and restored(results['mav']):
+            caves=getattr(self.mav,'caves',None)
+            for cave in (caves if isinstance(caves,tuple) else ()):retire_block(cave,0x1000)
+            self.mav=None
+        if 'axes' in results and restored(results['axes']):
+            items=getattr(self.patches,'items',None)
+            for item in (items.values() if isinstance(items,dict) else ()):retire_block(item.get('cave',0),0x1000)
+            self.patches=None
         self.log('patches restored: '+json.dumps(results,default=str))
         if rotation_error is not None:
             raise RuntimeError('T66 restoration failed: '+repr(rotation_error)) from rotation_error
