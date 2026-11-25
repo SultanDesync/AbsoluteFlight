@@ -18,12 +18,12 @@ from weapon_lead import APP_GLOBAL, OWNERS
 
 
 MAX_AGE_MS = 50
-SOLVER_CALLER = 0x15BE026
+SOLVER_CALLER = 0x15BFEB6
 # Internal sites remain verifiable after the observed function entries detour.
 PINS = {
-    0x15BE019: bytes.fromhex('0f2975ff0f294defe84a000000'),
-    0x15BE026: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
-    0x141FCB4: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
+    0x15BFEA9: bytes.fromhex('0f2975ff0f294defe84a000000'),
+    0x15BFEB6: bytes.fromhex('0fc6c000488bc60f59c60f58c7'),
+    0x1421BC4: bytes.fromhex('0f580b0f110b440f28442470488bc3'),
 }
 
 
@@ -256,12 +256,12 @@ class CombatAiming:
         if not reality:
             return None
         key = self.read(reality + 0xB678 + index * 0x40, 16)
-        begin, end = self._get(app + 0x6CDB48, '<QQ')
+        begin, end = self._get(app + 0x6CDBE8, '<QQ')
         size = end - begin
         if not begin or size <= 0 or size % 24 or size > 24 * 4096:
             return None
         rows = self.read(begin, size)
-        if self._get(app + 0x6CDB48, '<QQ') != (begin, end):
+        if self._get(app + 0x6CDBE8, '<QQ') != (begin, end):
             return None
         for offset in range(0, size, 24):
             if rows[offset:offset + 16] != key:
@@ -280,7 +280,7 @@ class CombatAiming:
                 return None
             if (self._get(ship + 0x104, '<i')[0] != index
                     or self._q(app + 0x60) != reality
-                    or self._get(app + 0x6CDB48, '<QQ') != (begin, end)
+                    or self._get(app + 0x6CDBE8, '<QQ') != (begin, end)
                     or self.read(reality + 0xB678 + index * 0x40, 16) != key
                     or self.read(begin + offset, 24) != rows[offset:offset + 24]):
                 return None

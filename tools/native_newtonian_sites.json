@@ -1,172 +1,172 @@
 {
   "build": {
     "exe": "Binaries\\NMS.exe",
-    "file_version": "185034",
-    "sha256": "092236962ee050e419424699b5c343a0173f7773d5ad0866b7ec366d334c07d4",
-    "steam_buildid": "26540391",
+    "file_version": "186686",
+    "sha256": "871f4ecc8a68bb6ec290ffcc5903c8b9adb8d8d2c6325d6cddccde474ed1b8d3",
+    "steam_buildid": "26918301",
     "address_kind": "RVA relative to NMS.exe; instruction operands printed with an RVA origin"
   },
   "sites": {
     "latch": {
-      "rva": 24708798,
+      "rva": 24721262,
       "size": 5,
       "original": "440f294d50",
       "signature": "440f294d50488b88e00200004885c975260f29add0060000",
       "instructions": [
-        "0x17906be: movaps xmmword ptr [rbp + 0x50], xmm9"
+        "0x179376e: movaps xmmword ptr [rbp + 0x50], xmm9"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x17906be: movaps xmmword ptr [rbp + 0x50], xmm9"
+        "0x179376e: movaps xmmword ptr [rbp + 0x50], xmm9"
       ]
     },
     "gravity": {
-      "rva": 24732129,
+      "rva": 24744593,
       "size": 7,
       "original": "0f298550220000",
-      "signature": "0f298550220000f30f10056cc8b603440f58c9f30f100d08",
+      "signature": "0f298550220000f30f10053cedb603440f58c9f30f100df8",
       "instructions": [
-        "0x17961e1: movaps xmmword ptr [rbp + 0x2250], xmm0"
+        "0x1799291: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x17961e1: movaps xmmword ptr [rbp + 0x2250], xmm0"
+        "0x1799291: movaps xmmword ptr [rbp + 0x2250], xmm0"
       ]
     },
     "height": {
-      "rva": 24732728,
+      "rva": 24745192,
       "size": 7,
       "original": "0f588520050000",
       "signature": "0f588520050000480f45f80f2945504839beb07000007435",
       "instructions": [
-        "0x1796438: addps xmm0, xmmword ptr [rbp + 0x520]"
+        "0x17994e8: addps xmm0, xmmword ptr [rbp + 0x520]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x1796438: addps xmm0, xmmword ptr [rbp + 0x520]"
+        "0x17994e8: addps xmm0, xmmword ptr [rbp + 0x520]"
       ]
     },
     "final": {
-      "rva": 24748111,
+      "rva": 24760575,
       "size": 9,
       "original": "f3410f108560020000",
       "signature": "f3410f108560020000488d9530150000f30f109650660000",
       "instructions": [
-        "0x179a04f: movss xmm0, dword ptr [r13 + 0x260]"
+        "0x179d0ff: movss xmm0, dword ptr [r13 + 0x260]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x179a04f: movss xmm0, dword ptr [r13 + 0x260]"
+        "0x179d0ff: movss xmm0, dword ptr [r13 + 0x260]"
       ]
     },
     "after_integrator": {
-      "rva": 24748171,
+      "rva": 24760635,
       "size": 7,
-      "original": "488b0df6217d05",
-      "signature": "488b0df6217d05ba070000004881c148be9500e8ed06b3fe",
+      "original": "488b0d26467d05",
+      "signature": "488b0d26467d05ba070000004881c128bf9500e83dd6b2fe",
       "instructions": [
-        "0x179a08b: mov rcx, qword ptr [rip + 0x57ccfb6]"
+        "0x179d13b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ],
       "context": [
         "(183791: see research/re-log/2026-10-28_claude_nms-183791-remap.md)",
-        "0x179a08b: mov rcx, qword ptr [rip + 0x57ccfb6]"
+        "0x179d13b: mov rcx, qword ptr [rip + 0x57ccfb6]"
       ]
     }
   },
   "prologue": [
-    "0x1756b50: movss dword ptr [rsp + 0x10], xmm1",
-    "0x1756b56: push rbp",
-    "0x1756b57: push rbx",
-    "0x1756b58: push rsi",
-    "0x1756b59: push rdi",
-    "0x1756b5a: push r12",
-    "0x1756b5c: push r13",
-    "0x1756b5e: push r14",
-    "0x1756b60: push r15",
-    "0x1756b62: lea rbp, [rsp - 0x4118]",
-    "0x1756b6a: mov eax, 0x4218",
-    "0x1756b6f: call 0x33e2ed0",
-    "0x1756b74: sub rsp, rax",
-    "0x1756b77: mov r13, qword ptr [rcx + 0x6248]",
-    "0x1756b7e: mov rsi, rcx",
-    "0x1756b81: mov rax, qword ptr [rip + 0x5736b80]",
-    "0x1756b88: add r13, 0x60",
-    "0x1756b8c: movaps xmmword ptr [rsp + 0x4200], xmm6",
-    "0x1756b94: movaps xmmword ptr [rsp + 0x41f0], xmm7",
-    "0x1756b9c: movaps xmmword ptr [rsp + 0x41e0], xmm8",
-    "0x1756ba5: mov rcx, qword ptr [r13 + 0x290]",
-    "0x1756bac: mov rbx, qword ptr [rax + 0x72afb0]",
-    "0x1756bb3: movaps xmmword ptr [rsp + 0x41d0], xmm9",
-    "0x1756bbc: movaps xmmword ptr [rsp + 0x41c0], xmm10",
-    "0x1756bc5: movaps xmmword ptr [rsp + 0x41b0], xmm11",
-    "0x1756bce: movaps xmmword ptr [rsp + 0x41a0], xmm12",
-    "0x1756bd7: test rcx, rcx",
-    "0x1756bda: jne 0x1756c27",
-    "0x1756bdc: movaps xmm0, xmmword ptr [rip + 0x572d47d]",
-    "0x1756be3: movaps xmm1, xmmword ptr [rip + 0x572d486]",
-    "0x1756bea: movdqa xmmword ptr [rbp + 0x1620], xmm0",
-    "0x1756bf2: movaps xmm0, xmmword ptr [rip + 0x572d487]",
-    "0x1756bf9: movdqa xmmword ptr [rbp + 0x1640], xmm0",
-    "0x1756c01: movaps xmm0, xmmword ptr [rip + 0x5ab5358]",
-    "0x1756c08: movdqa xmmword ptr [rbp + 0x1630], xmm1",
-    "0x1756c10: movaps xmm1, xmmword ptr [rip + 0x5ab5339]",
-    "0x1756c17: movaps xmmword ptr [rbp + 0x1660], xmm0",
-    "0x1756c1e: movaps xmmword ptr [rbp + 0x1650], xmm1",
-    "0x1756c25: jmp 0x1756c41",
-    "0x1756c27: lea rdx, [rbp + 0x1620]",
-    "0x1756c2e: call 0x296430",
-    "0x1756c33: movaps xmm0, xmmword ptr [rbp + 0x1660]"
+    "0x1758850: movss dword ptr [rsp + 0x10], xmm1",
+    "0x1758856: push rbp",
+    "0x1758857: push rbx",
+    "0x1758858: push rsi",
+    "0x1758859: push rdi",
+    "0x175885a: push r12",
+    "0x175885c: push r13",
+    "0x175885e: push r14",
+    "0x1758860: push r15",
+    "0x1758862: lea rbp, [rsp - 0x4118]",
+    "0x175886a: mov eax, 0x4218",
+    "0x175886f: call 0x33e2ed0",
+    "0x1758874: sub rsp, rax",
+    "0x1758877: mov r13, qword ptr [rcx + 0x6248]",
+    "0x175887e: mov rsi, rcx",
+    "0x1758881: mov rax, qword ptr [rip + 0x5736b80]",
+    "0x1758888: add r13, 0x60",
+    "0x175888c: movaps xmmword ptr [rsp + 0x4200], xmm6",
+    "0x1758894: movaps xmmword ptr [rsp + 0x41f0], xmm7",
+    "0x175889c: movaps xmmword ptr [rsp + 0x41e0], xmm8",
+    "0x17588a5: mov rcx, qword ptr [r13 + 0x290]",
+    "0x17588ac: mov rbx, qword ptr [rax + 0x72afb0]",
+    "0x17588b3: movaps xmmword ptr [rsp + 0x41d0], xmm9",
+    "0x17588bc: movaps xmmword ptr [rsp + 0x41c0], xmm10",
+    "0x17588c5: movaps xmmword ptr [rsp + 0x41b0], xmm11",
+    "0x17588ce: movaps xmmword ptr [rsp + 0x41a0], xmm12",
+    "0x17588d7: test rcx, rcx",
+    "0x17588da: jne 0x1756c27",
+    "0x17588dc: movaps xmm0, xmmword ptr [rip + 0x572d47d]",
+    "0x17588e3: movaps xmm1, xmmword ptr [rip + 0x572d486]",
+    "0x17588ea: movdqa xmmword ptr [rbp + 0x1620], xmm0",
+    "0x17588f2: movaps xmm0, xmmword ptr [rip + 0x572d487]",
+    "0x17588f9: movdqa xmmword ptr [rbp + 0x1640], xmm0",
+    "0x1758901: movaps xmm0, xmmword ptr [rip + 0x5ab5358]",
+    "0x1758908: movdqa xmmword ptr [rbp + 0x1630], xmm1",
+    "0x1758910: movaps xmm1, xmmword ptr [rip + 0x5ab5339]",
+    "0x1758917: movaps xmmword ptr [rbp + 0x1660], xmm0",
+    "0x175891e: movaps xmmword ptr [rbp + 0x1650], xmm1",
+    "0x1758925: jmp 0x1756c41",
+    "0x1758927: lea rdx, [rbp + 0x1620]",
+    "0x175892e: call 0x296430",
+    "0x1758933: movaps xmm0, xmmword ptr [rbp + 0x1660]"
   ],
   "track_context": [
-    "0x175baa0: lea rdx, [rbp + 0x3350]",
-    "0x175baa7: subss xmm1, dword ptr [rip + 0x3acac2d]",
-    "0x175baaf: mov rcx, qword ptr [rsi + 0x6248]",
-    "0x175bab6: movaps xmm6, xmmword ptr [rbp + 0xb30]",
-    "0x175babd: add rcx, 0x60",
-    "0x175bac1: mulss xmm1, xmm9",
-    "0x175bac6: addss xmm1, dword ptr [rip + 0x3acac0e]",
-    "0x175bace: mulss xmm6, xmm1",
-    "0x175bad2: call 0x2964b0",
-    "0x175bad7: movaps xmm9, xmmword ptr [rbp + 0x100]",
-    "0x175badf: movaps xmm1, xmm6",
-    "0x175bae2: shufps xmm1, xmm1, 0",
-    "0x175bae6: movups xmm0, xmmword ptr [rax + 0x20]",
-    "0x175baea: mulps xmm1, xmm0",
-    "0x175baed: movaps xmmword ptr [rbp + 0x2860], xmm0",
-    "0x175baf4: addps xmm9, xmm1",
-    "0x175baf8: movaps xmmword ptr [rbp + 0x100], xmm9",
-    "0x175bb00: jmp 0x175bfb4",
-    "0x175bb05: call 0x2d7a30",
-    "0x175bb0a: mov edx, 2"
+    "0x175d7a0: lea rdx, [rbp + 0x3350]",
+    "0x175d7a7: subss xmm1, dword ptr [rip + 0x3acac2d]",
+    "0x175d7af: mov rcx, qword ptr [rsi + 0x6248]",
+    "0x175d7b6: movaps xmm6, xmmword ptr [rbp + 0xb30]",
+    "0x175d7bd: add rcx, 0x60",
+    "0x175d7c1: mulss xmm1, xmm9",
+    "0x175d7c6: addss xmm1, dword ptr [rip + 0x3acac0e]",
+    "0x175d7ce: mulss xmm6, xmm1",
+    "0x175d7d2: call 0x2964b0",
+    "0x175d7d7: movaps xmm9, xmmword ptr [rbp + 0x100]",
+    "0x175d7df: movaps xmm1, xmm6",
+    "0x175d7e2: shufps xmm1, xmm1, 0",
+    "0x175d7e6: movups xmm0, xmmword ptr [rax + 0x20]",
+    "0x175d7ea: mulps xmm1, xmm0",
+    "0x175d7ed: movaps xmmword ptr [rbp + 0x2860], xmm0",
+    "0x175d7f4: addps xmm9, xmm1",
+    "0x175d7f8: movaps xmmword ptr [rbp + 0x100], xmm9",
+    "0x175d800: jmp 0x175bfb4",
+    "0x175d805: call 0x2d7a30",
+    "0x175d80a: mov edx, 2"
   ],
   "relative_context": [
-    "0x175be80: ror dword ptr [rdi], 0x29",
-    "0x175be83: test eax, esi",
-    "0x175be85: or eax, dword ptr [rax]",
-    "0x175be87: add al, ch",
-    "0x175be89: xor esp, dword ptr [rbx]",
-    "0x175be8b: movsd dword ptr [rdi], dword ptr [rsi]",
-    "0x175be8c: dec byte ptr [rax - 0x75]",
-    "0x175be8f: mov cs, word ptr [rax + 0x62]",
-    "0x175be92: add byte ptr [rax], al",
-    "0x175be94: lea rdx, [rbp + 0x3530]",
-    "0x175be9b: movaps xmm7, xmmword ptr [rbp + 0xc00]",
-    "0x175bea2: add rcx, 0x60",
-    "0x175bea6: mulss xmm7, dword ptr [rip + 0x3ac9f46]",
-    "0x175beae: call 0x2964b0",
-    "0x175beb3: shufps xmm7, xmm7, 0",
-    "0x175beb7: lea rcx, [rsi + 0x6cd8]",
-    "0x175bebe: mov edx, 3",
-    "0x175bec3: movups xmm0, xmmword ptr [rax + 0x20]",
-    "0x175bec7: movaps xmmword ptr [rbp + 0x1fe0], xmm0",
-    "0x175bece: mulps xmm0, xmm7",
-    "0x175bed1: addps xmm9, xmm0",
-    "0x175bed5: movaps xmmword ptr [rbp + 0x100], xmm9",
-    "0x175bedd: call 0x2c40f0",
-    "0x175bee2: test al, al",
-    "0x175bee4: je 0x175bfae",
-    "0x175beea: movdqa xmm0, xmmword ptr [rip + 0x33d6bce]",
-    "0x175bef2: lea rdx, [rbp + 0x3580]",
-    "0x175bef9: mov rbx, qword ptr [rip + 0x4448c70]"
+    "0x175db80: ror dword ptr [rdi], 0x29",
+    "0x175db83: test eax, esi",
+    "0x175db85: or eax, dword ptr [rax]",
+    "0x175db87: add al, ch",
+    "0x175db89: xor esp, dword ptr [rbx]",
+    "0x175db8b: movsd dword ptr [rdi], dword ptr [rsi]",
+    "0x175db8c: dec byte ptr [rax - 0x75]",
+    "0x175db8f: mov cs, word ptr [rax + 0x62]",
+    "0x175db92: add byte ptr [rax], al",
+    "0x175db94: lea rdx, [rbp + 0x3530]",
+    "0x175db9b: movaps xmm7, xmmword ptr [rbp + 0xc00]",
+    "0x175dba2: add rcx, 0x60",
+    "0x175dba6: mulss xmm7, dword ptr [rip + 0x3ac9f46]",
+    "0x175dbae: call 0x2964b0",
+    "0x175dbb3: shufps xmm7, xmm7, 0",
+    "0x175dbb7: lea rcx, [rsi + 0x6cd8]",
+    "0x175dbbe: mov edx, 3",
+    "0x175dbc3: movups xmm0, xmmword ptr [rax + 0x20]",
+    "0x175dbc7: movaps xmmword ptr [rbp + 0x1fe0], xmm0",
+    "0x175dbce: mulps xmm0, xmm7",
+    "0x175dbd1: addps xmm9, xmm0",
+    "0x175dbd5: movaps xmmword ptr [rbp + 0x100], xmm9",
+    "0x175dbdd: call 0x2c40f0",
+    "0x175dbe2: test al, al",
+    "0x175dbe4: je 0x175bfae",
+    "0x175dbea: movdqa xmm0, xmmword ptr [rip + 0x33d6bce]",
+    "0x175dbf2: lea rdx, [rbp + 0x3580]",
+    "0x175dbf9: mov rbx, qword ptr [rip + 0x4448c70]"
   ]
 }

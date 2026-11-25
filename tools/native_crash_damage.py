@@ -36,20 +36,20 @@ import struct
 
 from native_roll_patch import Code
 
-APP_GLOBAL = 0x6F6C288
-HULL = 0xB940+0x898  # PlayerState hull (int), application+0xC1D8; 0x591980 reads [PlayerState+0x898]
-ROUTE = 0xB228F0      # player damage route (player, id, source, direction, multiplier)
-COLLISION_RETURN = 0x179CBD5
-HULL_GETTER = 0x592F40
+APP_GLOBAL = 0x6F71768
+HULL = 0xB980+0x898  # PlayerState hull (int), application+0xC1D8; 0x591980 reads [PlayerState+0x898]
+ROUTE = 0xB240D0      # player damage route (player, id, source, direction, multiplier)
+COLLISION_RETURN = 0x179FC85
+HULL_GETTER = 0x593850
 SITES = {  # name: (rva, original bytes)
-    'multiplier': (0x179E53F, bytes.fromhex('e8ac4338ff')),
-    'hull_first': (0x14946E6, bytes.fromhex('4885db7509')),
-    'break_chance': (0x149506F, bytes.fromhex('f30f10a608010000')),
-    'never_kill': (0x1494984, bytes.fromhex('4180bf0e01000000')),
+    'multiplier': (0x17A15EF, bytes.fromhex('e8dc2a38ff')),
+    'hull_first': (0x1496636, bytes.fromhex('4885db7509')),
+    'break_chance': (0x1496FBF, bytes.fromhex('f30f10a608010000')),
+    'never_kill': (0x14968D4, bytes.fromhex('4180bf0e01000000')),
 }
-PIN_RANGES = ((0x179BA34, 121), (0x179CBB9, 33), (0x179E180, 19), (0x179E1D9, 61), (0x179E52D, 29),
-              (0x1494697, 174), (0x14948EB, 229), (0x1495018, 120), (0x592F40, 45))
-PIN_SHA256 = '5e32d24e68591cdab2c50c03e3ed101ab5657cad15c7ecb8a5a1b82cef41e4bc'
+PIN_RANGES = ((0x179EAE4, 121), (0x179FC69, 33), (0x17A1230, 19), (0x17A1289, 61), (0x17A15DD, 29),
+              (0x14965E7, 174), (0x149683B, 229), (0x1496F68, 120), (0x593850, 45))
+PIN_SHA256 = '7094d4763e4231b1454fe81184ef12b6f2c2c1f6290e64e3587f75844ab95b3f'
 IDS = {1: b'IMPACTGROUND', 2: b'IMPACTINSTANCE'}
 KINDS = {1: 'ground', 2: 'object'}
 
@@ -239,9 +239,9 @@ def hull_first_code(cave, base, data):
     c.relative(b'\x4c\x89\x3d', data+ACTIVE_DEF)            # r15 = damage definition, for C
     c.relative(b'\x83\x0d', data+APPLIED, bytes([HULL_APPLIED]))
     c.emit(bytes.fromhex('45 31 e4'))                       # r12d = 0: shields already down (r13d before 184271)
-    c.relative(b'\xe9', base+0x149495C)
+    c.relative(b'\xe9', base+0x14968AC)
     c.label('orig')
-    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x14946F4)
+    c.emit(bytes.fromhex('48 85 db')); c.relative(JNE, base+0x1496644)
     c.relative(b'\xe9', base+rva+5)
     return c.finish()
 
@@ -272,10 +272,10 @@ def never_kill_code(cave, base, data):
     c.label('capped')
     c.relative(b'\x83\x0d', data+APPLIED, bytes([CAPPED]))
     c.label('done')
-    c.relative(b'\xe9', base+0x14949B0)
+    c.relative(b'\xe9', base+0x1496900)
     c.label('orig')
-    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x14949B0)
-    c.relative(b'\xe9', base+0x149498E)
+    c.emit(SITES['never_kill'][1]); c.relative(JE, base+0x1496900)
+    c.relative(b'\xe9', base+0x14968DE)
     return c.finish()
 
 

@@ -15,8 +15,8 @@ The edit is in the live inventory, so the game saves it.
 import ctypes as C
 import struct
 
-APP_GLOBAL = 0x6F6C288
-PLAYER_STATE = 0xB940
+APP_GLOBAL = 0x6F71768
+PLAYER_STATE = 0xB980
 PRIMARY_SHIP = 0x182A0
 TECH_INVENTORIES = 0xAB28
 STORE_SIZE = 0x248

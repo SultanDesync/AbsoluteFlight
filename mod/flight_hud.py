@@ -29,27 +29,27 @@ import math
 
 from planetary_hud import MIN_VS,format_altitude
 
-APP_GLOBAL=0x6F6C288
-CAMERA_MANAGER=0x92CD50  # embedded in the application object (0x92CC50 on 183791, 0x905B20 on 180836)
+APP_GLOBAL=0x6F71768
+CAMERA_MANAGER=0x92CE30  # embedded in the application object (0x92CC50 on 183791, 0x905B20 on 180836)
 POSE_SELECT,POSE_PRIMARY,POSE_ALTERNATE=0x330,0x130,0x230
 POSE_FOV=0xF0
-FOV_MULTIPLIER=0x6F6E40C  # runtime global; no disk initializer, so it is read every frame
-GRAPHICS=0x5A02CD0  # pointer; int width +0x34, int height +0x38
-HUD_FRAME_RETURN=0x9F0BFC  # return address of RenderHeadsUp's NGui_RenderFrame call
+FOV_MULTIPLIER=0x6F738EC  # runtime global; no disk initializer, so it is read every frame
+GRAPHICS=0x5A08260  # pointer; int width +0x34, int height +0x38
+HUD_FRAME_RETURN=0x9F1F7C  # return address of RenderHeadsUp's NGui_RenderFrame call
 # Exact-build code this module's reads depend on; any mismatch disables the HUD.
 PINS={
-    0x31E060:bytes.fromhex('80b93003000000488d9130020000488d8130010000480f45c2c3'),  # pose = +0x330 ? +0x230 : +0x130
-    0x6A1E27:bytes.fromhex('f3440f1080f0000000'),  # FOV field pose+0xF0
-    0x6A1E46:bytes.fromhex('f3440f590dbdc58c06'),  # times global 0x6E8F88C
-    0x6A1E8E:bytes.fromhex('488b0d3b0e3605'),  # graphics object *0x5924740
-    0x2DF47BA:bytes.fromhex('f30f10593c0f57d2f30f2a5134'),  # graphics width +0x34
-    0x2E0B826:bytes.fromhex('f30f590d62b7de01'),  # second half-angle multiply
-    0x9F0BF7:bytes.fromhex('e8c4cc7eff'),  # RenderHeadsUp -> NGui_RenderFrame(ShipHUD+0x27C00)
-    0x2CB170:bytes.fromhex('488d8f50cd9200'),  # application+0x92CD50 camera manager
-    0x19A59CE:bytes.fromhex('488b97c8420000'),  # nvgText: fontstash at ctx+0x42C8
-    0x199E347:bytes.fromhex('3b4174'),  # fonsTextIterInit: font count at fs+0x74
-    0x199E353:bytes.fromhex('488b4760'),  # font pointer array at fs+0x60
-    0x199E35F:bytes.fromhex('4983797800'),  # font data at +0x78, so name[64] at +0x38
+    0x31E230:bytes.fromhex('80b93003000000488d9130020000488d8130010000480f45c2c3'),  # pose = +0x330 ? +0x230 : +0x130
+    0x6A29C7:bytes.fromhex('f3440f1080f0000000'),  # FOV field pose+0xF0
+    0x6A29E6:bytes.fromhex('f3440f590dfd0e8d06'),  # times global 0x6E8F88C
+    0x6A2A2E:bytes.fromhex('488b0d2b583605'),  # graphics object *0x5924740
+    0x2DF70EA:bytes.fromhex('f30f10593c0f57d2f30f2a5134'),  # graphics width +0x34
+    0x2E0E196:bytes.fromhex('f30f590d5ad0de01'),  # second half-angle multiply
+    0x9F1F77:bytes.fromhex('e874b67eff'),  # RenderHeadsUp -> NGui_RenderFrame(ShipHUD+0x27C00)
+    0x2CB170:bytes.fromhex('488d8f30ce9200'),  # application+0x92CD50 camera manager
+    0x19A918E:bytes.fromhex('488b97c8420000'),  # nvgText: fontstash at ctx+0x42C8
+    0x19A1B07:bytes.fromhex('3b4174'),  # fonsTextIterInit: font count at fs+0x74
+    0x19A1B13:bytes.fromhex('488b4760'),  # font pointer array at fs+0x60
+    0x19A1B1F:bytes.fromhex('4983797800'),  # font data at +0x78, so name[64] at +0x38
 }
 FONTSTASH,FONT_ARRAY,FONT_COUNT,FONT_NAME=0x42C8,0x60,0x74,0x38
 # Game fonts registered in the UI NanoVG context (observed live on 180836: ids 0,1,4,5).

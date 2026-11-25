@@ -22,10 +22,10 @@ SHIP_FIELDS=(('boost_max_speed',0x6650,'<f'),('falloff',0x6660,'<f'),('overspeed
 # Ship fields; the cave also checks power (gate_674c), low height (gate_6720), frontend and combat, recorded above.
 GATE_FIELDS=(('gate_active',0x60C8,'<B'),('gate_autopilot',0x6430,'<I'),('gate_landing',0x7318,'<I'),('gate_73e0',0x73E0,'<B'),
              ('gate_velocity_override',0x76ED,'<B'),('gate_native_boost',0x6CE4,'<B'),('gate_7740',0x7740,'<B'))
-APP_GATES=(('gate_pulse',0x72B6DC,'<I'),('gate_warp',0x72B6CC,'<I'))  # app (manager) fields
+APP_GATES=(('gate_pulse',0x72B77C,'<I'),('gate_warp',0x72B76C,'<I'))  # app (manager) fields
 # T124: the game's space-POI selector (app field, 185034; -1 = none). Not a Sultan gate, so not in gates_failed. Up to
 # 0.2.7-dev.2 the throttle cave refused every frame with a POI selected, which also took roll and strafe native.
-SPACE_POI=('space_poi',0x57AB24,'<i')
+SPACE_POI=('space_poi',0x57ABC4,'<i')
 
 
 def gates_failed(row):
