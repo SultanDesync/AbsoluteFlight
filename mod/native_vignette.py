@@ -29,18 +29,18 @@ import struct
 
 from native_roll_patch import Code
 
-SETTER = 0x187C500
-APP_GLOBAL = 0x6F6C288
-OWNER_OFFSET = 0x733180  # application + this == publisher identity (RDI): HUD manager app+0x7330E0, +0xA0
-ATTACHMENT_OFFSET = 0x72CF48  # application: attachment handle (qword)
-FRONTEND_OFFSET = 0x89BEA8  # application: frontend state (dword), 0 in game
-COMBAT_OFFSET = 0x57AA6D  # application: combat flag (byte)
+SETTER = 0x187F750
+APP_GLOBAL = 0x6F71768
+OWNER_OFFSET = 0x733220  # application + this == publisher identity (RDI): HUD manager app+0x733180, +0xA0
+ATTACHMENT_OFFSET = 0x72CFE8  # application: attachment handle (qword)
+FRONTEND_OFFSET = 0x89BF68  # application: frontend state (dword), 0 in game
+COMBAT_OFFSET = 0x57AB0D  # application: combat flag (byte)
 ALTERNATE_OFFSET = 0xFEC9C  # publisher: alternate upload destination (byte)
 SHIP_ACTIVE_OFFSET = 0x60C8  # ship component: active (byte, 1)
 SHIP_ZERO_OFFSETS = (0x6730, 0x675C, 0x6430, 0x7318)  # ship component: planetary (byte), power, follow, landing
 SHIP_POWER_OFFSET = 0x675C  # ship component: power selection (dword); production admits 0..3 (T119)
-VR_MODE_GLOBAL = 0x6EF0160  # nonzero: VR display; the seam is qualified for flat play only
-SITES = {'vignette': 0x9A47AD, 'greyout': 0x9A3ED8}
+VR_MODE_GLOBAL = 0x6EF5660  # nonzero: VR display; the seam is qualified for flat play only
+SITES = {'vignette': 0x9A5B1C, 'greyout': 0x9A5216}
 BLOCK = 0x400
 DATA_SIZE = 128
 COMMAND_MS = 100

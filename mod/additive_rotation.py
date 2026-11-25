@@ -21,7 +21,7 @@ from newtonian_runtime import profile_class
 from hotas_settings import PROFILE_KEYS, parse_token
 
 MAX_LEASE_MS = 50
-BUILD_SHA256 = '092236962ee050e419424699b5c343a0173f7773d5ad0866b7ec366d334c07d4'
+BUILD_SHA256 = '966bad4d8a665dd65a593c5e55f0a8e8b5029ffaae176f016c4b283a46630075'
 FIGHTER_ENDPOINTS = {'pitch_negative': 1.1641868352890015, 'pitch_positive': -1.1641868352890015,
                      'yaw_negative': -1., 'yaw_positive': 1.}
 # T90: per-class rotation shaping (Flight Tuning > Rotation): top pitch/yaw/roll rate multipliers
@@ -106,8 +106,8 @@ def capture_identity(runtime):
     from native_rotation_trial import EXPECTED_SHA, read_combat, read_engine_pins, read_mode_pins, read_power
     bridge = runtime.newtonian
     base = int(runtime.pm.process_base.lpBaseOfDll)
-    return {'exe_sha256': EXPECTED_SHA, 'file_version': '185034',
-            'steam_buildid': '26540391', 'process_id': os.getpid(),
+    return {'exe_sha256': EXPECTED_SHA, 'file_version': '186923',
+            'steam_buildid': '26924890', 'process_id': os.getpid(),
             'fixture': _copy(bridge.fixture),
             'engine_pins': read_engine_pins(runtime.pm, bridge.fixture['ship']),
             'mode_pins': read_mode_pins(runtime.pm, base),
@@ -207,8 +207,8 @@ def get_runtime_profile(identity, request=None):
     multiplies native targets and that gain, never the MaxTorque clamp.
     """
     request = DEFAULT_REQUEST if request is None else request
-    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '185034'
-            or identity.get('steam_buildid') != '26540391'):
+    if (identity.get('exe_sha256') != BUILD_SHA256 or identity.get('file_version') != '186923'
+            or identity.get('steam_buildid') != '26924890'):
         raise ValueError('unsupported additive rotation game build')
     # An unknown class flies the Solar profile (profile_class); native-only classes keep their own id and stay native.
     raw_class = identity.get('fixture', {}).get('ship_class')

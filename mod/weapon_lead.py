@@ -13,24 +13,24 @@ import threading
 import time
 from pilot_boundary import local_player_ship
 
-APP_GLOBAL = 0x6F6C288
-INHERITANCE = 0x533DB28
-OWNERS = {'pip': 0x733180, 'aim_assist': 0x72FF60}  # app+: frame owner objects
+APP_GLOBAL = 0x6F71768
+INHERITANCE = 0x53430F8
+OWNERS = {'pip': 0x733220, 'aim_assist': 0x730000}  # app+: frame owner objects
 # These sites are below the hooked entries and remain verifiable on hot reload.
 PINS = {
-    0x15BE012: bytes.fromhex('410f5c370f58c8'),
-    0x9988BC: bytes.fromhex('e85f54c200'),
-    0x141E35B: bytes.fromhex('e8c0f91900'),
-    0x141E3B2: bytes.fromhex('e869f91900'),
-    0x15AA1F6: bytes.fromhex('f30f10052a39d903'),
+    0x15BFEA2: bytes.fromhex('410f5c370f58c8'),
+    0x999BDC: bytes.fromhex('e8cf5fc200'),
+    0x142026B: bytes.fromhex('e840f91900'),
+    0x14202C2: bytes.fromhex('e8e9f81900'),
+    0x15AC086: bytes.fromhex('f30f10056a70d903'),
 }
 # Independent qualification: a sampling mismatch must not disable the T72 fix.
 TARGET_PINS = {
-    0x15BDD41: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e8a78f770184c00f84e0020000'),
-    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e86617ac02'),
-    0x2D5BCA6: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
-    0x2D36743: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
-    0x2D36D10: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
+    0x15BFBD1: bytes.fromhex('488b89680400004d8bf0488bf24885c90f84fa02000080bf180b0000000f84ed020000e8179f770184c00f84e0020000'),
+    0x29A520: bytes.fromhex('4c8b4608488d4e40488d54242048899c2480000000e88645ac02'),
+    0x2D5EAC6: bytes.fromhex('4983b8380a000001488bda75170f1001488bc20f29020f1049100f294a10'),
+    0x2D39543: bytes.fromhex('488b9e280300004883bb380a00000175090f1041600f1102eb46'),
+    0x2D39B10: bytes.fromhex('488b91900200004885d27420488b81280300004885c074144883b88003000000740a0fb64201c0e8052401c332c0c3'),
 }
 TARGET_MAX_AGE_MS = 150
 
@@ -213,12 +213,12 @@ class ShipLeadCorrection:
         if not reality:
             return None
         key = self.read(reality + 0xB678 + index * 0x40, 16)
-        begin, end = self._get(app + 0x6CDB48, '<QQ')
+        begin, end = self._get(app + 0x6CDBE8, '<QQ')
         size = end - begin
         if not begin or size <= 0 or size % 24 or size > 24 * 4096:
             return None
         rows = self.read(begin, size)
-        if self._get(app + 0x6CDB48, '<QQ') != (begin, end):
+        if self._get(app + 0x6CDBE8, '<QQ') != (begin, end):
             return None
         for offset in range(0, size, 24):
             if rows[offset:offset + 16] != key:

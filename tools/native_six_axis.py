@@ -13,9 +13,9 @@ from command_mailbox import reader_code, STRICT_ROTATION
 SIZE = 512
 PAYLOAD = 64
 DEADLINE, MASK, VALUES, GENERATION = 64, 72, 80, 104
-SITES = {0x179194d:bytes.fromhex('0f118690760000'),
-         0x1792c3a:bytes.fromhex('488d8ec0600000'),
-         0x179418b:THROTTLE_ORIGINAL, 0x17978e8:ROLL_ORIGINAL}
+SITES = {0x17949fd:bytes.fromhex('0f118690760000'),
+         0x1795cea:bytes.fromhex('488d8ec0600000'),
+         0x179723b:THROTTLE_ORIGINAL, 0x179a998:ROLL_ORIGINAL}
 
 
 def save(c):
@@ -64,8 +64,8 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot)+bytes.fromhex('48 85 c0'))
     c.relative(b'\x0f\x84',reject)
-    app_modes=(('83 b8 a8 be 89 00 00',b'\x0f\x85'),)
-    if not allow_combat_input:app_modes+=(('80 b8 6d aa 57 00 00',b'\x0f\x85'),)
+    app_modes=(('83 b8 68 bf 89 00 00',b'\x0f\x85'),)
+    if not allow_combat_input:app_modes+=(('80 b8 0d ab 57 00 00',b'\x0f\x85'),)
     for instruction,condition in app_modes:
         c.emit(bytes.fromhex(instruction));c.relative(condition,reject)
     if allow_planetary_input or allow_combat_input or allow_power_input:
@@ -81,7 +81,7 @@ def frame_guard(c, frame, mailbox, tick, pilot, global_slot, reject='out', allow
         c.emit(b'\x49\xbb'+struct.pack('<Q',mailbox))
         c.emit(bytes.fromhex('49 83 7b 10 00'));c.relative(b'\x0f\x85',reject)
         for instruction in ('83 be 5c 67 00 00 00', '80 be 30 67 00 00 00',
-                            '80 b8 6d aa 57 00 00'):
+                            '80 b8 0d ab 57 00 00'):
             c.emit(bytes.fromhex(instruction));c.relative(b'\x0f\x85',reject)
         check(c,b'\xf7\x05',frame+MASK,struct.pack('<I',0x7ffffff8),reject=reject)
         for index in range(6):
@@ -117,7 +117,7 @@ def cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,global_slot,steering_limi
     if (steering_limit,throttle_limit) not in ((.25,.5),(1.,1.)):raise ValueError('Unknown native authority')
     if not 0<turn_scale<=1:raise ValueError('Turn rate scale')
     c=Code(cave)
-    rva={'latch':0x179194d,'processed':0x1792c3a,'throttle':0x179418b,'roll':0x17978e8}[kind]
+    rva={'latch':0x17949fd,'processed':0x1795cea,'throttle':0x179723b,'roll':0x179a998}[kind]
     original=SITES[rva]
     if kind=='latch':c.emit(original)
     save(c)
@@ -232,7 +232,7 @@ class SixAxisPatches:
             site=base+rva;original=SITES[rva]
             if pm.read_bytes(site,len(original))!=original:raise RuntimeError('Foreign/original site mismatch')
             cave=allocate_near(pm.process_handle,site)
-            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f6c288,steering_limit,throttle_limit,turn_scale,
+            code=cave_bytes(kind,cave,site,frame,mailbox,tick,pilot,base+0x6f71768,steering_limit,throttle_limit,turn_scale,
                             allow_planetary_input,allow_combat_input,allow_power_input,allow_poi_input)
             pm.write_bytes(cave,code,len(code))
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('Cave readback failed')

@@ -91,8 +91,8 @@ def force_bytes(cave,site,data,get_tick,global_slot,bound=.05,integration=None):
     for instruction,condition in modes:
         c.emit(bytes.fromhex(instruction));jump(condition)
     c.emit(b'\x48\xa1'+struct.pack('<Q',global_slot));c.emit(bytes.fromhex('48 85 c0'));jump(b'\x0f\x84')
-    app_modes=(('83 b8 a8 be 89 00 00',b'\x0f\x85'),)
-    if not allow_combat_input:app_modes+=(('80 b8 6d aa 57 00 00',b'\x0f\x85'),)
+    app_modes=(('83 b8 68 bf 89 00 00',b'\x0f\x85'),)
+    if not allow_combat_input:app_modes+=(('80 b8 0d ab 57 00 00',b'\x0f\x85'),)
     for instruction,condition in app_modes:
         c.emit(bytes.fromhex(instruction));jump(condition)
     reason(4)
@@ -164,7 +164,7 @@ class MavPatch:
         self.block=self.cave+(0x400 if integration else 0xc00);self.force=self.block+FORCE;self.patches={}
         for i,(rva,original) in enumerate(SITES.items()):
             site=self.base+rva;cave=force_cave if i else self.cave
-            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6f6c288,bound,integration)
+            code=capture_bytes(cave,site,self.block) if i==0 else force_bytes(cave,site,self.block,get_tick,self.base+0x6f71768,bound,integration)
             pm.write_bytes(cave,code,len(code))
             if not K.FlushInstructionCache(pm.process_handle,cave,len(code)):raise OSError('Cache flush failed')
             if pm.read_bytes(cave,len(code))!=code:raise RuntimeError('MAV cave readback differs')
@@ -172,7 +172,7 @@ class MavPatch:
             self.patches[rva]={'site':site,'original':original.hex(),'patch':patch.hex(),'code':code.hex()}
         state=initial_state(ship,lease,bound);pm.write_bytes(self.block,state,len(state))
         if not K.FlushInstructionCache(pm.process_handle,self.cave,0x1000):raise OSError('Cache flush failed')
-        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'185034/26540391','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
+        self.metadata={'pid':pid,'block':self.block,'force':self.force,'cave':self.cave,'sites':self.patches,'build':'186923/26924890','bounds':{'target_norm':limit,'addition_norm':limit},'retention':'Allocation retained inert until process exit'}
         with Path(manifest).open('x') as f:json.dump(self.metadata,f,indent=2)
     def install(self,writer=replace_code):
         for item in self.patches.values():writer(self.pm,self.pid,item['site'],bytes.fromhex(item['original']),bytes.fromhex(item['patch']))
