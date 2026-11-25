@@ -2166,15 +2166,20 @@ class AbsoluteHOTAS(Mod):
         """UI thread, in a headset: is this GUI frame the ship HUD on its render-to-texture path (T129)? Only with
         Experimental VR and HUD in VR on, and only while this build's HUD code is where vr_mode expects it."""
         if not self.vr_state[1] or not self.store.values.get('vr-hud',True):return False
+        if not self._vr_hud_pinned() or not vr_mode.hud_frame(int(_internal.BASE_ADDRESS),this,caller):return False
+        self.vr_hud_frames=getattr(self,'vr_hud_frames',0)+1
+        return True
+
+    def _vr_hud_pinned(self):
+        """UI thread: this build's HUD code is where vr_mode expects it (the ship-forward layer and the crosshair layer).
+        Checked once and logged; the HUD in VR and the VR crosshair each ask, so neither needs the other switched on."""
         ok=getattr(self,'vr_hud_ok',None)
         if ok is None:
             try:ok=vr_mode.verify_hud(C.string_at,int(_internal.BASE_ADDRESS))
             except BaseException:ok=False
             self.vr_hud_ok=ok
             self.log("VR HUD: ready to draw on the game's ship-forward HUD layer" if ok else 'VR HUD off: the HUD code differs from this build')
-        if not ok or not vr_mode.hud_frame(int(_internal.BASE_ADDRESS),this,caller):return False
-        self.vr_hud_frames=getattr(self,'vr_hud_frames',0)+1
-        return True
+        return ok
 
     def _vr_flat_step(self,flying):
         """Worker: hold the game's 'VR hands are the active input' test at false only while the player is piloting,
@@ -3357,10 +3362,11 @@ class AbsoluteHOTAS(Mod):
             if self.hud_errors>=3:self.hud_state='disabled after repeated drawing errors';self.log('flight HUD disabled after repeated drawing errors')
 
     def _vr_crosshair_frame(self,this,caller):
-        """UI thread, in a headset: is this the crosshair layer's frame, with Experimental VR, HUD in VR and VR crosshair
-        on, and this build's code where vr_mode expects it?"""
+        """UI thread, in a headset: is this the crosshair layer's frame, with Experimental VR and VR crosshair on, and
+        this build's code where vr_mode expects it? Any flight model, and whatever HUD in VR is set to: the crosshair
+        has its own switch on the Flight Model page (the HUD page, and with it HUD in VR, is Sultan only)."""
         v=self.store.values
-        if not self.vr_state[1] or not v.get('vr-crosshair',False) or not v.get('vr-hud',True) or not getattr(self,'vr_hud_ok',False):return False
+        if not self.vr_state[1] or not v.get('vr-crosshair',False) or self.hud_state!='ready' or not self._vr_hud_pinned():return False
         return vr_mode.crosshair_frame(int(_internal.BASE_ADDRESS),this,caller)
 
     def _draw_vr_crosshair(self,ctx):
