@@ -40,7 +40,7 @@ AIR_STYLE_GROUPS=(('SPEED AND ENGINES',('air-terminal-speed','air-engine-loss','
                   ('HANDLING',('air-nose-authority','air-slip-authority','air-side-drag','air-weathervane','air-sway-damping',
                                'air-buffet','air-overspeed-penalty')))
 AIR_STYLE_KEYS=tuple(k for _,keys in AIR_STYLE_GROUPS for k in keys)
-HUD_GROUPS=((None,('vr-hud','vr-crosshair','vr-hud-test','hud-scale','hud-font')),
+HUD_GROUPS=((None,('vr-hud','vr-hud-test','hud-scale','hud-font')),
             ('FLIGHT READOUTS',('hud-mode-tag','hud-brake-warning','hud-speed-readout','hud-target-relative','hud-velocity-marker','hud-boost-gauge','hud-g-meter')),
             ('PLANETARY',('hud-planetary','hud-altitude','hud-vertical-speed','hud-atmosphere','hud-trim','hud-landing')))
 HUD_CONTROLS=tuple(k for _,keys in HUD_GROUPS for k in keys)
@@ -517,7 +517,9 @@ def throttle_controls():
 
 
 def route_controls(route):
-    if route=='flight-model':return ['flight-controls-enabled','vr-experimental','vr-flat-input','vr-desk-input','vr-menu-pointer','vr-menu-mouse','vr-quick-menu-hud','flight-model','sultan-coupled','sultan-power-modes']
+    # vr-crosshair sits here, not on the HUD page: that page is Sultan only, and the crosshair is for every flight model
+    # (the game's own VR crosshair needs a hand on the in-world stick, which a HOTAS pilot never has).
+    if route=='flight-model':return ['flight-controls-enabled','vr-experimental','vr-flat-input','vr-desk-input','vr-menu-pointer','vr-menu-mouse','vr-quick-menu-hud','vr-crosshair','flight-model','sultan-coupled','sultan-power-modes']
     if route=='flight-axes':
         return (['turn-rate-scale','strafe-authority','launch-control']+[c.id for c in CONTROLS if any(c.id==f'bind-{ch}-axis' or c.id.startswith(ch+'-') for ch,_ in AXIS_CHANNELS)]
                 +throttle_controls())
