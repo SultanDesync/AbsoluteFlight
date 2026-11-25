@@ -17,19 +17,19 @@ import math
 import struct
 import threading
 
-APP_GLOBAL = 0x6F6C288
-TABLE_FROM_DATA = 0x4CD580 + 0x200990 + 0x60
+APP_GLOBAL = 0x6F71768
+TABLE_FROM_DATA = 0x4CD620 + 0x200990 + 0x60
 PINS = {
     # mov rcx,[NMS+0x6F60828]; add rcx,0x4CD580; call cGcSimulation::Construct
-    0x1B3FE7: bytes.fromhex('488b0d9a82db064881c180d54c00e856db2201'),
+    0x1B3BB7: bytes.fromhex('488b0daadbdb064881c120d64c00e826fe2201'),
     # lea rcx,[rdi+0x200990]; call cGcAISpaceshipManager::Construct
-    0x13E1EEA: bytes.fromhex('488d8f90092000e84a253700'),
+    0x13E3D8A: bytes.fromhex('488d8f90092000e8aa233700'),
     # call LoadAttackTable; xor r12d,r12d; mov [rbx+0x60],rax
-    0x175446A: bytes.fromhex('e841e600004533e448894360'),
+    0x175616A: bytes.fromhex('e841e600004533e448894360'),
     # follower reads MaxSpeed +0x24, MaxSpeedBrake +0x28, DirectionBrake +0x18
-    0x17C25F4: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
-    0x17C2645: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
-    0x17C26BE: bytes.fromhex('f3410f596620'),  # Force +0x20
+    0x17C56A4: bytes.fromhex('f3450f105624450f2fc20f5900f3450f107628f3450f107e18'),
+    0x17C56F5: bytes.fromhex('f3410f10561c'),  # Falloff +0x1C
+    0x17C576E: bytes.fromhex('f3410f596620'),  # Force +0x20
 }
 # cGcShipAIAttackDataTable dynamic arrays: (pointer offset, element stride). Count is i32 at +8.
 ARRAYS = {'behaviour': (0x40, 0xD0), 'engine': (0x60, 0x48)}

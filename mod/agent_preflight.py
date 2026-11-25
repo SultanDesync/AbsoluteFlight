@@ -14,8 +14,8 @@ import re
 import threading
 import xml.etree.ElementTree as ET
 
-FILE_VERSION='185034'
-STEAM_BUILDID='26540391'
+FILE_VERSION='186686'
+STEAM_BUILDID='26918301'
 
 
 class PreflightError(RuntimeError):

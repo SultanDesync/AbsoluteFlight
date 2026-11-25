@@ -40,22 +40,22 @@ del _profile, _delay, _refill
 PINS = {
     **PILOT_PINS,
     # Fire lookup, own shootable and health-percent calculation, then +BC threshold.
-    0x174DD27: bytes.fromhex('e824a20000488bf84885c0'),
-    0x174DD38: bytes.fromhex('0fbf0d5dcaa303488b5608e828d264014885c0'),
-    0x174DD4D: bytes.fromhex('488bc8e87b3b27fff30f109fbc0000000f2fd87231'),
+    0x174FA27: bytes.fromhex('e824a20000488bf84885c0'),
+    0x174FA38: bytes.fromhex('0fbf0dad00a403488b5608e828de64014885c0'),
+    0x174FA4D: bytes.fromhex('488bc8e8fb3127fff30f109fbc0000000f2fd87231'),
     # The selected branch requests beam mode1; native gun cadence follows otherwise.
-    0x174DD77: bytes.fromhex('ba01000000488bce0f1040300f5840400f29442420e8fffaffff'),
-    0x174DD93: bytes.fromhex('f30f1005691baf05f30f5c86fc7c00000f2f87b800000076114c8bcb4c8bc5498bd6488bcee823000000'),
+    0x174FA77: bytes.fromhex('ba01000000488bce0f1040300f5840400f29442420e8fffaffff'),
+    0x174FA93: bytes.fromhex('f30f10050953af05f30f5c86fc7c00000f2f87b800000076114c8bcb4c8bc5498bd6488bcee823000000'),
     # Health percent is clamped 0..100, including fallback100 for nonpositive max HP.
-    0x9C18D0: bytes.fromhex('448b81700300004585c07e40418bd066410f6ec02b9110040000b8000000000f5bc00f49c2660f6ec80f57d20f5bc9f30f5ec8f30f1005d55b2304f30f5fd1f30f5dc2f30f590529612304c3f30f100520612304c3'),
+    0x9C2C50: bytes.fromhex('448b81700300004585c07e40418bd066410f6ec02b9110040000b8000000000f5bc00f49c2660f6ec80f57d20f5bc9f30f5ec8f30f1005bd8a2304f30f5fd1f30f5dc2f30f590511902304c3f30f100508902304c3'),
     # Shield lookup uses the same attack-table pointer, dynamic array+70/count+78.
-    0x17CF9E6: bytes.fromhex('488b8870df6c004863417885c00f8e060100004c8b52084c8bd848895c2450418bd0488b5970'),
+    0x17D2A96: bytes.fromhex('488b8810e06c004863417885c00f8e060100004c8b52084c8bd848895c2450418bd0488b5970'),
     # Stride38 and retained row pointer at shield-component+70.
-    0x17CFA38: bytes.fromhex('4963c0486bc8384803cb0f84b200000048837e480048894e70'),
+    0x17D2AE8: bytes.fromhex('4963c0486bc8384803cb0f84b200000048837e480048894e70'),
     # Reads RechargeTime+2C, skips <=0, compares time since damage to delay+28.
-    0x17CFE9F: bytes.fromhex('488b4770f30f10502c410f2fd376674c8b5f48f3410f108bdc040000410f2fcb7612f30f10053bfaa605f30f5cc10f2f40287242'),
+    0x17D2F4F: bytes.fromhex('488b4770f30f10502c410f2fd376674c8b5f48f3410f108bdc040000410f2fcb7612f30f10052b1ea705f30f5cc10f2f40287242'),
     # Amount restored is trunc_i32(min(maxHealth*dt/RechargeTime, missingHealth)).
-    0x17CFED3: bytes.fromhex('66410f6ec8498bcb0f5bc9452bc266410f6ec0f3410f59ca0f5bc0f30f5ecaf30f5dc8f30f2cd1e8e1dbdeff'),
+    0x17D2F83: bytes.fromhex('66410f6ec8498bcb0f5bc9452bc266410f6ec0f3410f59ca0f5bc0f30f5ecaf30f5dc8f30f2cd1e8c1c9deff'),
 }
 
 

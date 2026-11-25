@@ -123,7 +123,7 @@ class WinPipe:
     def connect_client(self, name):
         # Identification-only SQOS prevents a server impersonating the client.
         handle = self.k.CreateFileW(validate_name(name), 0xC0000000, 0, None, 3,
-                                    0x100000 | 0x10000, None)
+                                    0xFFF40 | 0x10000, None)
         if handle in (None, C.c_void_p(-1).value):
             raise C.WinError(C.get_last_error())
         mode = C.c_uint32(1)

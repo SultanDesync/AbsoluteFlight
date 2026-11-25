@@ -16,7 +16,7 @@ new builds and tester chat. See "Reporting a problem" below.
 
 ## What you need
 
-- No Man's Sky on **Steam, build 185034** (Steam build id 26540391). On any other build the mod
+- No Man's Sky on **Steam, build 186686** (Steam build id 26918301). On any other build the mod
   stays off and the game plays as normal. If the pause menu's Options list looks wrong after a game update,
   delete `GAMEDATA\MODS\AbsoluteFlight\UI` until a new release catches up.
 - Windows 10 or 11, 64-bit.

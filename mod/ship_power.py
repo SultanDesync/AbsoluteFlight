@@ -13,7 +13,7 @@ import ctypes as C
 
 POWER_OFFSET = 0x675C  # ship: power selection (dword)
 POWER_TIME_OFFSET = 0x6760  # ship: game time of the last change (float)
-GAME_TIME = 0x723F904  # module: the game time the handler stamps (float)
+GAME_TIME = 0x7244DA4  # module: the game time the handler stamps (float)
 MODES = ('balanced', 'weapons', 'engines', 'shields')
 # Button action -> what it asks for: a step round the game's own order, or one mode.
 ACTIONS = {'mod.power-next': 'next', 'mod.power-previous': 'previous',

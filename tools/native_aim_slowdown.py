@@ -23,10 +23,10 @@ from command_mailbox import CommandMailbox, reader_code
 from native_roll_patch import Code, K
 from native_six_axis import save, restore
 
-SITE_RVA = 0x144C232
+SITE_RVA = 0x144E142
 ORIGINAL = bytes.fromhex('f30f10442438410f28c8')
-CALLER_RVA = 0x1792BEB
-APP_GLOBAL = 0x6F6C288
+CALLER_RVA = 0x1795C9B
+APP_GLOBAL = 0x6F71768
 PRODUCER_OFFSET = 0x60D0
 FACTOR_OFFSET = 0x64
 BLOCK = 0x800
@@ -38,11 +38,11 @@ MAX_GAIN = 1.
 # Exact-build below-entry pins. The producer's saved outer RBP is [RBP+100],
 # and its original return address is [RBP+108], from this prologue.
 PINS = {
-    0x144B061: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
-    0x144BC45: bytes.fromhex('c746640000803f'),
-    0x144C4EB: bytes.fromhex('f30f594e64'),
-    0x144C604: bytes.fromhex('f30f594e64'),
-    0x1792BE6: bytes.fromhex('e86584cbff'),
+    0x144CF71: bytes.fromhex('555657498dabf8feffff4881ecf0010000'),
+    0x144DB55: bytes.fromhex('c746640000803f'),
+    0x144E3FB: bytes.fromhex('f30f594e64'),
+    0x144E514: bytes.fromhex('f30f594e64'),
+    0x1795C96: bytes.fromhex('e8c572cbff'),
 }
 
 _RETAINED = []
@@ -130,8 +130,8 @@ def code_bytes(cave, base, data, frame, flight_mailbox, gain_mailbox, tick,
     # T119/T132: the power selection (ship+0x675C) only scales native engine factors; any value is admitted.
     pointer(0, base+APP_GLOBAL if global_slot is None else global_slot)
     reject('48 8b 00 48 85 c0', b'\x0f\x84')
-    for raw in ('83 b8 a8 be 89 00 00', '83 b8 dc b6 72 00 00',
-                '83 b8 cc b6 72 00 00'):
+    for raw in ('83 b8 68 bf 89 00 00', '83 b8 7c b7 72 00 00',
+                '83 b8 6c b7 72 00 00'):
         reject(raw)
     # T132: any manual-combat value is admitted (it was 0..1).
     pointer(0, tick); c.emit(bytes.fromhex('ff d0'))

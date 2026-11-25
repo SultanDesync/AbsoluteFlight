@@ -9,25 +9,25 @@ import math
 import struct
 import threading
 
-APP_GLOBAL = 0x6F6C288
-HUD = 0x733180
+APP_GLOBAL = 0x6F71768
+HUD = 0x733220
 WIDGET = 0xFE7E0
 PIP_XY = 0xFEC00
 PIP_VISIBLE = 0xFEC15
-CAMERA = 0x92CD50
-PROJECT = 0x6A1DC0
-EXTENT = 0x2DFA270
-EXTENT_OBJECT = 0x930D10
+CAMERA = 0x92CE30
+PROJECT = 0x6A2960
+EXTENT = 0x2DFCBA0
+EXTENT_OBJECT = 0x930DF0
 MAX_AGE_MS = 50
 # Below hooked entries; valid with normal startup hooks and after hot reload.
 PINS = {
-    0x9A8980: bytes.fromhex('e8ab8d4902'),
-    0x2E41750: bytes.fromhex('8d80000000e826cfa3fe488945604885c0750a483945680f'),
-    0x6A1E00: bytes.fromhex('0f1040200f294424600f1048300f294c24700f104040488b'),
-    0x6A1EF6: bytes.fromhex('e8a5287502'),
-    0x998945: bytes.fromhex('e826194602'),
-    0x2DFA27A: bytes.fromhex('488bda488bf9e87b1a3dfd837810050f84dd000000'),
-    0x2DD930: bytes.fromhex('488b41384805100d9300c3'),
+    0x9A9CE0: bytes.fromhex('e8fbc34902'),
+    0x2E46100: bytes.fromhex('8d80000000e8c6b7a3fe488945604885c0750a483945680f'),
+    0x6A29A0: bytes.fromhex('0f1040200f294424600f1048300f294c24700f104040488b'),
+    0x6A2A96: bytes.fromhex('e835467502'),
+    0x999C65: bytes.fromhex('e8362f4602'),
+    0x2DFCBAA: bytes.fromhex('488bda488bf9e87bee3cfd837810050f8421010000'),
+    0x2DDA30: bytes.fromhex('488b41384805f00d9300c3'),
 }
 
 

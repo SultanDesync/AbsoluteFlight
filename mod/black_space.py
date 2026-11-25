@@ -22,7 +22,7 @@ import hashlib
 import struct
 import threading
 
-SKY_GLOBALS = 0x530E8A0          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
+SKY_GLOBALS = 0x5313E20          # NMS.exe RVA of cGcSkyGlobals (generator reads SpaceSkyMin at +0x19A0, 183791)
 BLOCKS = {'SpaceSkyMax': 0x1900, 'SpaceSkyMin': 0x19A0}  # cGcSpaceSkyProperties, 0xA0 each
 BLOCK_SIZE = 0xA0
 # Turned to 0. The two fog colour strengths already ship at 0.
@@ -45,8 +45,8 @@ VANILLA = bytes.fromhex(
 assert len(VANILLA) == 2 * BLOCK_SIZE
 
 # Chain to the generator and the current system, every link in the pinned code below.
-APP_GLOBAL = 0x6F6C288      # cGcApplication::Data (same global as ai_pilots)
-SYSTEM_FROM_APP = 0x72B610  # current solar system
+APP_GLOBAL = 0x6F71768      # cGcApplication::Data (same global as ai_pilots)
+SYSTEM_FROM_APP = 0x72B6B0  # current solar system
 GENERATOR_FROM_SYSTEM = 0x523750
 PALETTE_LISTS = 0x6C0       # generator+0x6C0: common list, +0x6C8: rare list; list = {data ptr, count}
 SYSTEM_SKY = 0x2020         # system sky properties (cGcSpaceSkyProperties copy)
@@ -64,11 +64,11 @@ SYSTEM_TAIL = bytes.fromhex('85eb513f0ad7a33b9a99193f00000000')
 PINS = {
     # mov rax,[NMS+0x6F60828]; ... mov rcx,[rax+0x72B610]; ... seed to rcx+0x2480; add rcx,0x5223b0;
     # call the sky generator 0x1682F00.
-    0x1B52DA: bytes.fromhex('488b05a76fdb060f104580488b8810b6720048894da848894db0488d81e02500000f1181802400004881c150375200488945b8e80e1e4d01'),
+    0x1B4EAA: bytes.fromhex('488b05b7c8db060f104580488b88b0b6720048894da848894db0488d81e02500000f1181802400004881c150375200488945b8e8de3e4d01'),
     # Generator: system sky properties at system+0x2020.
-    0x16871BA: bytes.fromhex('498b0b4881c120200000'),
+    0x1688E5A: bytes.fromhex('498b0b4881c120200000'),
     # Generator: palette list = [generator + set*8 + 0x6C0], entry count at list+8.
-    0x168730C: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
+    0x1688FAC: bytes.fromhex('4863824420000049c1eb20498b8cc1c006000048634108480fafc748c1e820'),
 }
 
 
